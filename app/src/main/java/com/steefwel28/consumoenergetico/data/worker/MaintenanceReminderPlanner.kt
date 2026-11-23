@@ -34,14 +34,32 @@ object MaintenanceReminderPlanner {
         val limit = nowMillis + windowDays * DAY_MILLIS
 
         return units.mapNotNull { unit ->
-            val anchor = maxOf(unit.fechaInstalacionMillis, unit.fechaUltimoMantenimientoMillis)
-            val dueAt = anchor + INTERVAL_DAYS * DAY_MILLIS
+            val dueAt = nextDueAtMillis(unit)
             if (dueAt <= limit) {
                 MaintenanceDue(unitId = unit.id, spaceName = unit.nombreEspacio, dueAtMillis = dueAt)
             } else {
                 null
             }
         }.sortedWith(compareBy({ it.dueAtMillis }, { it.spaceName }))
+    }
+
+    /** Fecha de la próxima limpieza: 90 días desde la instalación o la última limpieza. */
+    fun nextDueAtMillis(unit: AcUnitEntity): Long {
+        val anchor = maxOf(unit.fechaInstalacionMillis, unit.fechaUltimoMantenimientoMillis)
+        return anchor + INTERVAL_DAYS * DAY_MILLIS
+    }
+
+    /**
+     * Días completos hasta el próximo mantenimiento; negativo cuando ya venció.
+     * Sirve para el indicador de Mi Casa, no para decidir la notificación.
+     */
+    fun daysUntilDue(unit: AcUnitEntity, nowMillis: Long): Long {
+        val difference = nextDueAtMillis(unit) - nowMillis
+        return if (difference >= 0) {
+            (difference + DAY_MILLIS - 1) / DAY_MILLIS
+        } else {
+            -((-difference + DAY_MILLIS - 1) / DAY_MILLIS)
+        }
     }
 
     /** Texto único y consolidado; `null` cuando no hay nada que avisar. */

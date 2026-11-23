@@ -18,7 +18,8 @@ import com.steefwel28.consumoenergetico.data.local.db.ConsumoDatabase
 @CraftedBy("steefwel28")
 class AppContainer(context: Context) {
 
-    private val appContext = context.applicationContext
+    /** Contexto de aplicación para las operaciones con archivos y SAF. */
+    val appContext: Context = context.applicationContext
 
     val database: ConsumoDatabase by lazy { ConsumoDatabase.get(appContext) }
 

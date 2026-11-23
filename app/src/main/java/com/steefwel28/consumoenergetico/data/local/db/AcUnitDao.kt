@@ -22,8 +22,14 @@ interface AcUnitDao {
     @Query("SELECT * FROM ac_units")
     suspend fun getAll(): List<AcUnitEntity>
 
+    @Query("SELECT * FROM ac_units WHERE id = :id")
+    suspend fun getById(id: Long): AcUnitEntity?
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(unit: AcUnitEntity): Long
+
+    @Query("DELETE FROM ac_units WHERE id = :id")
+    suspend fun deleteById(id: Long)
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertAll(units: List<AcUnitEntity>)
