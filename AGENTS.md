@@ -38,3 +38,14 @@
 - **Ubicaciones Dinámicas (`CustomLocationEntity`):** Selector táctil con ubicaciones base (`Habitación`, `Sala`, `Cocina`, `Comedor`, `Otros`). Si elige `Otros`, escribe un nombre personalizado que se persiste en Room para aparecer automáticamente en futuras selecciones.
 - **Marca y Modelo:** El texto de ejemplo (placeholder) en los campos de marca/modelo debe ser siempre `Hisense` (ej. `Hisense ATR362MA`).
 - **Exportación Contextual (`ENSA` | `Naturgy` | `VS`):** Al tocar el botón de compartir (PDF o PNG), la infografía generada refleja exactamente el modo activo en pantalla: solo ENSA, solo Naturgy, o la comparativa visual dual `VS` con ambas empresas y su diferencia en dólares.
+
+## Reglas de Taller Panamá (Metraje, 220V y Protectores Reales)
+- **Rangos comerciales por metraje base (Panamá):**
+  - `9,000 BTU`: hasta `10 m²`
+  - `12,000 BTU`: `11` a `16 m²`
+  - `18,000 BTU`: `17` a `22 m²`
+  - `24,000 BTU`: `23` a `32 m²`
+  - `28,000 BTU` (referencia tipo Panasonic): `33` a `38 m²`
+  - `36,000 BTU`: `39` a `45 m²` (tope máximo `50 m²` bien aislado).
+- **Voltaje y Protección Eléctrica:** Todos los Splits modernos en Panamá operan a **220V** (110V queda solo como nota excepcional para equipos viejos No-Inverter). Para equipos Inverter, recomendar como prioridad protector de **línea directa (borneras) específico para Inverter** citando modelos reales: **AVTEK `SPC-PEBAS-B230`** (o `PBAS-B230-LED`, 220V, 30A, **2,100 J**, retardo 10s) y como alternativa **Forza `FVP-6630B`** (220V, 30A, 880 J, retardo ajustable 15s/30s/3m). Para equipos No-Inverter, indicar protector convencional de línea directa (ej. **AVTEK `SPC-PABB-B230`** 525 J / 3 min) o de enchufe según sea 220V o 110V.
+- **Animaciones Globales:** `PixelSpringExpressive` y `rememberPixelHaptics()` deben aplicarse en TODAS las pantallas (`Calcular`, `Recomendar`, `Mi Casa` y `Ajustes`), en el cambio de pestañas del `NavigationBar` y en cada diálogo o hoja modal.

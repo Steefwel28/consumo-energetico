@@ -227,6 +227,7 @@ data class CalculateUiState(
                 ElectricalSpecAdvisor.advise(
                     btuPerHour = btu.roundToInt(),
                     nominalWatts = nominalWatts,
+                    inverter = inverter,
                 )
             }.getOrNull()
         }

@@ -33,7 +33,8 @@ object DiagnosticNarrativeBuilder {
         val factors = recommendation.factors
         val explanation = buildString {
             append("Tu espacio mide ${area(recommendation.areaSquareMeters)} m² en el clima húmedo de Panamá, ")
-            append("así que partimos de 680 BTU/h por m²: ${btu(recommendation.baseBtu)} BTU/h de base. ")
+            append("y el rango comercial de taller lo cubre con un equipo base de ")
+            append("${btu(recommendation.baseBtu)} BTU/h. ")
             if (factors.isEmpty()) {
                 append("No marcaste detalles del lugar, así que no hay recargos. ")
             } else {
@@ -44,8 +45,15 @@ object DiagnosticNarrativeBuilder {
             append("El cálculo exacto queda en ${btu(recommendation.exactBtu)} BTU/h, ")
             append("y el escalón comercial que te cubre sin quedarte corto es ")
             append("${btu(recommendation.commercialBtu.toDouble())} BTU/h. ")
-            if (recommendation.exactBtu > recommendation.commercialBtu) {
-                append("Ese cálculo supera los 36,000 BTU/h: conviene dividir el espacio o instalar dos equipos.")
+            when {
+                recommendation.exactBtu > recommendation.commercialBtu ->
+                    append("Ese cálculo supera los 36,000 BTU/h: conviene dividir el espacio o instalar dos equipos.")
+
+                recommendation.areaSquareMeters > AcSpaceRecommender.MAX_WELL_INSULATED_SQUARE_METERS ->
+                    append("Con más de 50 m² ningún split de línea residencial basta: divide el espacio o instala dos equipos.")
+
+                recommendation.areaSquareMeters > AcSpaceRecommender.MAX_SQUARE_METERS ->
+                    append("Entre 45 y 50 m² el split de 36,000 BTU/h solo rinde con aislamiento y sombra; si no, divide el espacio.")
             }
         }
 

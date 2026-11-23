@@ -2,7 +2,9 @@ package com.steefwel28.consumoenergetico.data.backup
 
 import com.steefwel28.consumoenergetico.core.signature.CraftedBy
 import com.steefwel28.consumoenergetico.data.local.db.AcUnitEntity
+import com.steefwel28.consumoenergetico.data.local.db.CustomLocationEntity
 import com.steefwel28.consumoenergetico.data.local.db.MaintenanceLogEntity
+import com.steefwel28.consumoenergetico.data.local.db.PropertyGroupEntity
 import com.steefwel28.consumoenergetico.domain.calculator.PanamaUtility
 import com.steefwel28.consumoenergetico.domain.units.LengthUnit
 import com.steefwel28.consumoenergetico.domain.units.ShortLengthUnit
@@ -23,6 +25,8 @@ data class BackupSnapshot(
     val baseMonthlyKwh: Double,
     val units: List<AcUnitEntity>,
     val logs: List<MaintenanceLogEntity>,
+    val groups: List<PropertyGroupEntity> = emptyList(),
+    val locations: List<CustomLocationEntity> = emptyList(),
 )
 
 /**
@@ -31,14 +35,18 @@ data class BackupSnapshot(
  * El decodificador es estricto a propósito: verifica firma, esquema, tipos,
  * ids repetidos y que cada limpieza pertenezca a un equipo existente. Un
  * archivo inválido lanza [BackupFormatException] antes de tocar Room.
+ *
+ * El esquema 2 añade grupos/propiedades y ubicaciones personalizadas; los
+ * archivos del esquema 1 se siguen importando y caen en "Mi Casa"/"Sala".
  */
 @CraftedBy("steefwel28")
 object BackupCodec {
 
-    const val SCHEMA_VERSION = 1
+    const val SCHEMA_VERSION = 2
     const val CRAFTED_BY = "steefwel28"
 
     fun encode(snapshot: BackupSnapshot): String = buildString {
+        require(snapshot.groups.isNotEmpty()) { "Un respaldo necesita al menos un grupo." }
         append("{\n")
         append("  \"crafted_by\": \"$CRAFTED_BY\",\n")
         append("  \"schema_version\": $SCHEMA_VERSION,\n")
@@ -51,6 +59,18 @@ object BackupCodec {
         append("  },\n")
         append("  \"utility\": \"${snapshot.utility.name}\",\n")
         append("  \"base_monthly_kwh\": ${number(snapshot.baseMonthlyKwh)},\n")
+        append("  \"property_groups\": [\n")
+        snapshot.groups.forEachIndexed { index, group ->
+            append(group.toJson())
+            append(if (index < snapshot.groups.lastIndex) ",\n" else "\n")
+        }
+        append("  ],\n")
+        append("  \"custom_locations\": [\n")
+        snapshot.locations.forEachIndexed { index, location ->
+            append(location.toJson())
+            append(if (index < snapshot.locations.lastIndex) ",\n" else "\n")
+        }
+        append("  ],\n")
         append("  \"ac_units\": [\n")
         snapshot.units.forEachIndexed { index, unit ->
             append(unit.toJson())
@@ -73,7 +93,7 @@ object BackupCodec {
             throw BackupFormatException("El respaldo no está firmado por $CRAFTED_BY.")
         }
         val version = root.long("schema_version")
-        if (version != SCHEMA_VERSION.toLong()) {
+        if (version < 1L || version > SCHEMA_VERSION.toLong()) {
             throw BackupFormatException("Versión de esquema no soportada: $version.")
         }
 
@@ -91,8 +111,46 @@ object BackupCodec {
         requireNonNegative(baseMonthlyKwh, "base_monthly_kwh")
         requireNonNegative(exportedAtMillis.toDouble(), "exported_at_millis")
 
+        val groups = if (version >= 2L) {
+            root.array("property_groups").mapIndexed { index, element ->
+                element.asObject("property_groups[$index]").toGroup()
+            }
+        } else {
+            listOf(
+                PropertyGroupEntity(
+                    id = PropertyGroupEntity.DEFAULT_ID,
+                    nombreGrupo = PropertyGroupEntity.DEFAULT_NAME,
+                    distribuidora = PanamaUtility.ENSA,
+                    consumoBaseKwh = 0.0,
+                ),
+            )
+        }
+        val locations = if (version >= 2L) {
+            root.array("custom_locations").mapIndexed { index, element ->
+                element.asObject("custom_locations[$index]").toLocation()
+            }
+        } else {
+            emptyList()
+        }
+
+        val groupsById = groups.associateBy { it.id }
+        if (groupsById.size != groups.size) {
+            throw BackupFormatException("Hay grupos con id repetido.")
+        }
+        if (groupsById.isEmpty()) {
+            throw BackupFormatException("El respaldo no trae ningún grupo.")
+        }
+        val locationIds = locations.map { it.id }
+        if (locationIds.size != locationIds.toSet().size) {
+            throw BackupFormatException("Hay ubicaciones con id repetido.")
+        }
+        val locationNames = locations.map { it.nombreUbicacion }
+        if (locationNames.size != locationNames.toSet().size) {
+            throw BackupFormatException("Hay ubicaciones con el mismo nombre.")
+        }
+
         val units = root.array("ac_units").mapIndexed { index, element ->
-            element.asObject("ac_units[$index]").toUnit()
+            element.asObject("ac_units[$index]").toUnit(version, groupsById.keys)
         }
         val logs = root.array("maintenance_logs").mapIndexed { index, element ->
             element.asObject("maintenance_logs[$index]").toLog()
@@ -119,8 +177,18 @@ object BackupCodec {
             baseMonthlyKwh = baseMonthlyKwh,
             units = units,
             logs = logs,
+            groups = groups,
+            locations = locations,
         )
     }
+
+    private fun PropertyGroupEntity.toJson(): String =
+        "    {\"id\": $id, \"nombre_grupo\": \"${escape(nombreGrupo)}\", " +
+            "\"distribuidora\": \"${distribuidora.name}\", " +
+            "\"consumo_base_kwh\": ${number(consumoBaseKwh)}}"
+
+    private fun CustomLocationEntity.toJson(): String =
+        "    {\"id\": $id, \"nombre_ubicacion\": \"${escape(nombreUbicacion)}\"}"
 
     private fun AcUnitEntity.toJson(): String =
         "    {\"id\": $id, \"nombre_espacio\": \"${escape(nombreEspacio)}\", " +
@@ -128,14 +196,36 @@ object BackupCodec {
             "\"seer\": ${seer?.let { number(it) } ?: "null"}, \"es_inverter\": $esInverter, " +
             "\"voltaje\": $voltaje, \"fecha_instalacion_millis\": $fechaInstalacionMillis, " +
             "\"fecha_ultimo_mantenimiento_millis\": $fechaUltimoMantenimientoMillis, " +
-            "\"consumo_estimado_kwh_mes\": ${number(consumoEstimadoKwhMes)}}"
+            "\"consumo_estimado_kwh_mes\": ${number(consumoEstimadoKwhMes)}, " +
+            "\"group_id\": $groupId, \"ubicacion\": \"${escape(ubicacion)}\"}"
 
     private fun MaintenanceLogEntity.toJson(): String =
         "    {\"id\": $id, \"ac_unit_id\": $acUnitId, \"fecha_millis\": $fechaMillis, " +
             "\"nota\": \"${escape(nota)}\"}"
 
-    // shortcut: el respaldo v1 restaura equipos como "Mi Casa"/"Sala"; incluir grupos y ubicaciones cuando se suba el esquema.
-    private fun Map<String, Json>.toUnit(): AcUnitEntity {
+    private fun Map<String, Json>.toGroup(): PropertyGroupEntity {
+        val name = string("nombre_grupo").trim()
+        if (name.isEmpty()) throw BackupFormatException("Un grupo tiene el nombre vacío.")
+        val base = double("consumo_base_kwh")
+        requireNonNegative(base, "consumo_base_kwh de '$name'")
+        return PropertyGroupEntity(
+            id = long("id"),
+            nombreGrupo = name,
+            distribuidora = enumValue("distribuidora"),
+            consumoBaseKwh = base,
+        )
+    }
+
+    private fun Map<String, Json>.toLocation(): CustomLocationEntity {
+        val name = string("nombre_ubicacion").trim()
+        if (name.isEmpty()) throw BackupFormatException("Una ubicación tiene el nombre vacío.")
+        return CustomLocationEntity(id = long("id"), nombreUbicacion = name)
+    }
+
+    private fun Map<String, Json>.toUnit(
+        version: Long,
+        groupIds: Set<Long>,
+    ): AcUnitEntity {
         val name = string("nombre_espacio").trim()
         if (name.isEmpty()) throw BackupFormatException("Un equipo tiene el nombre vacío.")
         val btu = long("btu").toInt()
@@ -154,6 +244,13 @@ object BackupCodec {
         val monthlyKwh = double("consumo_estimado_kwh_mes")
         requireNonNegative(monthlyKwh, "consumo_estimado_kwh_mes de '$name'")
 
+        val groupId = if (version >= 2L) long("group_id") else PropertyGroupEntity.DEFAULT_ID
+        if (groupId !in groupIds) {
+            throw BackupFormatException("El equipo '$name' apunta a un grupo que no existe.")
+        }
+        val location = if (version >= 2L) string("ubicacion").trim() else "Sala"
+        if (location.isEmpty()) throw BackupFormatException("El equipo '$name' no tiene ubicación.")
+
         return AcUnitEntity(
             id = long("id"),
             nombreEspacio = name,
@@ -165,6 +262,8 @@ object BackupCodec {
             fechaInstalacionMillis = installedOn,
             fechaUltimoMantenimientoMillis = maintainedOn,
             consumoEstimadoKwhMes = monthlyKwh,
+            groupId = groupId,
+            ubicacion = location,
         )
     }
 

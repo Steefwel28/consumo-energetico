@@ -17,4 +17,13 @@ interface CustomLocationDao {
 
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insert(location: CustomLocationEntity): Long
+
+    @Query("SELECT * FROM custom_locations")
+    suspend fun getAll(): List<CustomLocationEntity>
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertAll(locations: List<CustomLocationEntity>)
+
+    @Query("DELETE FROM custom_locations")
+    suspend fun deleteAll()
 }

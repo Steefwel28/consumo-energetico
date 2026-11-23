@@ -16,7 +16,7 @@ class CalculateUiStateTest {
 
         assertNotNull(state.spec)
         assertTrue(state.monthlyKwh!! > 0.0)
-        assertEquals(110, state.electrical!!.voltage)
+        assertEquals(220, state.electrical!!.voltage)
         assertTrue(state.canSave)
         assertTrue(state.reportNarrative().contains("kWh"))
     }

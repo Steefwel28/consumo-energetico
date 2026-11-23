@@ -18,6 +18,9 @@ interface MaintenanceLogDao {
     @Query("SELECT * FROM maintenance_logs ORDER BY fechaMillis DESC")
     suspend fun getAll(): List<MaintenanceLogEntity>
 
+    @Query("SELECT * FROM maintenance_logs ORDER BY fechaMillis DESC")
+    fun observeAll(): Flow<List<MaintenanceLogEntity>>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(log: MaintenanceLogEntity): Long
 

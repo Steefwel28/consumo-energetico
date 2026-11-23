@@ -4,6 +4,8 @@ import androidx.room.withTransaction
 import com.steefwel28.consumoenergetico.core.signature.CraftedBy
 import com.steefwel28.consumoenergetico.data.datastore.UserPreferencesRepository
 import com.steefwel28.consumoenergetico.data.local.db.ConsumoDatabase
+import com.steefwel28.consumoenergetico.data.local.db.PropertyGroupEntity
+import com.steefwel28.consumoenergetico.domain.calculator.PanamaUtility
 import java.io.File
 import java.io.IOException
 import kotlinx.coroutines.flow.first
@@ -19,7 +21,8 @@ sealed interface BackupRestoreResult {
  * Exporta e importa la base completa más las preferencias.
  *
  * La importación valida el archivo entero con [BackupCodec] antes de abrir
- * la transacción; si algo está corrupto, Room no se toca.
+ * la transacción; si algo está corrupto, Room no se toca. El esquema 2
+ * incluye grupos de propiedades y ubicaciones personalizadas.
  */
 @CraftedBy("steefwel28")
 class LocalBackupManager(
@@ -28,6 +31,28 @@ class LocalBackupManager(
 ) {
 
     suspend fun exportTo(file: File) {
+        file.parentFile?.mkdirs()
+        file.writeText(exportJson())
+    }
+
+    suspend fun importFrom(file: File): BackupRestoreResult = try {
+        importJson(file.readText())
+    } catch (error: IOException) {
+        BackupRestoreResult.Invalid("No se pudo leer el archivo: ${error.message}")
+    }
+
+    /** Texto completo del respaldo, listo para el selector SAF. */
+    suspend fun exportJson(): String {
+        val groups = database.propertyGroupDao().getAll().ifEmpty {
+            val default = PropertyGroupEntity(
+                id = PropertyGroupEntity.DEFAULT_ID,
+                nombreGrupo = PropertyGroupEntity.DEFAULT_NAME,
+                distribuidora = PanamaUtility.ENSA,
+                consumoBaseKwh = 0.0,
+            )
+            database.propertyGroupDao().insert(default)
+            listOf(default)
+        }
         val snapshot = BackupSnapshot(
             exportedAtMillis = System.currentTimeMillis(),
             unitPreferences = preferences.unitPreferences.first(),
@@ -35,23 +60,26 @@ class LocalBackupManager(
             baseMonthlyKwh = preferences.baseMonthlyKwh.first(),
             units = database.acUnitDao().getAll(),
             logs = database.maintenanceLogDao().getAll(),
+            groups = groups,
+            locations = database.customLocationDao().getAll(),
         )
-        file.parentFile?.mkdirs()
-        file.writeText(BackupCodec.encode(snapshot))
+        return BackupCodec.encode(snapshot)
     }
 
-    suspend fun importFrom(file: File): BackupRestoreResult {
+    suspend fun importJson(json: String): BackupRestoreResult {
         val snapshot = try {
-            BackupCodec.decode(file.readText())
+            BackupCodec.decode(json)
         } catch (error: BackupFormatException) {
             return BackupRestoreResult.Invalid(error.message ?: "El respaldo no es válido.")
-        } catch (error: IOException) {
-            return BackupRestoreResult.Invalid("No se pudo leer el archivo: ${error.message}")
         }
 
         database.withTransaction {
             database.maintenanceLogDao().deleteAll()
             database.acUnitDao().deleteAll()
+            database.propertyGroupDao().deleteAll()
+            database.customLocationDao().deleteAll()
+            database.propertyGroupDao().insertAll(snapshot.groups)
+            database.customLocationDao().insertAll(snapshot.locations)
             database.acUnitDao().insertAll(snapshot.units)
             database.maintenanceLogDao().insertAll(snapshot.logs)
         }

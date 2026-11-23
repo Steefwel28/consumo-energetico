@@ -29,4 +29,10 @@ interface PropertyGroupDao {
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(group: PropertyGroupEntity): Long
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertAll(groups: List<PropertyGroupEntity>)
+
+    @Query("DELETE FROM property_groups")
+    suspend fun deleteAll()
 }

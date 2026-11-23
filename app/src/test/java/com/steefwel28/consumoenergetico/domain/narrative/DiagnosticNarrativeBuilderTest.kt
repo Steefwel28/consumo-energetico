@@ -18,16 +18,16 @@ class DiagnosticNarrativeBuilderTest {
         AcSpaceRecommender.recommend(metric, area, details)
 
     @Test
-    fun `explica la base y cada factor activado`() {
+    fun `explica la base de taller y cada factor activado`() {
         val recommendation = recommend(20.0, SpaceDetails(sunExposure = SunExposure.DIRECT_AFTERNOON_SUN))
         val diagnostic = DiagnosticNarrativeBuilder.build(recommendation)
 
         assertTrue(diagnostic.explanation.contains("20 m²"))
-        assertTrue(diagnostic.explanation.contains("13,600 BTU/h"))
-        assertTrue(diagnostic.explanation.contains("Ventanal con sol directo de tarde"))
-        assertTrue(diagnostic.explanation.contains("2,992 BTU/h"))
-        assertTrue(diagnostic.explanation.contains("16,592 BTU/h"))
         assertTrue(diagnostic.explanation.contains("18,000 BTU/h"))
+        assertTrue(diagnostic.explanation.contains("Ventanal con sol directo de tarde"))
+        assertTrue(diagnostic.explanation.contains("3,960 BTU/h"))
+        assertTrue(diagnostic.explanation.contains("21,960 BTU/h"))
+        assertTrue(diagnostic.explanation.contains("24,000 BTU/h"))
         assertNull(diagnostic.undersizedAlert)
     }
 
@@ -39,7 +39,7 @@ class DiagnosticNarrativeBuilderTest {
         val alert = requireNotNull(diagnostic.undersizedAlert)
         assertTrue(alert.contains("Trampa del Aire Pequeño"))
         assertTrue(alert.contains("12,000 BTU/h"))
-        assertTrue(alert.contains("13,600 BTU/h"))
+        assertTrue(alert.contains("18,000 BTU/h"))
         assertTrue(alert.contains("100 %"))
     }
 
@@ -58,9 +58,15 @@ class DiagnosticNarrativeBuilderTest {
     }
 
     @Test
-    fun `sugiere dividir el espacio cuando supera treinta y seis mil BTU`() {
+    fun `sugiere dividir el espacio cuando supera cincuenta metros`() {
         val diagnostic = DiagnosticNarrativeBuilder.build(recommend(area = 60.0))
-        assertTrue(diagnostic.explanation.contains("dividir el espacio"))
+        assertTrue(diagnostic.explanation.contains("divide el espacio"))
         assertEquals(36_000, recommend(area = 60.0).commercialBtu)
+    }
+
+    @Test
+    fun `entre cuarenta y cinco y cincuenta metros avisa del aislamiento`() {
+        val diagnostic = DiagnosticNarrativeBuilder.build(recommend(area = 47.0))
+        assertTrue(diagnostic.explanation.contains("aislamiento"))
     }
 }

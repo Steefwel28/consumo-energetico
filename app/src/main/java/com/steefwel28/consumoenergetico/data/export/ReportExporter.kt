@@ -336,9 +336,21 @@ private class ReportSheet(
         drawTextLine("Breaker dedicado: ${spec.breakerAmps} A · Cable ${spec.wireGauge}")
         drawTextLine("Corriente estimada: ${decimal(spec.estimatedAmps)} A a ${spec.voltage} V")
         drawTextLine(
-            "Protector de voltaje: ≥ ${surgeText(spec.surgeProtectorJoules)} Julios · " +
-                "reconexión ${spec.reconnectDelayMinutes.first}–${spec.reconnectDelayMinutes.last} min",
+            "Protector: ${spec.protector.brandAndModel} · " +
+                "${surgeText(spec.protector.joules)} J · reconexión ${spec.protector.reconnectLabel}",
         )
+        spec.alternativeProtector?.let { alternative ->
+            drawTextLine(
+                "Alternativa: ${alternative.brandAndModel} · ${surgeText(alternative.joules)} J · " +
+                    "reconexión ${alternative.reconnectLabel}",
+            )
+        }
+        spec.voltageNote?.let { note ->
+            wrapped(note, muted, CONTENT_WIDTH).forEach { line ->
+                canvas.drawText(line, MARGIN, y, muted)
+                y += 12f
+            }
+        }
         spec.installationAlert?.let { alert ->
             wrapped(alert, muted, CONTENT_WIDTH).forEach { line ->
                 canvas.drawText(line, MARGIN, y, muted)

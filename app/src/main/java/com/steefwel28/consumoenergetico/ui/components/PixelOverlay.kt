@@ -11,6 +11,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -69,6 +70,8 @@ fun PixelModalBottomSheet(
     content: @Composable ColumnScope.() -> Unit,
 ) {
     BlurBackgroundWhileVisible()
+    val haptics = rememberPixelHaptics()
+    LaunchedEffect(Unit) { haptics.tap() }
     ModalBottomSheet(
         onDismissRequest = onDismissRequest,
         containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
@@ -93,6 +96,8 @@ fun PixelDialog(
     content: (@Composable ColumnScope.() -> Unit)? = null,
 ) {
     BlurBackgroundWhileVisible()
+    val haptics = rememberPixelHaptics()
+    LaunchedEffect(Unit) { haptics.tap() }
     AlertDialog(
         onDismissRequest = onDismissRequest,
         title = { Text(title) },

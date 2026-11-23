@@ -46,6 +46,16 @@ data class BtuFactor(
     val addedBtu: Double,
 )
 
+/**
+ * Rango comercial de taller en Panamá: el metraje máximo que cubre [btu].
+ * Se usa la tabla real de instaladores, no un promedio lineal.
+ */
+@CraftedBy("steefwel28")
+data class CommercialRange(
+    val maxSquareMeters: Double,
+    val btu: Int,
+)
+
 /** Resultado del recomendador: cálculo exacto y escalón comercial. */
 @CraftedBy("steefwel28")
 data class AcRecommendation(
@@ -59,23 +69,34 @@ data class AcRecommendation(
 /**
  * Recomendador de capacidad para aires acondicionados en Panamá.
  *
- * Base tropicalizada: 680 BTU/h por metro cuadrado. Los recargos porcentuales
- * (sol, techo, tubería) se aplican en cascada sobre el subtotal acumulado, de
- * modo que cada [BtuFactor] refleja el BTU real que sumó. Si el cálculo excede
- * 36,000 BTU/h, [AcRecommendation.commercialBtu] se topa en ese escalón y la
- * explicación sugiere dividir el espacio.
+ * La base sale de los rangos comerciales que usan los talleres del país:
+ * 9,000 BTU hasta 10 m², 12,000 (11–16), 18,000 (17–22), 24,000 (23–32),
+ * 28,000 (33–38) y 36,000 (39–45 m²; entre 45 y 50 m² solo con buen
+ * aislamiento). Sobre esa base se suman personas, fuentes de calor y recargos
+ * porcentuales (sol, techo, tubería) en cascada, y el resultado se lleva al
+ * siguiente escalón comercial. Nada de línea residencial pasa de 36,000 BTU/h.
  */
 @CraftedBy("steefwel28")
 object AcSpaceRecommender {
 
-    const val BTU_PER_SQUARE_METER = 680.0
     const val BTU_PER_EXTRA_PERSON = 550.0
     const val EXTRA_PEOPLE_FREE = 2
     const val PIPE_THERMAL_THRESHOLD_METERS = 5.0
     const val PIPE_PENALTY_PER_METER = 0.02
     const val PIPE_PENALTY_CAP = 0.15
+    const val MAX_SQUARE_METERS = 45.0
+    const val MAX_WELL_INSULATED_SQUARE_METERS = 50.0
 
-    val commercialSteps = listOf(9_000, 12_000, 18_000, 24_000, 36_000)
+    val ranges = listOf(
+        CommercialRange(10.0, 9_000),
+        CommercialRange(16.0, 12_000),
+        CommercialRange(22.0, 18_000),
+        CommercialRange(32.0, 24_000),
+        CommercialRange(38.0, 28_000),
+        CommercialRange(45.0, 36_000),
+    )
+
+    val commercialSteps: List<Int> = ranges.map { it.btu }
 
     private const val SQUARE_METERS_PER_SQUARE_FOOT = 0.09290304
 
@@ -106,6 +127,10 @@ object AcSpaceRecommender {
         return build(meters * metersAcross, details, pipeMeters(preferences, details))
     }
 
+    /** Rango comercial que cubre [squareMeters]; `null` si pasa de 45 m². */
+    fun rangeFor(squareMeters: Double): CommercialRange? =
+        ranges.firstOrNull { squareMeters <= it.maxSquareMeters }
+
     private fun pipeMeters(preferences: UnitPreferences, details: SpaceDetails): Double {
         require(details.people >= 0) { "Las personas no pueden ser negativas." }
         require(details.pipeDistance >= 0.0) { "La tubería no puede ser negativa." }
@@ -117,7 +142,7 @@ object AcSpaceRecommender {
         details: SpaceDetails,
         pipeMeters: Double,
     ): AcRecommendation {
-        val base = squareMeters * BTU_PER_SQUARE_METER
+        val base = (rangeFor(squareMeters)?.btu ?: commercialSteps.last()).toDouble()
         val factors = mutableListOf<BtuFactor>()
         var total = base
 
@@ -151,7 +176,7 @@ object AcSpaceRecommender {
             applyPercent(penalty, label)
         }
 
-        val commercial = commercialSteps.firstOrNull { it >= total } ?: commercialSteps.last()
+        val commercial = ranges.firstOrNull { total <= it.btu }?.btu ?: commercialSteps.last()
 
         return AcRecommendation(
             areaSquareMeters = squareMeters,

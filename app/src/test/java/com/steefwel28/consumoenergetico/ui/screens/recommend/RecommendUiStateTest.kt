@@ -12,13 +12,13 @@ import org.junit.Test
 class RecommendUiStateTest {
 
     @Test
-    fun `area en metros produce capacidad y ficha electrica`() {
+    fun `treinta y seis metros cuadrados caen en el escalon de veintiocho mil`() {
         val state = RecommendUiState(areaInput = "36")
 
         val recommendation = state.recommendation!!
 
-        assertEquals(24_480.0, recommendation.exactBtu, 0.001)
-        assertEquals(36_000, recommendation.commercialBtu)
+        assertEquals(28_000.0, recommendation.exactBtu, 0.001)
+        assertEquals(28_000, recommendation.commercialBtu)
         assertEquals(220, state.electrical!!.voltage)
     }
 
@@ -67,6 +67,17 @@ class RecommendUiStateTest {
     @Test
     fun `sin detalles no hay recargos`() {
         assertTrue(RecommendUiState(areaInput = "20").recommendation!!.factors.isEmpty())
+    }
+
+    @Test
+    fun `el interruptor inverter cambia el protector recomendado`() {
+        val inverter = RecommendUiState(areaInput = "20", inverter = true).electrical!!
+        val noInverter = RecommendUiState(areaInput = "20", inverter = false).electrical!!
+
+        assertEquals("AVTEK SPC-PEBAS-B230", inverter.protector.brandAndModel)
+        assertEquals(2_100, inverter.protector.joules)
+        assertEquals("AVTEK SPC-PABB-B230", noInverter.protector.brandAndModel)
+        assertEquals(525, noInverter.protector.joules)
     }
 
     @Test

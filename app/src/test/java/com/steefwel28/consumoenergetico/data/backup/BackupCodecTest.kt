@@ -1,7 +1,9 @@
 package com.steefwel28.consumoenergetico.data.backup
 
 import com.steefwel28.consumoenergetico.data.local.db.AcUnitEntity
+import com.steefwel28.consumoenergetico.data.local.db.CustomLocationEntity
 import com.steefwel28.consumoenergetico.data.local.db.MaintenanceLogEntity
+import com.steefwel28.consumoenergetico.data.local.db.PropertyGroupEntity
 import com.steefwel28.consumoenergetico.domain.calculator.PanamaUtility
 import com.steefwel28.consumoenergetico.domain.units.LengthUnit
 import com.steefwel28.consumoenergetico.domain.units.ShortLengthUnit
@@ -25,6 +27,24 @@ class BackupCodecTest {
         ),
         utility = PanamaUtility.NATURGY,
         baseMonthlyKwh = 240.5,
+        groups = listOf(
+            PropertyGroupEntity(
+                id = 1,
+                nombreGrupo = "Mi Casa",
+                distribuidora = PanamaUtility.ENSA,
+                consumoBaseKwh = 180.0,
+            ),
+            PropertyGroupEntity(
+                id = 2,
+                nombreGrupo = "Trabajo",
+                distribuidora = PanamaUtility.NATURGY,
+                consumoBaseKwh = 240.5,
+            ),
+        ),
+        locations = listOf(
+            CustomLocationEntity(id = 1, nombreUbicacion = "Oficina"),
+            CustomLocationEntity(id = 2, nombreUbicacion = "Balcón"),
+        ),
         units = listOf(
             AcUnitEntity(
                 id = 1,
@@ -37,6 +57,8 @@ class BackupCodecTest {
                 fechaInstalacionMillis = 1_690_000_000_000L,
                 fechaUltimoMantenimientoMillis = 1_695_000_000_000L,
                 consumoEstimadoKwhMes = 121.44,
+                groupId = 1,
+                ubicacion = "Habitación",
             ),
             AcUnitEntity(
                 id = 2,
@@ -49,6 +71,8 @@ class BackupCodecTest {
                 fechaInstalacionMillis = 1_680_000_000_000L,
                 fechaUltimoMantenimientoMillis = 1_690_000_000_000L,
                 consumoEstimadoKwhMes = 210.0,
+                groupId = 2,
+                ubicacion = "Oficina",
             ),
         ),
         logs = listOf(
@@ -63,17 +87,55 @@ class BackupCodecTest {
     )
 
     @Test
-    fun `serializa y recupera el respaldo completo`() {
+    fun `serializa y recupera el respaldo completo con grupos y ubicaciones`() {
         val json = BackupCodec.encode(snapshot)
         assertTrue(json.contains("\"crafted_by\": \"steefwel28\""))
-        assertTrue(json.contains("\"schema_version\": 1"))
+        assertTrue(json.contains("\"schema_version\": 2"))
+        assertTrue(json.contains("\"property_groups\""))
+        assertTrue(json.contains("\"custom_locations\""))
         assertTrue(json.contains("\"utility\": \"NATURGY\""))
         assertEquals(snapshot, BackupCodec.decode(json))
     }
 
     @Test
+    fun `importa un archivo del esquema uno y lo acomoda en Mi Casa y Sala`() {
+        val legacy = """
+            {
+              "crafted_by": "steefwel28",
+              "schema_version": 1,
+              "exported_at_millis": 1700000000000,
+              "units": {
+                "length": "METERS",
+                "short_length": "CENTIMETERS",
+                "volume": "LITERS",
+                "temperature": "CELSIUS"
+              },
+              "utility": "ENSA",
+              "base_monthly_kwh": 120,
+              "ac_units": [
+                {"id": 4, "nombre_espacio": "Sala", "marca_modelo": "Hisense",
+                 "btu": 18000, "seer": 12.0, "es_inverter": true, "voltaje": 220,
+                 "fecha_instalacion_millis": 1690000000000,
+                 "fecha_ultimo_mantenimiento_millis": 1695000000000,
+                 "consumo_estimado_kwh_mes": 210.5}
+              ],
+              "maintenance_logs": []
+            }
+        """.trimIndent()
+
+        val decoded = BackupCodec.decode(legacy)
+
+        assertEquals(1, decoded.groups.size)
+        assertEquals(PropertyGroupEntity.DEFAULT_ID, decoded.groups.single().id)
+        assertEquals(PropertyGroupEntity.DEFAULT_NAME, decoded.groups.single().nombreGrupo)
+        assertTrue(decoded.locations.isEmpty())
+        assertEquals(PropertyGroupEntity.DEFAULT_ID, decoded.units.single().groupId)
+        assertEquals("Sala", decoded.units.single().ubicacion)
+    }
+
+    @Test
     fun `rechaza un esquema de otra version`() {
-        val json = BackupCodec.encode(snapshot).replace("\"schema_version\": 1", "\"schema_version\": 2")
+        val json = BackupCodec.encode(snapshot).replace("\"schema_version\": 2", "\"schema_version\": 3")
         val error = assertThrows(BackupFormatException::class.java) { BackupCodec.decode(json) }
         assertTrue(error.message!!.contains("esquema"))
     }
@@ -104,6 +166,17 @@ class BackupCodecTest {
             BackupCodec.decode(BackupCodec.encode(duplicated))
         }
         assertTrue(error.message!!.contains("id repetido"))
+    }
+
+    @Test
+    fun `rechaza un equipo que apunta a un grupo inexistente`() {
+        val invalid = snapshot.copy(
+            units = listOf(snapshot.units.first().copy(groupId = 99)),
+        )
+        val error = assertThrows(BackupFormatException::class.java) {
+            BackupCodec.decode(BackupCodec.encode(invalid))
+        }
+        assertTrue(error.message!!.contains("grupo"))
     }
 
     @Test

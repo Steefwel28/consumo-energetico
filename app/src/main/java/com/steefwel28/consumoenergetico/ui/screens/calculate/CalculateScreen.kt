@@ -101,6 +101,7 @@ import com.steefwel28.consumoenergetico.ui.components.PixelSpringSnappy
 import com.steefwel28.consumoenergetico.ui.components.RtcaScannerSheet
 import com.steefwel28.consumoenergetico.ui.components.SectionCard
 import com.steefwel28.consumoenergetico.ui.components.rememberPixelHaptics
+import com.steefwel28.consumoenergetico.ui.illustrations.EducationalSketchCarousel
 import com.steefwel28.consumoenergetico.ui.theme.ConsumoEnergeticoTheme
 import kotlin.math.max
 import kotlin.math.roundToInt
@@ -137,6 +138,7 @@ fun CalculateScreen(
     var showBillGuide by remember { mutableStateOf(false) }
     var showSaveDialog by remember { mutableStateOf(false) }
     var showShareSheet by remember { mutableStateOf(false) }
+    var showCapsules by remember { mutableStateOf(false) }
     var isExporting by remember { mutableStateOf(false) }
     var exportError by remember { mutableStateOf<String?>(null) }
     val context = LocalContext.current
@@ -225,6 +227,9 @@ fun CalculateScreen(
             item {
                 RemoteSimulatorCard(state = state, onUpdate = onUpdate)
             }
+            item {
+                CapsulesEntryCard(onOpen = { showCapsules = true })
+            }
         } else {
             item { ComingSoonCard(state.category) }
         }
@@ -248,6 +253,9 @@ fun CalculateScreen(
     }
     if (showBillGuide) {
         BillGuideSheet(onDismiss = { showBillGuide = false })
+    }
+    if (showCapsules) {
+        CapsulesSheet(onDismiss = { showCapsules = false })
     }
     if (showSaveDialog) {
         SaveToProfileDialog(
@@ -1218,6 +1226,54 @@ private fun ComingSoonCard(category: EquipmentCategory) {
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
+        }
+    }
+}
+
+@Composable
+private fun CapsulesEntryCard(onOpen: () -> Unit) {
+    val haptics = rememberPixelHaptics()
+    SectionCard(
+        title = "Cápsulas de taller",
+        subtitle = "Cinco bocetos a plumilla: SEER, 17 °C, aire pequeño, protector Inverter y Modo Dry.",
+    ) {
+        OutlinedButton(
+            onClick = {
+                haptics.confirm()
+                onOpen()
+            },
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Icon(imageVector = Icons.Rounded.Image, contentDescription = null)
+            Text(text = "Ver las ilustraciones", modifier = Modifier.padding(start = 8.dp))
+        }
+    }
+}
+
+@Composable
+private fun CapsulesSheet(onDismiss: () -> Unit) {
+    PixelModalBottomSheet(onDismissRequest = onDismiss) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Text(
+                text = "Cápsulas de taller",
+                style = MaterialTheme.typography.headlineSmall,
+                modifier = Modifier.padding(horizontal = 24.dp),
+            )
+            Text(
+                text = "Desliza cada boceto: explica una decisión real de instalación en Panamá.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(horizontal = 24.dp),
+            )
+            EducationalSketchCarousel(
+                contentPadding = PaddingValues(horizontal = 24.dp, vertical = 4.dp),
+            )
+            Spacer(modifier = Modifier.height(24.dp))
         }
     }
 }

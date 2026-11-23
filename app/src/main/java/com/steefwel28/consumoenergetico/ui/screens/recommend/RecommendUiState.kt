@@ -35,6 +35,8 @@ data class RecommendUiState(
     val heatSources: Set<HeatSource> = emptySet(),
     val pipeDistanceInput: String = "3",
     val selectedBtuInput: String = "",
+    /** El usuario declara si el equipo a instalar es Inverter o No-Inverter. */
+    val inverter: Boolean = true,
 ) {
 
     val lengthUnit: LengthUnit get() = unitPreferences.length
@@ -80,7 +82,11 @@ data class RecommendUiState(
             val recommendation = recommendation ?: return null
             val btu = selectedBtu ?: recommendation.commercialBtu
             return runCatching {
-                ElectricalSpecAdvisor.advise(btuPerHour = btu, pipeDistanceMeters = pipeDistanceMeters)
+                ElectricalSpecAdvisor.advise(
+                    btuPerHour = btu,
+                    pipeDistanceMeters = pipeDistanceMeters,
+                    inverter = inverter,
+                )
             }.getOrNull()
         }
 }

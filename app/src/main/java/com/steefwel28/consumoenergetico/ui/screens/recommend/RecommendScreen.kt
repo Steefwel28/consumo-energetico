@@ -6,10 +6,15 @@
 package com.steefwel28.consumoenergetico.ui.screens.recommend
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -54,6 +59,8 @@ import com.steefwel28.consumoenergetico.domain.recommender.SunExposure
 import com.steefwel28.consumoenergetico.ui.AppViewModelProvider
 import com.steefwel28.consumoenergetico.ui.components.AppFormat
 import com.steefwel28.consumoenergetico.ui.components.SectionCard
+import com.steefwel28.consumoenergetico.ui.components.rememberPixelHaptics
+import com.steefwel28.consumoenergetico.ui.illustrations.EducationalSketchCarousel
 import com.steefwel28.consumoenergetico.ui.theme.ConsumoEnergeticoTheme
 
 @Composable
@@ -110,7 +117,19 @@ fun RecommendScreen(
                 RecommendationHero(state = state, recommendation = recommendation)
             }
             item {
-                ElectricalCard(spec = state.electrical)
+                ElectricalCard(spec = state.electrical, inverter = state.inverter, onUpdate = onUpdate)
+            }
+        }
+
+        item {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Text(text = "Cápsulas de taller", style = MaterialTheme.typography.titleLarge)
+                Text(
+                    text = "Desliza los bocetos: cada uno explica una decisión que mueve tu factura.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                EducationalSketchCarousel(contentPadding = PaddingValues(horizontal = 0.dp))
             }
         }
 
@@ -131,6 +150,7 @@ private fun SpaceInputCard(
     state: RecommendUiState,
     onUpdate: ((RecommendUiState) -> RecommendUiState) -> Unit,
 ) {
+    val haptics = rememberPixelHaptics()
     SectionCard(
         title = "El lugar",
         subtitle = "Puedes usar el área total o el largo y el ancho.",
@@ -138,12 +158,18 @@ private fun SpaceInputCard(
         SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
             SegmentedButton(
                 selected = !state.useDimensions,
-                onClick = { onUpdate { it.copy(useDimensions = false) } },
+                onClick = {
+                    haptics.tap()
+                    onUpdate { it.copy(useDimensions = false) }
+                },
                 shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2),
             ) { Text("Área total") }
             SegmentedButton(
                 selected = state.useDimensions,
-                onClick = { onUpdate { it.copy(useDimensions = true) } },
+                onClick = {
+                    haptics.tap()
+                    onUpdate { it.copy(useDimensions = true) }
+                },
                 shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2),
             ) { Text("Largo × ancho") }
         }
@@ -176,7 +202,10 @@ private fun SpaceInputCard(
         }
 
         OutlinedButton(
-            onClick = { onUpdate { it.copy(detailsExpanded = !it.detailsExpanded) } },
+            onClick = {
+                haptics.tap()
+                onUpdate { it.copy(detailsExpanded = !it.detailsExpanded) }
+            },
             modifier = Modifier.fillMaxWidth(),
         ) {
             Icon(
@@ -193,14 +222,21 @@ private fun SpaceInputCard(
             )
         }
 
-        AnimatedVisibility(visible = state.detailsExpanded) {
+        AnimatedVisibility(
+            visible = state.detailsExpanded,
+            enter = expandVertically() + fadeIn(),
+            exit = shrinkVertically() + fadeOut(),
+        ) {
             Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
                 Text(text = "Ventanales y sol", style = MaterialTheme.typography.titleMedium)
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     SunExposure.entries.forEach { exposure ->
                         FilterChip(
                             selected = state.sunExposure == exposure,
-                            onClick = { onUpdate { it.copy(sunExposure = exposure) } },
+                            onClick = {
+                                haptics.tap()
+                                onUpdate { it.copy(sunExposure = exposure) }
+                            },
                             label = { Text(exposure.label) },
                         )
                     }
@@ -212,7 +248,10 @@ private fun SpaceInputCard(
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
                     IconButton(
-                        onClick = { onUpdate { it.copy(people = (it.people - 1).coerceAtLeast(0)) } },
+                        onClick = {
+                            haptics.tap()
+                            onUpdate { it.copy(people = (it.people - 1).coerceAtLeast(0)) }
+                        },
                         enabled = state.people > 0,
                     ) {
                         Icon(Icons.Rounded.Remove, contentDescription = "Menos personas")
@@ -222,7 +261,10 @@ private fun SpaceInputCard(
                         style = MaterialTheme.typography.titleLarge,
                     )
                     IconButton(
-                        onClick = { onUpdate { it.copy(people = (it.people + 1).coerceAtMost(50)) } },
+                        onClick = {
+                            haptics.tap()
+                            onUpdate { it.copy(people = (it.people + 1).coerceAtMost(50)) }
+                        },
                         enabled = state.people < 50,
                     ) {
                         Icon(Icons.Rounded.Add, contentDescription = "Más personas")
@@ -234,7 +276,10 @@ private fun SpaceInputCard(
                     CeilingType.entries.forEach { ceiling ->
                         FilterChip(
                             selected = state.ceiling == ceiling,
-                            onClick = { onUpdate { it.copy(ceiling = ceiling) } },
+                            onClick = {
+                                haptics.tap()
+                                onUpdate { it.copy(ceiling = ceiling) }
+                            },
                             label = { Text(ceiling.label) },
                         )
                     }
@@ -246,6 +291,7 @@ private fun SpaceInputCard(
                         FilterChip(
                             selected = source in state.heatSources,
                             onClick = {
+                                haptics.tap()
                                 onUpdate { current ->
                                     val sources = if (source in current.heatSources) {
                                         current.heatSources - source
@@ -353,11 +399,32 @@ private fun RecommendationHero(
 }
 
 @Composable
-private fun ElectricalCard(spec: ElectricalSpec?) {
+private fun ElectricalCard(
+    spec: ElectricalSpec?,
+    inverter: Boolean,
+    onUpdate: ((RecommendUiState) -> RecommendUiState) -> Unit,
+) {
+    val haptics = rememberPixelHaptics()
     SectionCard(
         title = "Ficha eléctrica",
-        subtitle = "Breaker y cable según la capacidad, no según la placa.",
+        subtitle = "Todos los splits modernos de Panamá van a 220 V; el breaker va por capacidad.",
     ) {
+        SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+            listOf(true to "Inverter", false to "No Inverter").forEachIndexed { index, (value, label) ->
+                SegmentedButton(
+                    selected = inverter == value,
+                    onClick = {
+                        haptics.tap()
+                        onUpdate { it.copy(inverter = value) }
+                    },
+                    shape = SegmentedButtonDefaults.itemShape(
+                        index = index,
+                        count = 2,
+                    ),
+                ) { Text(label) }
+            }
+        }
+
         if (spec == null) {
             Text(
                 text = "Escribe una capacidad válida para ver la ficha.",
@@ -374,18 +441,61 @@ private fun ElectricalCard(spec: ElectricalSpec?) {
         }
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             SpecTile("Corriente", AppFormat.amperes(spec.estimatedAmps), Modifier.weight(1f))
-            SpecTile("Protector", "${spec.surgeProtectorJoules} J", Modifier.weight(1f))
-            SpecTile(
-                "Reconexión",
-                "${spec.reconnectDelayMinutes.first}–${spec.reconnectDelayMinutes.last} min",
-                Modifier.weight(1f),
+            SpecTile("Protector", "${spec.protector.joules} J", Modifier.weight(1f))
+        }
+
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(18.dp))
+                .background(MaterialTheme.colorScheme.secondaryContainer)
+                .padding(14.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
+            Text(
+                text = if (inverter) "Protector Inverter de línea directa" else "Protector convencional",
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSecondaryContainer,
+            )
+            Text(
+                text = spec.protector.brandAndModel,
+                style = MaterialTheme.typography.titleMedium,
+                color = MaterialTheme.colorScheme.onSecondaryContainer,
+            )
+            Text(
+                text = "${spec.protector.joules} J · reconexión ${spec.protector.reconnectLabel}",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSecondaryContainer,
+            )
+            Text(
+                text = spec.protector.description,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSecondaryContainer,
+            )
+            spec.alternativeProtector?.let { alternative ->
+                Text(
+                    text = "Alternativa: ${alternative.brandAndModel} · ${alternative.joules} J · " +
+                        "reconexión ${alternative.reconnectLabel}.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSecondaryContainer,
+                )
+            }
+        }
+
+        if (inverter) {
+            Text(
+                text = "El protector es obligatorio en Inverter: los picos de la red dañan la tarjeta de potencia.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
-        Text(
-            text = "El protector de voltaje es obligatorio en Inverter: los picos de la red dañan la tarjeta de potencia.",
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
+        spec.voltageNote?.let { note ->
+            Text(
+                text = note,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
         spec.installationAlert?.let { alert ->
             Text(
                 text = alert,
