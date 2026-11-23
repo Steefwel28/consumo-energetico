@@ -49,3 +49,10 @@
   - `36,000 BTU`: `39` a `45 m²` (tope máximo `50 m²` bien aislado).
 - **Voltaje y Protección Eléctrica:** Todos los Splits modernos en Panamá operan a **220V** (110V queda solo como nota excepcional para equipos viejos No-Inverter). Para equipos Inverter, recomendar como prioridad protector de **línea directa (borneras) específico para Inverter** citando modelos reales: **AVTEK `SPC-PEBAS-B230`** (o `PBAS-B230-LED`, 220V, 30A, **2,100 J**, retardo 10s) y como alternativa **Forza `FVP-6630B`** (220V, 30A, 880 J, retardo ajustable 15s/30s/3m). Para equipos No-Inverter, indicar protector convencional de línea directa (ej. **AVTEK `SPC-PABB-B230`** 525 J / 3 min) o de enchufe según sea 220V o 110V.
 - **Animaciones Globales:** `PixelSpringExpressive` y `rememberPixelHaptics()` deben aplicarse en TODAS las pantallas (`Calcular`, `Recomendar`, `Mi Casa` y `Ajustes`), en el cambio de pestañas del `NavigationBar` y en cada diálogo o hoja modal.
+
+## Actualización v0.5.0-alpha (BTU reales, Periodo + Horas de Uso, Háptica 3s y Multi-idioma)
+- **Rango válido de BTU/h:** Soportar hasta `60,000 BTU/h` en validación (`canSave` y `RtcaLabelParser`) para equipos reales como `36,679 BTU/h`.
+- **Diferenciación ENSA vs. Naturgy:** Tarifas marginales distintas con 4 decimales (`B/. 0.0000/kWh`) y lectura dual en modo `VS`.
+- **Periodo y Horas Estimadas de Uso:** Selector desplegable (`Día` | `Quincena` | `Mes` con `java.time.YearMonth.now()` contemplando días reales y bisiestos hasta 2030+) acompañado del control de **horas estimadas de uso diario (1h a 24h)** directamente en la tarjeta principal de cálculo.
+- **Háptica Crescendo + Pop (3s):** Vibración progresiva estilo Duolingo/reacción IG al mantener presionados botones o ítems del `NavigationBar`, culminando en una liberación "pop" a los 3 segundos.
+- **Internacionalización (i18n):** Soporte nativo completo en **Español Latinoamericano (`es`)**, **Inglés (`en`)** y **Chino Simplificado (`zh-CN`)** con selector de idioma en `Ajustes` (`AppCompatDelegate.setApplicationLocales`).
