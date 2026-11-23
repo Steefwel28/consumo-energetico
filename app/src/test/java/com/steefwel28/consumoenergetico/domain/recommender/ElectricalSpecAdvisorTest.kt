@@ -11,7 +11,7 @@ class ElectricalSpecAdvisorTest {
 
     @Test
     fun `todos los splits modernos van a 220 voltios`() {
-        listOf(9_000, 12_000, 18_000, 24_000, 28_000, 36_000).forEach { btu ->
+        listOf(9_000, 12_000, 18_000, 24_000, 28_000, 36_000, 48_000, 60_000).forEach { btu ->
             assertEquals("BTU $btu", 220, ElectricalSpecAdvisor.advise(btu).voltage)
         }
     }
@@ -99,9 +99,20 @@ class ElectricalSpecAdvisorTest {
     }
 
     @Test
+    fun `sesenta mil usa cable numero ocho y acepta placas reales de treinta y seis mil`() {
+        val big = ElectricalSpecAdvisor.advise(60_000)
+        assertEquals(40, big.breakerAmps)
+        assertEquals("#8", big.wireGauge)
+        assertEquals(5_400.0 / 220.0, big.estimatedAmps, 1e-12)
+
+        val real = ElectricalSpecAdvisor.advise(36_679)
+        assertEquals(30, real.breakerAmps)
+    }
+
+    @Test
     fun `rechaza capacidades fuera de la ficha`() {
         assertThrows(IllegalArgumentException::class.java) {
-            ElectricalSpecAdvisor.advise(48_000)
+            ElectricalSpecAdvisor.advise(66_000)
         }
     }
 }

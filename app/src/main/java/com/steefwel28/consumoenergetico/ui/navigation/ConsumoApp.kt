@@ -1,5 +1,6 @@
 package com.steefwel28.consumoenergetico.ui.navigation
 
+import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
@@ -32,6 +33,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalUriHandler
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
@@ -41,17 +43,22 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import com.steefwel28.consumoenergetico.R
 import com.steefwel28.consumoenergetico.core.di.AppContainer
 import com.steefwel28.consumoenergetico.ui.components.LocalPixelOverlayState
 import com.steefwel28.consumoenergetico.ui.components.PixelDialog
 import com.steefwel28.consumoenergetico.ui.components.PixelOverlayState
 import com.steefwel28.consumoenergetico.ui.components.PixelSpringExpressive
+import com.steefwel28.consumoenergetico.ui.components.pixelChargeHaptics
 import com.steefwel28.consumoenergetico.ui.components.rememberPixelHaptics
 import com.steefwel28.consumoenergetico.ui.screens.calculate.CalculateRoute
 import com.steefwel28.consumoenergetico.ui.screens.myhome.MyHomeRoute
 import com.steefwel28.consumoenergetico.ui.screens.recommend.RecommendRoute
 import com.steefwel28.consumoenergetico.ui.screens.settings.SettingsRoute
+import com.steefwel28.consumoenergetico.ui.screens.splash.ExpressiveSplashScreen
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 @Composable
 fun ConsumoApp(container: AppContainer) {
@@ -61,13 +68,66 @@ fun ConsumoApp(container: AppContainer) {
     val pendingRelease by container.releaseChecker.pendingRelease.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
     val uriHandler = LocalUriHandler.current
+    var splashDone by rememberSaveable { mutableStateOf(false) }
 
+    // Precarga Room y verificación de releases en paralelo durante el splash.
     LaunchedEffect(Unit) {
-        container.releaseChecker.checkForUpdate()
+        launch {
+            runCatching {
+                withContext(Dispatchers.IO) { container.database.propertyGroupDao().count() }
+            }
+        }
+        launch { container.releaseChecker.checkForUpdate() }
     }
 
     CompositionLocalProvider(LocalPixelOverlayState provides overlay) {
-        Scaffold(
+        Crossfade(targetState = splashDone, animationSpec = tween(420), label = "splash") { done ->
+            if (!done) {
+                ExpressiveSplashScreen(onFinished = { splashDone = true })
+            } else {
+                MainScaffold(
+                    container = container,
+                    navController = navController,
+                    overlay = overlay,
+                    pendingUpdate = pendingUpdate,
+                )
+
+                // Aviso inicial de actualización: se muestra una vez por versión en la
+                // sesión y recuerda en DataStore las versiones omitidas.
+                var dismissedVersion by rememberSaveable { mutableStateOf<String?>(null) }
+                val release = pendingRelease?.takeIf { it.version != dismissedVersion }
+                if (release != null) {
+                    val defaultBody = stringResource(R.string.update_body)
+                    PixelDialog(
+                        title = stringResource(R.string.update_title, release.version),
+                        text = release.notes.take(280).ifBlank { defaultBody },
+                        confirmLabel = stringResource(R.string.set_update),
+                        dismissLabel = stringResource(R.string.set_skip),
+                        onConfirm = {
+                            dismissedVersion = release.version
+                            runCatching {
+                                uriHandler.openUri(release.apkDownloadUrl ?: release.releaseUrl)
+                            }
+                        },
+                        onDismissRequest = {
+                            dismissedVersion = release.version
+                            scope.launch { container.releaseChecker.skipVersion(release.version) }
+                        },
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun MainScaffold(
+    container: AppContainer,
+    navController: androidx.navigation.NavHostController,
+    overlay: PixelOverlayState,
+    pendingUpdate: Boolean,
+) {
+    Scaffold(
             containerColor = MaterialTheme.colorScheme.background,
             contentWindowInsets = WindowInsets.safeDrawing.only(
                 WindowInsetsSides.Horizontal + WindowInsetsSides.Top,
@@ -122,32 +182,6 @@ fun ConsumoApp(container: AppContainer) {
                 }
             }
         }
-
-        // Aviso inicial de actualización: se muestra una vez por versión en la
-        // sesión y recuerda en DataStore las versiones omitidas.
-        var dismissedVersion by rememberSaveable { mutableStateOf<String?>(null) }
-        val release = pendingRelease?.takeIf { it.version != dismissedVersion }
-        if (release != null) {
-            PixelDialog(
-                title = "Actualización ${release.version}",
-                text = release.notes.take(280).ifBlank {
-                    "Hay una versión nueva de Consumo Energético publicada en GitHub."
-                },
-                confirmLabel = "Actualizar",
-                dismissLabel = "Omitir",
-                onConfirm = {
-                    dismissedVersion = release.version
-                    runCatching {
-                        uriHandler.openUri(release.apkDownloadUrl ?: release.releaseUrl)
-                    }
-                },
-                onDismissRequest = {
-                    dismissedVersion = release.version
-                    scope.launch { container.releaseChecker.skipVersion(release.version) }
-                },
-            )
-        }
-    }
 }
 
 @Composable
@@ -164,6 +198,8 @@ private fun PixelNavigationBar(
         AppDestination.entries.forEach { destination ->
             val selected = currentRoute == destination.route
             val hasBadge = destination == AppDestination.SETTINGS && pendingUpdate
+            val label = stringResource(destination.labelRes)
+            val badgeDescription = stringResource(R.string.nav_update_available, label)
             val scale by animateFloatAsState(
                 targetValue = if (selected) 1f else 0.9f,
                 animationSpec = PixelSpringExpressive,
@@ -200,14 +236,16 @@ private fun PixelNavigationBar(
                         icon()
                     }
                 },
-                label = { Text(destination.label) },
-                modifier = if (hasBadge) {
-                    Modifier.semantics {
-                        contentDescription = "${destination.label}, actualización disponible"
-                    }
-                } else {
-                    Modifier
-                },
+                label = { Text(label) },
+                modifier = Modifier
+                    .pixelChargeHaptics()
+                    .then(
+                        if (hasBadge) {
+                            Modifier.semantics { contentDescription = badgeDescription }
+                        } else {
+                            Modifier
+                        },
+                    ),
             )
         }
     }

@@ -9,6 +9,7 @@ import android.graphics.Paint
 import android.graphics.Typeface
 import android.graphics.pdf.PdfDocument
 import androidx.core.content.FileProvider
+import com.steefwel28.consumoenergetico.R
 import com.steefwel28.consumoenergetico.core.signature.CraftedBy
 import com.steefwel28.consumoenergetico.domain.calculator.TariffComparison
 import com.steefwel28.consumoenergetico.domain.recommender.ElectricalSpec
@@ -38,6 +39,10 @@ data class ReportData(
     val recommendationText: String,
     val electrical: ElectricalSpec,
     val monthlySavingsBalboas: Double? = null,
+    /** Etiqueta del periodo elegido: día, quincena o el mes real en curso. */
+    val periodLabel: String = "Mes",
+    val ensaMarginalBalboasPerKwh: Double = 0.0,
+    val naturgyMarginalBalboasPerKwh: Double = 0.0,
     val generatedAtMillis: Long = System.currentTimeMillis(),
 )
 
@@ -59,7 +64,7 @@ object ReportExporter {
                 PdfDocument.PageInfo.Builder(PAGE_WIDTH, PAGE_HEIGHT, 1).create(),
             )
             page.canvas.drawColor(Color.WHITE)
-            ReportSheet(page.canvas, report).draw()
+            ReportSheet(page.canvas, report, context).draw()
             document.finishPage(page)
             FileOutputStream(file).use { output -> document.writeTo(output) }
         } finally {
@@ -76,7 +81,7 @@ object ReportExporter {
             canvas.drawColor(Color.rgb(253, 252, 251))
             val scale = PNG_WIDTH.toFloat() / PAGE_WIDTH
             canvas.scale(scale, scale)
-            ReportSheet(canvas, report).draw()
+            ReportSheet(canvas, report, context).draw()
             FileOutputStream(file).use { output ->
                 bitmap.compress(Bitmap.CompressFormat.PNG, 100, output)
             }
@@ -109,7 +114,10 @@ object ReportExporter {
 private class ReportSheet(
     private val canvas: Canvas,
     private val report: ReportData,
+    private val context: Context,
 ) {
+
+    private fun text(resId: Int, vararg args: Any): String = context.getString(resId, *args)
 
     private val ink = paint(10f, INK)
     private val muted = paint(9f, MUTED)
@@ -139,18 +147,18 @@ private class ReportSheet(
             paint(0f, HEADER_BG),
         )
         canvas.drawText(
-            "Consumo Energético",
+            text(R.string.app_name),
             MARGIN + 20f,
             62f,
             paint(21f, Color.WHITE, bold = true),
         )
         canvas.drawText(
-            "Ficha técnica del aire acondicionado",
+            text(R.string.report_subtitle),
             MARGIN + 20f,
             82f,
             paint(9.5f, HEADER_MUTED),
         )
-        val date = SimpleDateFormat("d MMM yyyy", Locale.forLanguageTag("es-PA"))
+        val date = SimpleDateFormat("d MMM yyyy", Locale.getDefault())
             .format(Date(report.generatedAtMillis))
         canvas.drawText(
             date,
@@ -176,7 +184,7 @@ private class ReportSheet(
             top = top,
             width = tileWidth,
             value = String.format(Locale.US, "%.1f", report.monthlyKwh),
-            label = "kWh/mes",
+            label = text(R.string.report_kwh_period),
         )
         drawStatTile(
             x = MARGIN + tileWidth + gap,
@@ -190,7 +198,11 @@ private class ReportSheet(
             top = top,
             width = tileWidth,
             value = "B/. " + decimal(report.displayMonthlyBalboas),
-            label = if (report.comparison == TariffComparison.VS) "costo menor" else "costo equipo",
+            label = if (report.comparison == TariffComparison.VS) {
+                text(R.string.report_lower_cost)
+            } else {
+                text(R.string.report_equipment_cost)
+            },
         )
         y = top + 62f
     }
@@ -210,24 +222,29 @@ private class ReportSheet(
     }
 
     private fun drawEquipment() {
-        startSection("Equipo")
-        drawTextLine("Espacio: ${report.spaceName}")
-        drawTextLine("Marca y modelo: ${report.brandModel}")
+        startSection(text(R.string.report_equipment))
+        drawTextLine(text(R.string.report_space, report.spaceName))
+        drawTextLine(text(R.string.report_brand, report.brandModel))
         drawTextLine(
-            "Capacidad: ${btuText(report.btu)} BTU/h · ${seerText()}" +
-                " · ${if (report.inverter) "Inverter" else "No Inverter"}",
+            text(
+                R.string.report_capacity,
+                btuText(report.btu),
+                seerText(),
+                text(if (report.inverter) R.string.inverter else R.string.no_inverter),
+            ),
         )
-        drawTextLine("Voltaje de placa: ${report.voltage} V")
+        drawTextLine(text(R.string.report_voltage, report.voltage))
     }
 
     private fun drawComparison() {
         startSection(
             if (report.comparison == TariffComparison.VS) {
-                "Duelo ENSA vs. Naturgy"
+                text(R.string.report_vs_title)
             } else {
-                "Costo mensual ${report.comparison.label}"
+                text(R.string.report_cost_title, report.comparison.label)
             },
         )
+        drawTextLine(text(R.string.report_period, report.periodLabel))
         when (report.comparison) {
             TariffComparison.ENSA -> drawBarRow(
                 label = "ENSA",
@@ -260,9 +277,9 @@ private class ReportSheet(
                 }
                 canvas.drawText(
                     if (difference < 0.005) {
-                        "Diferencia: B/. 0.00 al mes · ambas distribuidoras empatan."
+                        text(R.string.report_difference_tie)
                     } else {
-                        "Diferencia: B/. ${decimal(difference)} al mes · $cheaper cuesta menos."
+                        text(R.string.report_difference, decimal(difference), cheaper)
                     },
                     MARGIN,
                     y,
@@ -272,7 +289,19 @@ private class ReportSheet(
             }
         }
         canvas.drawText(
-            "Tarifa aplicada: ${report.tariffLabel}",
+            text(R.string.report_tariff_applied, report.tariffLabel),
+            MARGIN,
+            y,
+            muted,
+        )
+        y += 13f
+        // Lectura dual con 4 decimales: el pliego real de cada distribuidora.
+        canvas.drawText(
+            text(
+                R.string.report_vs_rates,
+                rateText(report.ensaMarginalBalboasPerKwh),
+                rateText(report.naturgyMarginalBalboasPerKwh),
+            ),
             MARGIN,
             y,
             muted,
@@ -280,7 +309,7 @@ private class ReportSheet(
         y += 13f
         report.monthlySavingsBalboas?.let { saving ->
             canvas.drawText(
-                "Ahorro del equipo nuevo: B/. ${decimal(saving)}/mes",
+                text(R.string.report_savings, decimal(saving)),
                 MARGIN,
                 y,
                 paint(9f, ACCENT, bold = true),
@@ -323,7 +352,7 @@ private class ReportSheet(
     }
 
     private fun drawRecommendation() {
-        startSection("Recomendación del espacio")
+        startSection(text(R.string.report_recommendation))
         wrapped(report.recommendationText, ink, CONTENT_WIDTH).forEach { line ->
             canvas.drawText(line, MARGIN, y, ink)
             y += 13f
@@ -332,17 +361,25 @@ private class ReportSheet(
 
     private fun drawElectrical() {
         val spec = report.electrical
-        startSection("Ficha eléctrica")
-        drawTextLine("Breaker dedicado: ${spec.breakerAmps} A · Cable ${spec.wireGauge}")
-        drawTextLine("Corriente estimada: ${decimal(spec.estimatedAmps)} A a ${spec.voltage} V")
+        startSection(text(R.string.report_electrical))
+        drawTextLine(text(R.string.report_breaker, spec.breakerAmps, spec.wireGauge))
+        drawTextLine(text(R.string.report_current, decimal(spec.estimatedAmps), spec.voltage))
         drawTextLine(
-            "Protector: ${spec.protector.brandAndModel} · " +
-                "${surgeText(spec.protector.joules)} J · reconexión ${spec.protector.reconnectLabel}",
+            text(
+                R.string.report_protector,
+                spec.protector.brandAndModel,
+                surgeText(spec.protector.joules),
+                spec.protector.reconnectLabel,
+            ),
         )
         spec.alternativeProtector?.let { alternative ->
             drawTextLine(
-                "Alternativa: ${alternative.brandAndModel} · ${surgeText(alternative.joules)} J · " +
-                    "reconexión ${alternative.reconnectLabel}",
+                text(
+                    R.string.report_alternative,
+                    alternative.brandAndModel,
+                    surgeText(alternative.joules),
+                    alternative.reconnectLabel,
+                ),
             )
         }
         spec.voltageNote?.let { note ->
@@ -363,7 +400,7 @@ private class ReportSheet(
         val footerY = PAGE_HEIGHT - MARGIN
         canvas.drawLine(MARGIN, footerY - 18f, PAGE_WIDTH - MARGIN, footerY - 18f, divider)
         canvas.drawText(
-            "Consumo Energético · Panamá",
+            text(R.string.report_footer),
             MARGIN,
             footerY,
             paint(8f, MUTED),
@@ -390,7 +427,8 @@ private class ReportSheet(
     }
 
     private fun seerText(): String =
-        report.seer?.let { "SEER ${decimal(it)}" } ?: "SEER no indicado"
+        report.seer?.let { text(R.string.report_seer, decimal(it)) }
+            ?: text(R.string.report_seer_missing)
 
     private fun wrapped(text: String, textPaint: Paint, maxWidth: Float): List<String> {
         val lines = mutableListOf<String>()
@@ -411,6 +449,8 @@ private class ReportSheet(
     private fun btuText(value: Int): String = String.format(Locale.US, "%,d", value)
 
     private fun decimal(value: Double): String = String.format(Locale.US, "%.2f", value)
+
+    private fun rateText(value: Double): String = String.format(Locale.US, "B/. %.4f/kWh", value)
 
     private fun surgeText(joules: Int): String = String.format(Locale.US, "%,d", joules)
 }

@@ -45,6 +45,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
@@ -53,6 +54,7 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.google.mlkit.vision.common.InputImage
 import com.google.mlkit.vision.text.TextRecognition
 import com.google.mlkit.vision.text.latin.TextRecognizerOptions
+import com.steefwel28.consumoenergetico.R
 import com.steefwel28.consumoenergetico.core.signature.CraftedBy
 import com.steefwel28.consumoenergetico.domain.scanner.RtcaLabelParser
 import com.steefwel28.consumoenergetico.domain.scanner.RtcaLabelReading
@@ -122,7 +124,7 @@ fun RtcaScannerSheet(
                 analysis,
             )
         }.onFailure { error ->
-            cameraError = error.message ?: "No se pudo abrir la cámara."
+            cameraError = error.message ?: context.getString(R.string.scanner_camera_error)
         }
     }
 
@@ -146,11 +148,11 @@ fun RtcaScannerSheet(
             verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
             Text(
-                text = "Escanear etiqueta amarilla",
+                text = stringResource(R.string.scanner_title),
                 style = MaterialTheme.typography.headlineMedium,
             )
             Text(
-                text = "Apunta la cámara a la etiqueta RTCA 23.01.78:20. La lectura ocurre en tu teléfono, sin internet.",
+                text = stringResource(R.string.scanner_intro),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -191,7 +193,11 @@ fun RtcaScannerSheet(
                                 .padding(horizontal = 12.dp, vertical = 6.dp),
                         ) {
                             Text(
-                                text = if (reading.hasValues) "Etiqueta detectada" else "Buscando BTU/h, W y SEER…",
+                                text = if (reading.hasValues) {
+                                    stringResource(R.string.scanner_detected)
+                                } else {
+                                    stringResource(R.string.scanner_searching)
+                                },
                                 style = MaterialTheme.typography.labelMedium,
                                 color = MaterialTheme.colorScheme.onSurface,
                             )
@@ -207,7 +213,7 @@ fun RtcaScannerSheet(
                     ) {
                         Icon(Icons.Rounded.CheckCircle, contentDescription = null)
                         Text(
-                            text = "Usar estos datos",
+                            text = stringResource(R.string.scanner_use),
                             modifier = Modifier.padding(start = 8.dp),
                         )
                     }
@@ -215,7 +221,7 @@ fun RtcaScannerSheet(
             }
 
             TextButton(onClick = onDismiss, modifier = Modifier.fillMaxWidth()) {
-                Text("Prefiero escribirlo a mano")
+                Text(stringResource(R.string.scanner_manual))
             }
         }
     }
@@ -239,7 +245,7 @@ private fun CameraPermissionCard(onRequest: () -> Unit) {
             tint = MaterialTheme.colorScheme.primary,
         )
         Text(
-            text = "Necesitamos la cámara solo para leer la etiqueta. La app no guarda ni envía fotos.",
+            text = stringResource(R.string.scanner_permission),
             style = MaterialTheme.typography.bodyMedium,
             textAlign = TextAlign.Center,
         )
@@ -249,7 +255,7 @@ private fun CameraPermissionCard(onRequest: () -> Unit) {
                 containerColor = MaterialTheme.colorScheme.primary,
             ),
         ) {
-            Text("Permitir cámara")
+            Text(stringResource(R.string.scanner_allow))
         }
     }
 }
@@ -265,16 +271,16 @@ private fun CameraFallbackCard(message: String, onRetry: () -> Unit) {
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         Text(
-            text = "La cámara no está disponible",
+            text = stringResource(R.string.scanner_unavailable),
             style = MaterialTheme.typography.titleMedium,
             color = MaterialTheme.colorScheme.onErrorContainer,
         )
         Text(
-            text = "$message Puedes escribir los datos de la etiqueta a mano.",
+            text = stringResource(R.string.scanner_fallback, message),
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onErrorContainer,
         )
-        TextButton(onClick = onRetry) { Text("Reintentar") }
+        TextButton(onClick = onRetry) { Text(stringResource(R.string.scanner_retry)) }
     }
 }
 
@@ -285,17 +291,17 @@ private fun ReadingSummary(reading: RtcaLabelReading) {
         horizontalArrangement = Arrangement.spacedBy(10.dp),
     ) {
         ReadingCell(
-            label = "BTU/h",
+            label = stringResource(R.string.common_btu),
             value = reading.btuPerHour?.let(AppFormat::btuNumber) ?: "—",
             modifier = Modifier.weight(1f),
         )
         ReadingCell(
-            label = "Potencia",
+            label = stringResource(R.string.scanner_power),
             value = reading.nominalWatts?.let { "${AppFormat.btuNumber(it)} W" } ?: "—",
             modifier = Modifier.weight(1f),
         )
         ReadingCell(
-            label = "SEER",
+            label = stringResource(R.string.common_seer),
             value = reading.seer?.let(AppFormat::decimal) ?: "—",
             modifier = Modifier.weight(1f),
         )

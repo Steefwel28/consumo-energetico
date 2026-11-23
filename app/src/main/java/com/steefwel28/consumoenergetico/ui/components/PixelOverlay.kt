@@ -18,6 +18,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.shape.RoundedCornerShape
 
@@ -113,7 +114,11 @@ fun PixelDialog(
         shape = MaterialTheme.shapes.large,
         containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
         confirmButton = {
-            TextButton(onClick = onConfirm, enabled = confirmEnabled) { Text(confirmLabel) }
+            TextButton(
+                onClick = onConfirm,
+                enabled = confirmEnabled,
+                modifier = Modifier.pixelChargeHaptics(),
+            ) { Text(confirmLabel) }
         },
         dismissButton = dismissLabel?.let { label ->
             { TextButton(onClick = onDismissRequest) { Text(label) } }

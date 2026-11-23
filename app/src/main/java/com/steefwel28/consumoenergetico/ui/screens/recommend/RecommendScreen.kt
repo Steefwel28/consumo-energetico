@@ -43,12 +43,14 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.steefwel28.consumoenergetico.R
 import com.steefwel28.consumoenergetico.core.di.AppContainer
 import com.steefwel28.consumoenergetico.domain.recommender.AcRecommendation
 import com.steefwel28.consumoenergetico.domain.recommender.BtuFactor
@@ -59,6 +61,8 @@ import com.steefwel28.consumoenergetico.domain.recommender.SunExposure
 import com.steefwel28.consumoenergetico.ui.AppViewModelProvider
 import com.steefwel28.consumoenergetico.ui.components.AppFormat
 import com.steefwel28.consumoenergetico.ui.components.SectionCard
+import com.steefwel28.consumoenergetico.ui.components.labelRes
+import com.steefwel28.consumoenergetico.ui.components.pixelChargeHaptics
 import com.steefwel28.consumoenergetico.ui.components.rememberPixelHaptics
 import com.steefwel28.consumoenergetico.ui.illustrations.EducationalSketchCarousel
 import com.steefwel28.consumoenergetico.ui.theme.ConsumoEnergeticoTheme
@@ -91,9 +95,9 @@ fun RecommendScreen(
     ) {
         item {
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Text(text = "Recomendar", style = MaterialTheme.typography.headlineMedium)
+                Text(text = stringResource(R.string.rec_title), style = MaterialTheme.typography.headlineMedium)
                 Text(
-                    text = "Dinos cuánto mide el lugar y la app calcula el BTU/h que realmente lo cubre.",
+                    text = stringResource(R.string.rec_subtitle),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -108,8 +112,8 @@ fun RecommendScreen(
         if (recommendation == null) {
             item {
                 SectionCard(
-                    title = "Falta el tamaño",
-                    subtitle = "Escribe un área mayor que cero en ${state.areaSymbol}.",
+                    title = stringResource(R.string.rec_missing_size_title),
+                    subtitle = stringResource(R.string.rec_missing_size_subtitle, state.areaSymbol),
                 ) {}
             }
         } else {
@@ -123,9 +127,9 @@ fun RecommendScreen(
 
         item {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                Text(text = "Cápsulas de taller", style = MaterialTheme.typography.titleLarge)
+                Text(text = stringResource(R.string.common_capsules_title), style = MaterialTheme.typography.titleLarge)
                 Text(
-                    text = "Desliza los bocetos: cada uno explica una decisión que mueve tu factura.",
+                    text = stringResource(R.string.rec_capsules_subtitle),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -135,7 +139,7 @@ fun RecommendScreen(
 
         item {
             Text(
-                text = "La recomendación es una base técnica; un instalador debe confirmar la carga real del espacio.",
+                text = stringResource(R.string.rec_footer),
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center,
@@ -152,8 +156,8 @@ private fun SpaceInputCard(
 ) {
     val haptics = rememberPixelHaptics()
     SectionCard(
-        title = "El lugar",
-        subtitle = "Puedes usar el área total o el largo y el ancho.",
+        title = stringResource(R.string.rec_place_title),
+        subtitle = stringResource(R.string.rec_place_subtitle),
     ) {
         SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
             SegmentedButton(
@@ -163,7 +167,7 @@ private fun SpaceInputCard(
                     onUpdate { it.copy(useDimensions = false) }
                 },
                 shape = SegmentedButtonDefaults.itemShape(index = 0, count = 2),
-            ) { Text("Área total") }
+            ) { Text(stringResource(R.string.rec_area_total)) }
             SegmentedButton(
                 selected = state.useDimensions,
                 onClick = {
@@ -171,20 +175,20 @@ private fun SpaceInputCard(
                     onUpdate { it.copy(useDimensions = true) }
                 },
                 shape = SegmentedButtonDefaults.itemShape(index = 1, count = 2),
-            ) { Text("Largo × ancho") }
+            ) { Text(stringResource(R.string.rec_dimensions)) }
         }
 
         if (state.useDimensions) {
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 MetricField(
-                    label = "Largo",
+                    label = stringResource(R.string.rec_length),
                     value = state.lengthInput,
                     suffix = state.lengthSymbol,
                     onValueChange = { value -> onUpdate { it.copy(lengthInput = value) } },
                     modifier = Modifier.weight(1f),
                 )
                 MetricField(
-                    label = "Ancho",
+                    label = stringResource(R.string.rec_width),
                     value = state.widthInput,
                     suffix = state.lengthSymbol,
                     onValueChange = { value -> onUpdate { it.copy(widthInput = value) } },
@@ -193,7 +197,7 @@ private fun SpaceInputCard(
             }
         } else {
             MetricField(
-                label = "Área del espacio",
+                label = stringResource(R.string.rec_area),
                 value = state.areaInput,
                 suffix = state.areaSymbol,
                 onValueChange = { value -> onUpdate { it.copy(areaInput = value) } },
@@ -206,7 +210,7 @@ private fun SpaceInputCard(
                 haptics.tap()
                 onUpdate { it.copy(detailsExpanded = !it.detailsExpanded) }
             },
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier.fillMaxWidth().pixelChargeHaptics(),
         ) {
             Icon(
                 imageVector = if (state.detailsExpanded) {
@@ -217,7 +221,9 @@ private fun SpaceInputCard(
                 contentDescription = null,
             )
             Text(
-                text = if (state.detailsExpanded) "Ocultar detalles" else "Más detalles del lugar",
+                text = stringResource(
+                    if (state.detailsExpanded) R.string.rec_hide_details else R.string.rec_more_details,
+                ),
                 modifier = Modifier.padding(start = 8.dp),
             )
         }
@@ -228,7 +234,7 @@ private fun SpaceInputCard(
             exit = shrinkVertically() + fadeOut(),
         ) {
             Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
-                Text(text = "Ventanales y sol", style = MaterialTheme.typography.titleMedium)
+                Text(text = stringResource(R.string.rec_sun), style = MaterialTheme.typography.titleMedium)
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     SunExposure.entries.forEach { exposure ->
                         FilterChip(
@@ -237,12 +243,12 @@ private fun SpaceInputCard(
                                 haptics.tap()
                                 onUpdate { it.copy(sunExposure = exposure) }
                             },
-                            label = { Text(exposure.label) },
+                            label = { Text(stringResource(exposure.labelRes)) },
                         )
                     }
                 }
 
-                Text(text = "Personas habituales", style = MaterialTheme.typography.titleMedium)
+                Text(text = stringResource(R.string.rec_people), style = MaterialTheme.typography.titleMedium)
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
@@ -254,7 +260,7 @@ private fun SpaceInputCard(
                         },
                         enabled = state.people > 0,
                     ) {
-                        Icon(Icons.Rounded.Remove, contentDescription = "Menos personas")
+                        Icon(Icons.Rounded.Remove, contentDescription = stringResource(R.string.rec_people_minus))
                     }
                     Text(
                         text = "${state.people}",
@@ -267,11 +273,11 @@ private fun SpaceInputCard(
                         },
                         enabled = state.people < 50,
                     ) {
-                        Icon(Icons.Rounded.Add, contentDescription = "Más personas")
+                        Icon(Icons.Rounded.Add, contentDescription = stringResource(R.string.rec_people_plus))
                     }
                 }
 
-                Text(text = "Techo", style = MaterialTheme.typography.titleMedium)
+                Text(text = stringResource(R.string.rec_ceiling), style = MaterialTheme.typography.titleMedium)
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     CeilingType.entries.forEach { ceiling ->
                         FilterChip(
@@ -280,12 +286,12 @@ private fun SpaceInputCard(
                                 haptics.tap()
                                 onUpdate { it.copy(ceiling = ceiling) }
                             },
-                            label = { Text(ceiling.label) },
+                            label = { Text(stringResource(ceiling.labelRes)) },
                         )
                     }
                 }
 
-                Text(text = "Fuentes de calor", style = MaterialTheme.typography.titleMedium)
+                Text(text = stringResource(R.string.rec_heat), style = MaterialTheme.typography.titleMedium)
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     HeatSource.entries.forEach { source ->
                         FilterChip(
@@ -301,22 +307,22 @@ private fun SpaceInputCard(
                                     current.copy(heatSources = sources)
                                 }
                             },
-                            label = { Text(source.label) },
+                            label = { Text(stringResource(source.labelRes)) },
                         )
                     }
                 }
 
                 MetricField(
-                    label = "Distancia de tubería",
+                    label = stringResource(R.string.rec_pipe),
                     value = state.pipeDistanceInput,
                     suffix = state.lengthSymbol,
                     onValueChange = { value -> onUpdate { it.copy(pipeDistanceInput = value) } },
                     modifier = Modifier.fillMaxWidth(),
                 )
                 MetricField(
-                    label = "Capacidad que piensas comprar (opcional)",
+                    label = stringResource(R.string.rec_selected_btu),
                     value = state.selectedBtuInput,
-                    suffix = "BTU/h",
+                    suffix = stringResource(R.string.common_btu),
                     onValueChange = { value -> onUpdate { it.copy(selectedBtuInput = value) } },
                     modifier = Modifier.fillMaxWidth(),
                 )
@@ -333,8 +339,8 @@ private fun RecommendationHero(
     val diagnostic = state.diagnostic
 
     SectionCard(
-        title = "Capacidad recomendada",
-        subtitle = "Base tropicalizada de Panamá: 680 BTU/h por m².",
+        title = stringResource(R.string.rec_capacity_title),
+        subtitle = stringResource(R.string.rec_capacity_subtitle),
     ) {
         Text(
             text = AppFormat.btu(recommendation.commercialBtu.toDouble()),
@@ -342,8 +348,11 @@ private fun RecommendationHero(
             color = MaterialTheme.colorScheme.primary,
         )
         Text(
-            text = "Cálculo exacto: ${AppFormat.btu(recommendation.exactBtu)} · " +
-                "${AppFormat.decimal(recommendation.areaSquareMeters)} m²",
+            text = stringResource(
+                R.string.rec_exact,
+                AppFormat.btu(recommendation.exactBtu),
+                AppFormat.decimal(recommendation.areaSquareMeters),
+            ),
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
@@ -373,7 +382,7 @@ private fun RecommendationHero(
                             tint = MaterialTheme.colorScheme.onErrorContainer,
                         )
                         Text(
-                            text = "Trampa del Aire Pequeño",
+                            text = stringResource(R.string.rec_small_trap),
                             style = MaterialTheme.typography.titleMedium,
                             color = MaterialTheme.colorScheme.onErrorContainer,
                         )
@@ -388,7 +397,7 @@ private fun RecommendationHero(
         }
 
         if (recommendation.factors.isNotEmpty()) {
-            Text(text = "Qué sumó BTU/h", style = MaterialTheme.typography.titleMedium)
+            Text(text = stringResource(R.string.rec_factors), style = MaterialTheme.typography.titleMedium)
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 recommendation.factors.forEach { factor ->
                     FactorPill(factor)
@@ -406,11 +415,11 @@ private fun ElectricalCard(
 ) {
     val haptics = rememberPixelHaptics()
     SectionCard(
-        title = "Ficha eléctrica",
-        subtitle = "Todos los splits modernos de Panamá van a 220 V; el breaker va por capacidad.",
+        title = stringResource(R.string.rec_electrical_title),
+        subtitle = stringResource(R.string.rec_electrical_subtitle),
     ) {
         SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
-            listOf(true to "Inverter", false to "No Inverter").forEachIndexed { index, (value, label) ->
+            listOf(true to R.string.inverter, false to R.string.no_inverter).forEachIndexed { index, (value, label) ->
                 SegmentedButton(
                     selected = inverter == value,
                     onClick = {
@@ -421,13 +430,13 @@ private fun ElectricalCard(
                         index = index,
                         count = 2,
                     ),
-                ) { Text(label) }
+                ) { Text(stringResource(label)) }
             }
         }
 
         if (spec == null) {
             Text(
-                text = "Escribe una capacidad válida para ver la ficha.",
+                text = stringResource(R.string.rec_valid_capacity),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -435,13 +444,13 @@ private fun ElectricalCard(
         }
 
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            SpecTile("Voltaje", "${spec.voltage} V", Modifier.weight(1f))
-            SpecTile("Breaker", "${spec.breakerAmps} A", Modifier.weight(1f))
-            SpecTile("Cable", spec.wireGauge, Modifier.weight(1f))
+            SpecTile(stringResource(R.string.rec_voltage), "${spec.voltage} V", Modifier.weight(1f))
+            SpecTile(stringResource(R.string.rec_breaker), "${spec.breakerAmps} A", Modifier.weight(1f))
+            SpecTile(stringResource(R.string.rec_wire), spec.wireGauge, Modifier.weight(1f))
         }
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            SpecTile("Corriente", AppFormat.amperes(spec.estimatedAmps), Modifier.weight(1f))
-            SpecTile("Protector", "${spec.protector.joules} J", Modifier.weight(1f))
+            SpecTile(stringResource(R.string.rec_current), AppFormat.amperes(spec.estimatedAmps), Modifier.weight(1f))
+            SpecTile(stringResource(R.string.rec_protector), "${spec.protector.joules} J", Modifier.weight(1f))
         }
 
         Column(
@@ -453,7 +462,9 @@ private fun ElectricalCard(
             verticalArrangement = Arrangement.spacedBy(4.dp),
         ) {
             Text(
-                text = if (inverter) "Protector Inverter de línea directa" else "Protector convencional",
+                text = stringResource(
+                    if (inverter) R.string.rec_protector_inverter else R.string.rec_protector_standard,
+                ),
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.onSecondaryContainer,
             )
@@ -463,7 +474,11 @@ private fun ElectricalCard(
                 color = MaterialTheme.colorScheme.onSecondaryContainer,
             )
             Text(
-                text = "${spec.protector.joules} J · reconexión ${spec.protector.reconnectLabel}",
+                text = stringResource(
+                    R.string.rec_protector_detail,
+                    spec.protector.joules,
+                    spec.protector.reconnectLabel,
+                ),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSecondaryContainer,
             )
@@ -474,8 +489,12 @@ private fun ElectricalCard(
             )
             spec.alternativeProtector?.let { alternative ->
                 Text(
-                    text = "Alternativa: ${alternative.brandAndModel} · ${alternative.joules} J · " +
-                        "reconexión ${alternative.reconnectLabel}.",
+                    text = stringResource(
+                        R.string.rec_alternative,
+                        alternative.brandAndModel,
+                        alternative.joules,
+                        alternative.reconnectLabel,
+                    ),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSecondaryContainer,
                 )
@@ -484,7 +503,7 @@ private fun ElectricalCard(
 
         if (inverter) {
             Text(
-                text = "El protector es obligatorio en Inverter: los picos de la red dañan la tarjeta de potencia.",
+                text = stringResource(R.string.rec_protector_mandatory),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )

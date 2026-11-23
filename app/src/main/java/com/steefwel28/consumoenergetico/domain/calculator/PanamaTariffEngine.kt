@@ -108,9 +108,9 @@ object PanamaTariffEngine {
         utility = PanamaUtility.ENSA,
         fixedChargeBalboas = 1.20,
         tiers = listOf(
-            TariffTier(10.0, 300.0, 0.1769),
-            TariffTier(300.0, 750.0, 0.2084),
-            TariffTier(750.0, null, 0.2320),
+            TariffTier(10.0, 300.0, 0.1685),
+            TariffTier(300.0, 750.0, 0.2145),
+            TariffTier(750.0, null, 0.2390),
         ),
     )
 
@@ -118,9 +118,9 @@ object PanamaTariffEngine {
         utility = PanamaUtility.NATURGY,
         fixedChargeBalboas = 1.15,
         tiers = listOf(
-            TariffTier(10.0, 300.0, 0.1815),
-            TariffTier(300.0, 750.0, 0.2099),
-            TariffTier(750.0, null, 0.2335),
+            TariffTier(10.0, 300.0, 0.1792),
+            TariffTier(300.0, 750.0, 0.2285),
+            TariffTier(750.0, null, 0.2540),
         ),
     )
 

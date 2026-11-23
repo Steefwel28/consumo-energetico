@@ -2,6 +2,7 @@ package com.steefwel28.consumoenergetico.ui.screens.calculate
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.steefwel28.consumoenergetico.R
 import com.steefwel28.consumoenergetico.core.di.AppContainer
 import com.steefwel28.consumoenergetico.core.signature.CraftedBy
 import com.steefwel28.consumoenergetico.data.local.db.CustomLocationEntity
@@ -119,7 +120,9 @@ class CalculateViewModel(
                     nowMillis = System.currentTimeMillis(),
                     groupId = group.id,
                     ubicacion = location,
-                ) ?: error("Completa BTU/h y potencia nominal mayores que cero para guardar.")
+                ) ?: error(
+                    container.appContext.getString(R.string.calc_msg_save_incomplete),
+                )
 
                 container.database.acUnitDao().insert(entity)
                 entity to group
@@ -127,7 +130,11 @@ class CalculateViewModel(
                 _state.update { current ->
                     current.copy(
                         isSaving = false,
-                        savedMessage = "“${entity.ubicacion}” quedó registrado en “${group.nombreGrupo}”.",
+                        savedMessage = container.appContext.getString(
+                            R.string.calc_msg_saved,
+                            entity.ubicacion,
+                            group.nombreGrupo,
+                        ),
                         selectedGroupId = group.id,
                         selectedLocation = entity.ubicacion,
                         utility = group.distribuidora,
@@ -139,7 +146,8 @@ class CalculateViewModel(
                 _state.update { current ->
                     current.copy(
                         isSaving = false,
-                        saveError = error.message ?: "No se pudo guardar el equipo.",
+                        saveError = error.message
+                            ?: container.appContext.getString(R.string.calc_msg_save_error),
                     )
                 }
             }

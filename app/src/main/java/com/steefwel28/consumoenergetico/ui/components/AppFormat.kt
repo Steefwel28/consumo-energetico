@@ -19,8 +19,6 @@ object AppFormat {
 
     fun decimal(value: Double): String = String.format(Locale.US, "%.1f", value)
 
-    fun months(value: Double): String = String.format(Locale.US, "%.0f meses", value)
-
     fun temperature(celsius: Int, unit: TemperatureUnit): String =
         UnitConverter.formatTemperature(celsius.toDouble(), unit)
 

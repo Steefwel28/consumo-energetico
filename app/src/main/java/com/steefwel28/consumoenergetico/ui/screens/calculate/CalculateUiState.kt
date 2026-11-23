@@ -18,6 +18,7 @@ import com.steefwel28.consumoenergetico.domain.recommender.ElectricalSpec
 import com.steefwel28.consumoenergetico.domain.recommender.ElectricalSpecAdvisor
 import com.steefwel28.consumoenergetico.domain.units.LocaleNumber
 import com.steefwel28.consumoenergetico.domain.units.UnitPreferences
+import java.time.YearMonth
 import java.util.Locale
 import kotlin.math.abs
 import kotlin.math.roundToInt
@@ -34,6 +35,13 @@ enum class EquipmentCategory(val label: String) {
 enum class ManualCostMode(val label: String) {
     DIRECT_RATE("Tarifa directa"),
     RECEIPT("Desde el recibo"),
+}
+
+/** Periodo visible en la gráfica; el escalón siempre se decide sobre el mes real. */
+enum class UsagePeriod {
+    DAY,
+    FORTNIGHT,
+    MONTH,
 }
 
 /** Atajo del conversor de placa. */
@@ -84,10 +92,11 @@ data class CalculateUiState(
     val receiptKwhInput: String = "",
     val baseMonthlyKwh: Double = 0.0,
     val unitPreferences: UnitPreferences = UnitPreferences(),
+    val usagePeriod: UsagePeriod = UsagePeriod.MONTH,
     val setpointCelsius: Int = 24,
     val cleanFilters: Boolean = true,
     val schedule: AcSchedule = AcSchedule.NIGHT,
-    val hoursPerDay: Int = 8,
+    val hoursPerDay: Int = AcConsumptionCalculator.DEFAULT_HOURS_PER_DAY.toInt(),
     val simulatedSetpointCelsius: Int = 24,
     val simulatedCleanFilters: Boolean = true,
     val simulatedSchedule: AcSchedule = AcSchedule.NIGHT,
@@ -135,8 +144,30 @@ data class CalculateUiState(
             return runCatching { AcUnitSpec(btu, watts, seer, inverter) }.getOrNull()
         }
 
+    /** Días reales del mes en curso (28, 29 en bisiestos, 30 o 31). */
+    val daysInMonth: Int
+        get() = YearMonth.now().lengthOfMonth()
+
+    val periodDays: Int
+        get() = when (usagePeriod) {
+            UsagePeriod.DAY -> 1
+            UsagePeriod.FORTNIGHT -> 15
+            UsagePeriod.MONTH -> daysInMonth
+        }
+
+    val periodFactor: Double
+        get() = periodDays.toDouble() / daysInMonth.toDouble()
+
+    val dailyKwh: Double?
+        get() = spec?.let { AcConsumptionCalculator.dailyKwh(it, usage) }
+
+    /** Proyección mensual real; decide el salto de bloque tarifario. */
     val monthlyKwh: Double?
-        get() = spec?.let { AcConsumptionCalculator.monthlyKwh(it, usage) }
+        get() = dailyKwh?.times(daysInMonth)
+
+    /** Consumo que se pinta y se exporta para el periodo elegido. */
+    val periodKwh: Double?
+        get() = monthlyKwh?.times(periodFactor)
 
     /** Uso del simulador; vive aparte para no mover la gráfica principal. */
     val simulatedUsage: AcUsage
@@ -151,15 +182,12 @@ data class CalculateUiState(
         )
 
     val simulatedMonthlyKwh: Double?
-        get() = spec?.let { AcConsumptionCalculator.monthlyKwh(it, simulatedUsage) }
+        get() = spec?.let { AcConsumptionCalculator.monthlyKwh(it, simulatedUsage, daysInMonth.toDouble()) }
 
     val simulatedTariffEstimate: TariffEstimate?
         get() {
-            val added = simulatedMonthlyKwh ?: return null
             val mode = tariffMode ?: return null
-            return runCatching {
-                PanamaTariffEngine.estimate(mode, baseMonthlyKwh.coerceAtLeast(0.0), added)
-            }.getOrNull()
+            return estimateFor(mode, simulatedMonthlyKwh)
         }
 
     val simulatedMonthlyCost: Double? get() = simulatedTariffEstimate?.addedCostBalboas
@@ -175,11 +203,13 @@ data class CalculateUiState(
             }
         }
 
-    private fun estimateFor(mode: TariffMode): TariffEstimate? {
-        val added = monthlyKwh ?: return null
-        return runCatching {
+    /** Elige el bloque con el mes real y luego reparte kWh/B/. al periodo. */
+    private fun estimateFor(mode: TariffMode, monthlyAdded: Double? = monthlyKwh): TariffEstimate? {
+        val added = monthlyAdded ?: return null
+        val monthly = runCatching {
             PanamaTariffEngine.estimate(mode, baseMonthlyKwh.coerceAtLeast(0.0), added)
-        }.getOrNull()
+        }.getOrNull() ?: return null
+        return monthly.scaledToPeriod(periodFactor)
     }
 
     val tariffEstimate: TariffEstimate?
@@ -333,11 +363,24 @@ data class CalculateUiState(
             fechaInstalacionMillis = nowMillis,
             fechaUltimoMantenimientoMillis = nowMillis,
             consumoEstimadoKwhMes = kwh,
+            horasUsoDiario = hoursPerDay.coerceIn(1, 24).toDouble(),
             groupId = groupId,
             ubicacion = ubicacion.trim().ifBlank { CalculateLocations.DEFAULT },
         )
     }
 }
+
+/** Reparte el costo mensual del bloque al periodo visible sin promediar la tarifa. */
+private fun TariffEstimate.scaledToPeriod(factor: Double): TariffEstimate =
+    if (factor == 1.0) {
+        this
+    } else {
+        copy(
+            addedKwh = addedKwh * factor,
+            totalBillBalboas = baseBillBalboas + addedCostBalboas * factor,
+            addedCostBalboas = addedCostBalboas * factor,
+        )
+    }
 
 private fun String.toDecimal(range: ClosedFloatingPointRange<Double>): Double? =
     LocaleNumber.parse(this)?.takeIf { it in range }

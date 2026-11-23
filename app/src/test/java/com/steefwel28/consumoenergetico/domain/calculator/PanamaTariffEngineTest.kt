@@ -12,12 +12,15 @@ class PanamaTariffEngineTest {
     }
 
     @Test
-    fun `aplica el pliego escalonado de ENSA`() {
+    fun `aplica el pliego escalonado de ENSA y Naturgy con cuatro decimales`() {
         val mode = TariffMode.Tiered(PanamaUtility.ENSA)
-        assertEquals(34.811, PanamaTariffEngine.bill(mode, 200.0), 1e-9)
-        assertEquals(0.2084, PanamaTariffEngine.marginalRate(mode, 320.0), 0.0)
-        assertEquals(0.2320, PanamaTariffEngine.marginalRate(mode, 900.0), 0.0)
-        assertEquals(0.1815, PanamaTariffEngine.marginalRate(TariffMode.Tiered(PanamaUtility.NATURGY), 100.0), 0.0)
+        assertEquals(33.215, PanamaTariffEngine.bill(mode, 200.0), 1e-9)
+        assertEquals(0.2145, PanamaTariffEngine.marginalRate(mode, 320.0), 0.0)
+        assertEquals(0.2390, PanamaTariffEngine.marginalRate(mode, 900.0), 0.0)
+        assertEquals(0.1685, PanamaTariffEngine.marginalRate(mode, 100.0), 0.0)
+        assertEquals(0.1792, PanamaTariffEngine.marginalRate(TariffMode.Tiered(PanamaUtility.NATURGY), 100.0), 0.0)
+        assertEquals(0.2285, PanamaTariffEngine.marginalRate(TariffMode.Tiered(PanamaUtility.NATURGY), 320.0), 0.0)
+        assertEquals(0.2540, PanamaTariffEngine.marginalRate(TariffMode.Tiered(PanamaUtility.NATURGY), 900.0), 0.0)
     }
 
     @Test
@@ -27,9 +30,9 @@ class PanamaTariffEngineTest {
             baseKwh = 290.0,
             addedKwh = 30.0,
         )
-        assertEquals(5.937, estimate.addedCostBalboas, 1e-9)
-        assertEquals(56.669, estimate.totalBillBalboas, 1e-9)
-        assertEquals(0.2084, estimate.marginalBalboasPerKwh, 0.0)
+        assertEquals(5.975, estimate.addedCostBalboas, 1e-9)
+        assertEquals(54.355, estimate.totalBillBalboas, 1e-9)
+        assertEquals(0.2145, estimate.marginalBalboasPerKwh, 0.0)
     }
 
     @Test

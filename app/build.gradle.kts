@@ -12,8 +12,8 @@ android {
         applicationId = "com.steefwel28.consumoenergetico"
         minSdk = 26
         targetSdk = 37
-        versionCode = 1
-        versionName = "0.1.0"
+        versionCode = 5
+        versionName = "0.5.0-alpha"
 
         buildConfigField("String", "AUTHOR_SIGNATURE", "\"steefwel28\"")
         buildConfigField(
@@ -64,6 +64,7 @@ ksp {
 
 dependencies {
     implementation(libs.androidx.core.ktx)
+    implementation(libs.androidx.appcompat)
 
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.compose.ui)

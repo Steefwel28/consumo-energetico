@@ -14,8 +14,9 @@ import com.steefwel28.consumoenergetico.core.signature.CraftedBy
  * propiedades y ubicaciones personalizadas.
  *
  * La versión 2 añade `property_groups` y `custom_locations`, y vincula cada
- * equipo con su grupo y ubicación. La migración siembra "Mi Casa" para que los
- * equipos existentes mantengan compatibilidad sin fricción.
+ * equipo con su grupo y ubicación. La versión 3 guarda las horas de uso diario
+ * de cada equipo. Las migraciones siembran "Mi Casa" para que los equipos
+ * existentes mantengan compatibilidad sin fricción.
  */
 @CraftedBy("steefwel28")
 @Database(
@@ -25,7 +26,7 @@ import com.steefwel28.consumoenergetico.core.signature.CraftedBy
         PropertyGroupEntity::class,
         CustomLocationEntity::class,
     ],
-    version = 2,
+    version = 3,
     exportSchema = true,
 )
 @TypeConverters(ConsumoConverters::class)
@@ -75,6 +76,14 @@ abstract class ConsumoDatabase : RoomDatabase() {
             }
         }
 
+        val MIGRATION_2_3 = object : Migration(2, 3) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL(
+                    "ALTER TABLE `ac_units` ADD COLUMN `horasUsoDiario` REAL NOT NULL DEFAULT 8.0",
+                )
+            }
+        }
+
         @Volatile
         private var instance: ConsumoDatabase? = null
 
@@ -84,7 +93,7 @@ abstract class ConsumoDatabase : RoomDatabase() {
                     context.applicationContext,
                     ConsumoDatabase::class.java,
                     DATABASE_NAME,
-                ).addMigrations(MIGRATION_1_2)
+                ).addMigrations(MIGRATION_1_2, MIGRATION_2_3)
                     .build()
                     .also { instance = it }
             }

@@ -53,6 +53,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
@@ -60,6 +61,7 @@ import androidx.compose.ui.unit.dp
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.steefwel28.consumoenergetico.R
 import com.steefwel28.consumoenergetico.core.di.AppContainer
 import com.steefwel28.consumoenergetico.data.local.db.AcUnitEntity
 import com.steefwel28.consumoenergetico.data.local.db.MaintenanceLogEntity
@@ -72,6 +74,7 @@ import com.steefwel28.consumoenergetico.ui.components.AppFormat
 import com.steefwel28.consumoenergetico.ui.components.PixelDialog
 import com.steefwel28.consumoenergetico.ui.components.PixelSpringSnappy
 import com.steefwel28.consumoenergetico.ui.components.SectionCard
+import com.steefwel28.consumoenergetico.ui.components.pixelChargeHaptics
 import com.steefwel28.consumoenergetico.ui.components.rememberPixelHaptics
 import com.steefwel28.consumoenergetico.ui.theme.ConsumoEnergeticoTheme
 import java.text.SimpleDateFormat
@@ -119,9 +122,9 @@ fun MyHomeScreen(
     ) {
         item {
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Text(text = "Mi Casa", style = MaterialTheme.typography.headlineMedium)
+                Text(text = stringResource(R.string.home_title), style = MaterialTheme.typography.headlineMedium)
                 Text(
-                    text = "Cada propiedad con su recibo, sus equipos y su salto de bloque tarifario.",
+                    text = stringResource(R.string.home_subtitle),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -145,12 +148,15 @@ fun MyHomeScreen(
         if (group == null) {
             item {
                 SectionCard(
-                    title = "Todavía no hay grupos",
-                    subtitle = "Crea “Mi Casa” o “Trabajo” para empezar.",
+                    title = stringResource(R.string.home_no_groups_title),
+                    subtitle = stringResource(R.string.home_no_groups_subtitle),
                 ) {
-                    Button(onClick = { showNewGroup = true }, modifier = Modifier.fillMaxWidth()) {
+                    Button(
+                        onClick = { showNewGroup = true },
+                        modifier = Modifier.fillMaxWidth().pixelChargeHaptics(),
+                    ) {
                         Icon(Icons.Rounded.Add, contentDescription = null)
-                        Text(text = "Crear grupo", modifier = Modifier.padding(start = 8.dp))
+                        Text(text = stringResource(R.string.home_create_group), modifier = Modifier.padding(start = 8.dp))
                     }
                 }
             }
@@ -176,18 +182,21 @@ fun MyHomeScreen(
                         haptics.confirm()
                         showNewUnit = true
                     },
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier.fillMaxWidth().pixelChargeHaptics(),
                 ) {
                     Icon(Icons.Rounded.Add, contentDescription = null)
-                    Text(text = "Añadir equipo a ${group.nombreGrupo}", modifier = Modifier.padding(start = 8.dp))
+                    Text(
+                        text = stringResource(R.string.home_add_unit, group.nombreGrupo),
+                        modifier = Modifier.padding(start = 8.dp),
+                    )
                 }
             }
 
             if (state.groupUnits.isEmpty()) {
                 item {
                     SectionCard(
-                        title = "Sin equipos todavía",
-                        subtitle = "Guarda un aire desde Calcular o agrégalo aquí con su consumo mensual.",
+                        title = stringResource(R.string.home_no_units_title),
+                        subtitle = stringResource(R.string.home_no_units_subtitle),
                     ) {}
                 }
             } else {
@@ -196,9 +205,9 @@ fun MyHomeScreen(
                         SectionCard(
                             title = location,
                             subtitle = if (units.size == 1) {
-                                "1 equipo en esta ubicación"
+                                stringResource(R.string.home_units_one)
                             } else {
-                                "${units.size} equipos en esta ubicación"
+                                stringResource(R.string.home_units_many, units.size)
                             },
                         ) {
                             units.forEach { unit ->
@@ -227,7 +236,7 @@ fun MyHomeScreen(
 
         item {
             Text(
-                text = "El mantenimiento se avisa cada 90 días; registrar la limpieza reinicia el contador.",
+                text = stringResource(R.string.home_footer),
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center,
@@ -279,9 +288,9 @@ fun MyHomeScreen(
 
     state.message?.let { message ->
         PixelDialog(
-            title = "Mi Casa",
+            title = stringResource(R.string.home_title),
             text = message,
-            confirmLabel = "Entendido",
+            confirmLabel = stringResource(R.string.common_understood),
             onConfirm = onDismissMessage,
             onDismissRequest = onDismissMessage,
         )
@@ -295,8 +304,8 @@ private fun GroupsCard(
     onNewGroup: () -> Unit,
 ) {
     SectionCard(
-        title = "Grupos y propiedades",
-        subtitle = "Cada grupo guarda su distribuidora y el consumo base de su recibo.",
+        title = stringResource(R.string.home_groups_title),
+        subtitle = stringResource(R.string.home_groups_subtitle),
     ) {
         Row(
             modifier = Modifier
@@ -324,7 +333,7 @@ private fun GroupsCard(
             FilterChip(
                 selected = false,
                 onClick = onNewGroup,
-                label = { Text("Nuevo grupo") },
+                label = { Text(stringResource(R.string.common_new_group)) },
                 leadingIcon = {
                     Icon(
                         imageVector = Icons.Rounded.Add,
@@ -344,24 +353,28 @@ private fun GroupSummaryCard(
     onEdit: () -> Unit,
 ) {
     SectionCard(
-        title = "Resumen de ${group.nombreGrupo}",
-        subtitle = "${group.distribuidora.displayName} · recibo base ${AppFormat.kwh(group.consumoBaseKwh)}",
+        title = stringResource(R.string.home_summary_title, group.nombreGrupo),
+        subtitle = stringResource(
+            R.string.home_summary_subtitle,
+            group.distribuidora.displayName,
+            AppFormat.kwh(group.consumoBaseKwh),
+        ),
     ) {
         if (estimate == null) {
             Text(
-                text = "Agrega equipos para ver el consumo combinado y su salto de bloque.",
+                text = stringResource(R.string.home_add_units_hint),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         } else {
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 HomeMetric(
-                    label = "Consumo total",
+                    label = stringResource(R.string.home_total),
                     value = AppFormat.kwh(estimate.baseKwh + estimate.addedKwh),
                     modifier = Modifier.weight(1f),
                 )
                 HomeMetric(
-                    label = "Factura estimada",
+                    label = stringResource(R.string.home_bill),
                     value = AppFormat.balboas(estimate.totalBillBalboas),
                     modifier = Modifier.weight(1f),
                     highlight = true,
@@ -369,26 +382,29 @@ private fun GroupSummaryCard(
             }
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 HomeMetric(
-                    label = "Aires del grupo",
+                    label = stringResource(R.string.home_group_acs),
                     value = AppFormat.kwh(estimate.addedKwh),
                     modifier = Modifier.weight(1f),
                 )
                 HomeMetric(
-                    label = "Salto a la factura",
+                    label = stringResource(R.string.home_jump),
                     value = AppFormat.balboas(estimate.addedCostBalboas),
                     modifier = Modifier.weight(1f),
                 )
             }
             Text(
-                text = "El próximo kWh paga ${AppFormat.balboas(estimate.marginalBalboasPerKwh)}: " +
-                    "así se siente el escalón de ${group.distribuidora.displayName}.",
+                text = stringResource(
+                    R.string.home_marginal,
+                    AppFormat.balboas(estimate.marginalBalboasPerKwh),
+                    group.distribuidora.displayName,
+                ),
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
         OutlinedButton(onClick = onEdit, modifier = Modifier.fillMaxWidth()) {
             Icon(Icons.Rounded.Edit, contentDescription = null)
-            Text(text = "Editar grupo", modifier = Modifier.padding(start = 8.dp))
+            Text(text = stringResource(R.string.home_edit_group), modifier = Modifier.padding(start = 8.dp))
         }
     }
 }
@@ -413,17 +429,17 @@ private fun NotificationsCard() {
     if (granted) return
 
     SectionCard(
-        title = "Recordatorios de mantenimiento",
-        subtitle = "Android 13 o superior necesita tu permiso para avisarte cada 3 meses.",
+        title = stringResource(R.string.home_notifications_title),
+        subtitle = stringResource(R.string.home_notifications_subtitle),
     ) {
         Button(
             onClick = {
                 haptics.confirm()
                 launcher.launch(Manifest.permission.POST_NOTIFICATIONS)
             },
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier.fillMaxWidth().pixelChargeHaptics(),
         ) {
-            Text("Activar avisos")
+            Text(stringResource(R.string.home_enable_notifications))
         }
     }
 }
@@ -450,12 +466,17 @@ private fun UnitCard(
                 Text(text = unit.marcaModelo, style = MaterialTheme.typography.titleMedium)
                 Text(
                     text = "${AppFormat.btu(unit.btu.toDouble())} · " +
-                        "${if (unit.esInverter) "Inverter" else "No Inverter"} · ${unit.voltaje} V",
+                        "${stringResource(if (unit.esInverter) R.string.inverter else R.string.no_inverter)} · " +
+                        "${unit.voltaje} V",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 Text(
-                    text = "Consumo estimado: ${AppFormat.kwh(unit.consumoEstimadoKwhMes)}",
+                    text = stringResource(
+                        R.string.home_unit_consumption,
+                        AppFormat.kwh(unit.consumoEstimadoKwhMes),
+                        AppFormat.decimal(unit.horasUsoDiario),
+                    ),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -470,14 +491,14 @@ private fun UnitCard(
                 )
             }
             IconButton(onClick = onEdit) {
-                Icon(Icons.Rounded.Edit, contentDescription = "Editar ${unit.nombreEspacio}")
+                Icon(Icons.Rounded.Edit, contentDescription = stringResource(R.string.home_edit_unit_cd, unit.nombreEspacio))
             }
             IconButton(onClick = onHistory) {
-                Icon(Icons.Rounded.History, contentDescription = "Historial de ${unit.nombreEspacio}")
+                Icon(Icons.Rounded.History, contentDescription = stringResource(R.string.home_history_cd, unit.nombreEspacio))
             }
         }
         OutlinedButton(onClick = onMaintenance, modifier = Modifier.fillMaxWidth()) {
-            Text("Registrar mantenimiento hoy")
+            Text(stringResource(R.string.home_register_maintenance))
         }
     }
 }
@@ -533,8 +554,8 @@ private fun GroupDialog(
     }
 
     PixelDialog(
-        title = if (group == null) "Nuevo grupo" else "Editar grupo",
-        confirmLabel = "Guardar",
+        title = stringResource(if (group == null) R.string.common_new_group else R.string.home_edit_group),
+        confirmLabel = stringResource(R.string.common_save),
         confirmEnabled = name.isNotBlank(),
         onConfirm = {
             haptics.confirm()
@@ -548,14 +569,14 @@ private fun GroupDialog(
             )
         },
         onDismissRequest = onDismiss,
-        dismissLabel = "Cancelar",
+        dismissLabel = stringResource(R.string.common_cancel),
         content = {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 OutlinedTextField(
                     value = name,
                     onValueChange = { name = it },
-                    label = { Text("Nombre del grupo") },
-                    placeholder = { Text("Mi Casa, Trabajo, Casa de Mamá") },
+                    label = { Text(stringResource(R.string.home_group_name)) },
+                    placeholder = { Text(stringResource(R.string.home_group_placeholder)) },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
                 )
@@ -577,7 +598,7 @@ private fun GroupDialog(
                 OutlinedTextField(
                     value = base,
                     onValueChange = { base = it },
-                    label = { Text("Consumo base del recibo (kWh/mes)") },
+                    label = { Text(stringResource(R.string.common_base_kwh)) },
                     singleLine = true,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                     modifier = Modifier.fillMaxWidth(),
@@ -610,6 +631,9 @@ private fun UnitDialog(
     var consumoInput by remember {
         mutableStateOf(unit?.let { AppFormat.kwhNumber(it.consumoEstimadoKwhMes) }.orEmpty())
     }
+    var hoursInput by remember {
+        mutableStateOf(AppFormat.kwhNumber(unit?.horasUsoDiario ?: 8.0))
+    }
 
     val btu = btuInput.toIntOrNull()
     val chosenLocation = if (useOther) otherLocation.trim() else location
@@ -617,8 +641,8 @@ private fun UnitDialog(
         groups.any { it.id == groupId }
 
     PixelDialog(
-        title = if (unit == null) "Nuevo equipo" else "Editar equipo",
-        confirmLabel = "Guardar",
+        title = stringResource(if (unit == null) R.string.home_new_unit else R.string.home_edit_unit),
+        confirmLabel = stringResource(R.string.common_save),
         confirmEnabled = valid,
         onConfirm = {
             haptics.confirm()
@@ -633,6 +657,7 @@ private fun UnitDialog(
                     watts = LocaleNumber.parse(wattsInput),
                     seer = LocaleNumber.parse(seerInput),
                     inverter = inverter,
+                    horasUsoDiario = (LocaleNumber.parse(hoursInput) ?: 8.0).coerceIn(1.0, 24.0),
                     consumoKwhMes = LocaleNumber.parse(consumoInput),
                     fechaInstalacionMillis = unit?.fechaInstalacionMillis
                         ?: System.currentTimeMillis(),
@@ -642,7 +667,7 @@ private fun UnitDialog(
             )
         },
         onDismissRequest = onDismiss,
-        dismissLabel = "Cancelar",
+        dismissLabel = stringResource(R.string.common_cancel),
         content = {
             Column(
                 modifier = Modifier
@@ -650,7 +675,7 @@ private fun UnitDialog(
                     .verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(10.dp),
             ) {
-                Text(text = "Grupo / propiedad", style = MaterialTheme.typography.titleMedium)
+                Text(text = stringResource(R.string.common_group_property), style = MaterialTheme.typography.titleMedium)
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     groups.forEach { group ->
                         FilterChip(
@@ -664,7 +689,7 @@ private fun UnitDialog(
                     }
                 }
 
-                Text(text = "Ubicación", style = MaterialTheme.typography.titleMedium)
+                Text(text = stringResource(R.string.common_location), style = MaterialTheme.typography.titleMedium)
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     (locations + MyHomeLocations.OTHER).distinct().forEach { name ->
                         val isOther = name == MyHomeLocations.OTHER
@@ -687,8 +712,8 @@ private fun UnitDialog(
                     OutlinedTextField(
                         value = otherLocation,
                         onValueChange = { otherLocation = it },
-                        label = { Text("Nueva ubicación") },
-                        placeholder = { Text("Balcón, Oficina, Garaje…") },
+                        label = { Text(stringResource(R.string.common_new_location)) },
+                        placeholder = { Text(stringResource(R.string.common_new_location_placeholder)) },
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth(),
                     )
@@ -697,16 +722,16 @@ private fun UnitDialog(
                 OutlinedTextField(
                     value = spaceName,
                     onValueChange = { spaceName = it },
-                    label = { Text("Nombre del espacio (opcional)") },
-                    placeholder = { Text("Recámara principal") },
+                    label = { Text(stringResource(R.string.home_space_name)) },
+                    placeholder = { Text(stringResource(R.string.home_space_placeholder)) },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
                 )
                 OutlinedTextField(
                     value = brandModel,
                     onValueChange = { brandModel = it },
-                    label = { Text("Marca y modelo") },
-                    placeholder = { Text("Hisense ATR362MA") },
+                    label = { Text(stringResource(R.string.common_brand_model)) },
+                    placeholder = { Text(stringResource(R.string.common_brand_placeholder)) },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
                 )
@@ -714,7 +739,7 @@ private fun UnitDialog(
                     OutlinedTextField(
                         value = btuInput,
                         onValueChange = { btuInput = it },
-                        label = { Text("BTU/h") },
+                        label = { Text(stringResource(R.string.common_btu)) },
                         singleLine = true,
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                         modifier = Modifier.weight(1f),
@@ -722,7 +747,7 @@ private fun UnitDialog(
                     OutlinedTextField(
                         value = wattsInput,
                         onValueChange = { wattsInput = it },
-                        label = { Text("Potencia W") },
+                        label = { Text(stringResource(R.string.common_watts)) },
                         placeholder = { Text("1150") },
                         singleLine = true,
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
@@ -733,7 +758,7 @@ private fun UnitDialog(
                     OutlinedTextField(
                         value = seerInput,
                         onValueChange = { seerInput = it },
-                        label = { Text("SEER") },
+                        label = { Text(stringResource(R.string.common_seer)) },
                         placeholder = { Text("12.5") },
                         singleLine = true,
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
@@ -742,21 +767,30 @@ private fun UnitDialog(
                     OutlinedTextField(
                         value = consumoInput,
                         onValueChange = { consumoInput = it },
-                        label = { Text("kWh/mes") },
-                        placeholder = { Text("Se estima si lo dejas vacío") },
+                        label = { Text(stringResource(R.string.home_kwh_month)) },
+                        placeholder = { Text(stringResource(R.string.home_kwh_estimate_placeholder)) },
                         singleLine = true,
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                         modifier = Modifier.weight(1f),
                     )
                 }
+                OutlinedTextField(
+                    value = hoursInput,
+                    onValueChange = { hoursInput = it },
+                    label = { Text(stringResource(R.string.home_hours)) },
+                    placeholder = { Text("8") },
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                    modifier = Modifier.fillMaxWidth(),
+                )
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
-                        Text(text = "Inverter", style = MaterialTheme.typography.titleMedium)
+                        Text(text = stringResource(R.string.inverter), style = MaterialTheme.typography.titleMedium)
                         Text(
-                            text = "Define el protector de línea directa que necesita.",
+                            text = stringResource(R.string.home_inverter_hint),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
@@ -781,8 +815,8 @@ private fun HistoryDialog(
     onDismiss: () -> Unit,
 ) {
     PixelDialog(
-        title = "Historial de ${unit.nombreEspacio}",
-        confirmLabel = "Cerrar",
+        title = stringResource(R.string.home_history_title, unit.nombreEspacio),
+        confirmLabel = stringResource(R.string.common_close),
         onConfirm = onDismiss,
         onDismissRequest = onDismiss,
         content = {
@@ -794,7 +828,7 @@ private fun HistoryDialog(
             ) {
                 if (logs.isEmpty()) {
                     Text(
-                        text = "Aún no hay limpiezas registradas.",
+                        text = stringResource(R.string.home_no_logs),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -806,7 +840,7 @@ private fun HistoryDialog(
                                 style = MaterialTheme.typography.titleSmall,
                             )
                             Text(
-                                text = log.nota.ifBlank { "Limpieza registrada" },
+                                text = log.nota.ifBlank { stringResource(R.string.home_log_default) },
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
@@ -818,16 +852,17 @@ private fun HistoryDialog(
     )
 }
 
+@Composable
 private fun maintenanceText(days: Long): String = when {
-    days > 1 -> "Faltan $days días para el mantenimiento (90 días)"
-    days == 1L -> "Falta 1 día para el mantenimiento"
-    days == 0L -> "El mantenimiento vence hoy"
-    days == -1L -> "Mantenimiento vencido hace 1 día"
-    else -> "Mantenimiento vencido hace ${-days} días"
+    days > 1 -> stringResource(R.string.home_maintenance_days, days)
+    days == 1L -> stringResource(R.string.home_maintenance_one)
+    days == 0L -> stringResource(R.string.home_maintenance_today)
+    days == -1L -> stringResource(R.string.home_maintenance_overdue_one)
+    else -> stringResource(R.string.home_maintenance_overdue, -days)
 }
 
 private fun formatDate(millis: Long): String =
-    SimpleDateFormat("d MMM yyyy", Locale.forLanguageTag("es-PA")).format(Date(millis))
+    SimpleDateFormat("d MMM yyyy", Locale.getDefault()).format(Date(millis))
 
 @Preview(name = "Mi Casa claro", showBackground = true, heightDp = 900)
 @Preview(

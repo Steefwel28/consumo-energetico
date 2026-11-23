@@ -90,7 +90,8 @@ class BackupCodecTest {
     fun `serializa y recupera el respaldo completo con grupos y ubicaciones`() {
         val json = BackupCodec.encode(snapshot)
         assertTrue(json.contains("\"crafted_by\": \"steefwel28\""))
-        assertTrue(json.contains("\"schema_version\": 2"))
+        assertTrue(json.contains("\"schema_version\": 3"))
+        assertTrue(json.contains("\"horas_uso_diario\""))
         assertTrue(json.contains("\"property_groups\""))
         assertTrue(json.contains("\"custom_locations\""))
         assertTrue(json.contains("\"utility\": \"NATURGY\""))
@@ -135,7 +136,7 @@ class BackupCodecTest {
 
     @Test
     fun `rechaza un esquema de otra version`() {
-        val json = BackupCodec.encode(snapshot).replace("\"schema_version\": 2", "\"schema_version\": 3")
+        val json = BackupCodec.encode(snapshot).replace("\"schema_version\": 3", "\"schema_version\": 4")
         val error = assertThrows(BackupFormatException::class.java) { BackupCodec.decode(json) }
         assertTrue(error.message!!.contains("esquema"))
     }

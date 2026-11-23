@@ -5,6 +5,7 @@ import com.steefwel28.consumoenergetico.data.local.db.CustomLocationEntity
 import com.steefwel28.consumoenergetico.data.local.db.MaintenanceLogEntity
 import com.steefwel28.consumoenergetico.data.local.db.PropertyGroupEntity
 import com.steefwel28.consumoenergetico.data.worker.MaintenanceReminderPlanner
+import com.steefwel28.consumoenergetico.domain.calculator.AcConsumptionCalculator
 import com.steefwel28.consumoenergetico.domain.calculator.PanamaTariffEngine
 import com.steefwel28.consumoenergetico.domain.calculator.PanamaUtility
 import com.steefwel28.consumoenergetico.domain.calculator.TariffEstimate
@@ -36,7 +37,9 @@ data class UnitDraft(
     val watts: Double?,
     val seer: Double?,
     val inverter: Boolean,
-    /** Visible y editable; en blanco se estima con uso típico de 8 h/día. */
+    /** Horas diarias configuradas por el usuario al guardar el equipo. */
+    val horasUsoDiario: Double = AcConsumptionCalculator.DEFAULT_HOURS_PER_DAY,
+    /** Visible y editable; en blanco se estima con las horas configuradas. */
     val consumoKwhMes: Double?,
     val fechaInstalacionMillis: Long,
     val fechaUltimoMantenimientoMillis: Long,

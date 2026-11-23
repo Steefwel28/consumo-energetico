@@ -36,8 +36,10 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.StrokeJoin
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import com.steefwel28.consumoenergetico.R
 import com.steefwel28.consumoenergetico.core.signature.CraftedBy
 import kotlin.math.PI
 import kotlin.math.cos
@@ -480,40 +482,35 @@ fun DryModeVsDehumidifierSketch(modifier: Modifier = Modifier) {
 /* ---------------- Carrusel ---------------- */
 
 private data class SketchCapsule(
-    val title: String,
-    val body: String,
+    val titleRes: Int,
+    val bodyRes: Int,
     val sketch: @Composable (Modifier) -> Unit,
 )
 
 private val capsules = listOf(
     SketchCapsule(
-        title = "SEER: frío con menos watts",
-        body = "Un SEER alto entrega el mismo frío con menos electricidad. Es el número que de verdad " +
-            "mueve tu factura, no solo el BTU/h.",
+        titleRes = R.string.capsule_seer_title,
+        bodyRes = R.string.capsule_seer_body,
         sketch = { modifier -> SeerEfficiencySketch(modifier) },
     ),
     SketchCapsule(
-        title = "El mito de los 17 °C",
-        body = "Cada grado bajo 24 °C cuesta cerca de 6 % más. El cuarto se siente igual con ventilador " +
-            "de techo; el compresor no necesita pelear con el termostato.",
+        titleRes = R.string.capsule_myth_title,
+        bodyRes = R.string.capsule_myth_body,
         sketch = { modifier -> RemoteControlMythSketch(modifier) },
     ),
     SketchCapsule(
-        title = "La trampa del aire pequeño",
-        body = "Un equipo subdimensionado trabaja al 100 % sin modular, gasta más y se desgasta antes. " +
-            "Compra el escalón que cubre el metraje real.",
+        titleRes = R.string.capsule_small_title,
+        bodyRes = R.string.capsule_small_body,
         sketch = { modifier -> UndersizedAcSketch(modifier) },
     ),
     SketchCapsule(
-        title = "Protector Inverter y julios",
-        body = "En Inverter el protector va en línea directa (borneras): AVTEK SPC-PEBAS-B230 de 2,100 J " +
-            "o Forza FVP-6630B de 880 J. Sin él, un pico quema la tarjeta.",
+        titleRes = R.string.capsule_protector_title,
+        bodyRes = R.string.capsule_protector_body,
         sketch = { modifier -> InverterProtectorJoulesSketch(modifier) },
     ),
     SketchCapsule(
-        title = "Modo Dry vs. deshumidificador",
-        body = "El Modo Dry baja la humedad sin forzar el compresor como el frío. El deshumidificador " +
-            "ayuda, pero consume aparte y hay que vaciarle el tanque.",
+        titleRes = R.string.capsule_dry_title,
+        bodyRes = R.string.capsule_dry_body,
         sketch = { modifier -> DryModeVsDehumidifierSketch(modifier) },
     ),
 )
@@ -536,7 +533,9 @@ fun EducationalSketchCarousel(
         horizontalArrangement = Arrangement.spacedBy(12.dp),
         flingBehavior = androidx.compose.foundation.gestures.snapping.rememberSnapFlingBehavior(listState),
     ) {
-        items(capsules, key = { it.title }) { capsule ->
+        items(capsules, key = { it.titleRes }) { capsule ->
+            val title = stringResource(capsule.titleRes)
+            val body = stringResource(capsule.bodyRes)
             Surface(
                 modifier = Modifier.width(272.dp),
                 shape = MaterialTheme.shapes.large,
@@ -558,11 +557,11 @@ fun EducationalSketchCarousel(
                         capsule.sketch(Modifier.fillMaxWidth().height(132.dp))
                     }
                     Text(
-                        text = capsule.title,
+                        text = title,
                         style = MaterialTheme.typography.titleMedium,
                     )
                     Text(
-                        text = capsule.body,
+                        text = body,
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         textAlign = TextAlign.Start,

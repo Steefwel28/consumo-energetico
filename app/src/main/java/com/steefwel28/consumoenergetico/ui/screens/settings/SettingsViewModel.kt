@@ -2,6 +2,7 @@ package com.steefwel28.consumoenergetico.ui.screens.settings
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.steefwel28.consumoenergetico.R
 import com.steefwel28.consumoenergetico.core.di.AppContainer
 import com.steefwel28.consumoenergetico.core.signature.CraftedBy
 import com.steefwel28.consumoenergetico.core.updater.UpdateCheckResult
@@ -74,7 +75,9 @@ class SettingsViewModel(
 
     fun setBaseMonthlyKwh(kwh: Double) {
         if (!kwh.isFinite() || kwh < 0.0) {
-            _state.update { it.copy(message = "El consumo base no puede ser negativo.") }
+            _state.update {
+                it.copy(message = container.appContext.getString(R.string.set_msg_base_negative))
+            }
             return
         }
         viewModelScope.launch { container.preferences.setBaseMonthlyKwh(kwh.coerceAtMost(100_000.0)) }
@@ -86,15 +89,15 @@ class SettingsViewModel(
         viewModelScope.launch {
             val message = when (val result = container.releaseChecker.checkForUpdate()) {
                 is UpdateCheckResult.UpdateAvailable ->
-                    "Hay una versión nueva: ${result.release.version}."
+                    container.appContext.getString(R.string.set_msg_update_available, result.release.version)
 
                 is UpdateCheckResult.UpdateSkipped ->
-                    "La versión ${result.release.version} está omitida. Búscala de nuevo cuando quieras."
+                    container.appContext.getString(R.string.set_msg_update_skipped, result.release.version)
 
-                UpdateCheckResult.UpToDate -> "Ya tienes la última versión."
-                UpdateCheckResult.NoStableRelease -> "El repositorio no tiene releases estables todavía."
+                UpdateCheckResult.UpToDate -> container.appContext.getString(R.string.set_msg_up_to_date)
+                UpdateCheckResult.NoStableRelease -> container.appContext.getString(R.string.set_msg_no_release)
                 is UpdateCheckResult.NetworkError ->
-                    "No se pudo consultar GitHub: revisa tu conexión."
+                    container.appContext.getString(R.string.set_msg_network_error)
             }
             _state.update { it.copy(isChecking = false, message = message) }
         }
@@ -104,7 +107,9 @@ class SettingsViewModel(
         val release = _state.value.pendingRelease ?: return
         viewModelScope.launch {
             container.releaseChecker.skipVersion(release.version)
-            _state.update { it.copy(message = "Omitiste la versión ${release.version}.") }
+            _state.update {
+                it.copy(message = container.appContext.getString(R.string.set_msg_skipped, release.version))
+            }
         }
     }
 
@@ -112,7 +117,14 @@ class SettingsViewModel(
     suspend fun exportJson(): String =
         runCatching { container.backupManager.exportJson() }
             .getOrElse { error ->
-                _state.update { it.copy(message = "No se pudo preparar el respaldo: ${error.message}") }
+                _state.update {
+                    it.copy(
+                        message = container.appContext.getString(
+                            R.string.set_msg_backup_error,
+                            error.message.orEmpty(),
+                        ),
+                    )
+                }
                 ""
             }
 
@@ -120,8 +132,11 @@ class SettingsViewModel(
         val result = container.backupManager.importJson(json)
         val message = when (result) {
             is BackupRestoreResult.Success ->
-                "Respaldo restaurado: ${result.snapshot.units.size} equipos y " +
-                    "${result.snapshot.groups.size} grupos."
+                container.appContext.getString(
+                    R.string.set_msg_restored,
+                    result.snapshot.units.size,
+                    result.snapshot.groups.size,
+                )
 
             is BackupRestoreResult.Invalid -> result.reason
         }
@@ -150,7 +165,10 @@ class SettingsViewModel(
             runCatching { container.preferences.updateUnitPreferences(updated) }
                 .onFailure { error ->
                     _state.update {
-                        it.copy(message = error.message ?: "No se pudo guardar la unidad.")
+                        it.copy(
+                            message = error.message
+                                ?: container.appContext.getString(R.string.set_msg_unit_error),
+                        )
                     }
                 }
         }

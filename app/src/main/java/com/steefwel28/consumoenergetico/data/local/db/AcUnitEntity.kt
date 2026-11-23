@@ -24,6 +24,9 @@ data class AcUnitEntity(
     val fechaInstalacionMillis: Long,
     val fechaUltimoMantenimientoMillis: Long,
     val consumoEstimadoKwhMes: Double,
+    /** Horas de uso diario que el usuario configuró al guardar el equipo. */
+    @ColumnInfo(defaultValue = "8.0")
+    val horasUsoDiario: Double = 8.0,
     /** Grupo/propiedad al que pertenece; por defecto "Mi Casa". */
     @ColumnInfo(defaultValue = "1")
     val groupId: Long = 1,

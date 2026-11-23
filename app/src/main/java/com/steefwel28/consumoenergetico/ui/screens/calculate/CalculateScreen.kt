@@ -5,11 +5,18 @@
 
 package com.steefwel28.consumoenergetico.ui.screens.calculate
 
+import android.content.Context
 import android.content.Intent
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -19,6 +26,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
@@ -45,9 +53,12 @@ import androidx.compose.material.icons.rounded.Image
 import androidx.compose.material.icons.rounded.PictureAsPdf
 import androidx.compose.material.icons.rounded.Remove
 import androidx.compose.material.icons.rounded.Save
+import androidx.compose.material.icons.rounded.Schedule
 import androidx.compose.material.icons.rounded.Share
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
@@ -71,16 +82,24 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.RoundRect
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.clipPath
+import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.steefwel28.consumoenergetico.R
 import com.steefwel28.consumoenergetico.core.di.AppContainer
 import com.steefwel28.consumoenergetico.data.export.ReportData
 import com.steefwel28.consumoenergetico.data.export.ReportExporter
@@ -100,11 +119,18 @@ import com.steefwel28.consumoenergetico.ui.components.PixelSpringExpressive
 import com.steefwel28.consumoenergetico.ui.components.PixelSpringSnappy
 import com.steefwel28.consumoenergetico.ui.components.RtcaScannerSheet
 import com.steefwel28.consumoenergetico.ui.components.SectionCard
+import com.steefwel28.consumoenergetico.ui.components.labelRes
+import com.steefwel28.consumoenergetico.ui.components.pixelChargeHaptics
 import com.steefwel28.consumoenergetico.ui.components.rememberPixelHaptics
 import com.steefwel28.consumoenergetico.ui.illustrations.EducationalSketchCarousel
 import com.steefwel28.consumoenergetico.ui.theme.ConsumoEnergeticoTheme
+import java.time.YearMonth
+import java.time.format.TextStyle
+import java.util.Locale
+import kotlin.math.PI
 import kotlin.math.max
 import kotlin.math.roundToInt
+import kotlin.math.sin
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -146,9 +172,9 @@ fun CalculateScreen(
     val haptics = rememberPixelHaptics()
 
     val share: (Boolean) -> Unit = { asPng ->
-        val report = state.toReportData()
+        val report = state.toReportData(context)
         if (report == null) {
-            exportError = "Completa la etiqueta y la tarifa para generar la ficha."
+            exportError = context.getString(R.string.calc_export_incomplete)
         } else if (!isExporting) {
             haptics.confirm()
             isExporting = true
@@ -164,11 +190,11 @@ fun CalculateScreen(
                     }
                     val chooser = Intent.createChooser(
                         ReportExporter.shareIntent(context, file),
-                        "Compartir ficha",
+                        context.getString(R.string.calc_share),
                     )
                     context.startActivity(chooser)
                 }.onFailure { error ->
-                    exportError = error.message ?: "No se pudo generar la ficha."
+                    exportError = error.message ?: context.getString(R.string.calc_export_error)
                 }
                 isExporting = false
             }
@@ -182,9 +208,9 @@ fun CalculateScreen(
     ) {
         item {
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Text(text = "Calcular", style = MaterialTheme.typography.headlineMedium)
+                Text(text = stringResource(R.string.calc_title), style = MaterialTheme.typography.headlineMedium)
                 Text(
-                    text = "Elige la categoría, compara ENSA y Naturgy y guarda tu equipo por propiedad.",
+                    text = stringResource(R.string.calc_subtitle),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -236,7 +262,7 @@ fun CalculateScreen(
 
         item {
             Text(
-                text = "Los valores son estimaciones educativas; la instalación eléctrica debe validarla un técnico certificado.",
+                text = stringResource(R.string.calc_footer),
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = TextAlign.Center,
@@ -286,18 +312,18 @@ fun CalculateScreen(
 
     state.savedMessage?.let { message ->
         PixelDialog(
-            title = "Guardado en tu perfil",
+            title = stringResource(R.string.calc_saved_title),
             text = message,
-            confirmLabel = "Entendido",
+            confirmLabel = stringResource(R.string.common_understood),
             onConfirm = onDismissSaveResult,
             onDismissRequest = onDismissSaveResult,
         )
     }
     state.saveError?.let { message ->
         PixelDialog(
-            title = "No se pudo guardar",
+            title = stringResource(R.string.calc_save_error_title),
             text = message,
-            confirmLabel = "Cerrar",
+            confirmLabel = stringResource(R.string.common_close),
             onConfirm = onDismissSaveResult,
             onDismissRequest = onDismissSaveResult,
         )
@@ -329,7 +355,7 @@ private fun CategorySelector(
                     haptics.tap()
                     onSelect(category)
                 },
-                label = { Text(category.label) },
+                label = { Text(stringResource(category.labelRes)) },
                 modifier = Modifier.graphicsLayer {
                     scaleX = scale
                     scaleY = scale
@@ -347,8 +373,8 @@ private fun ComparisonCard(
 ) {
     val haptics = rememberPixelHaptics()
     SectionCard(
-        title = "Comparativa de tarifa",
-        subtitle = "ENSA, Naturgy o el duelo VS con la diferencia exacta al mes.",
+        title = stringResource(R.string.calc_comparison_title),
+        subtitle = stringResource(R.string.calc_comparison_subtitle),
     ) {
         Row(
             modifier = Modifier
@@ -388,9 +414,9 @@ private fun ComparisonCard(
             horizontalArrangement = Arrangement.spacedBy(4.dp),
         ) {
             Column(modifier = Modifier.weight(1f)) {
-                Text(text = "Costo Manual", style = MaterialTheme.typography.titleMedium)
+                Text(text = stringResource(R.string.manual_cost), style = MaterialTheme.typography.titleMedium)
                 Text(
-                    text = "Usa la tarifa real de tu factura en vez del pliego precargado.",
+                    text = stringResource(R.string.calc_manual_hint),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -401,7 +427,7 @@ private fun ComparisonCard(
             }) {
                 Icon(
                     imageVector = Icons.AutoMirrored.Rounded.HelpOutline,
-                    contentDescription = "Guía para ubicar consumo y total en el recibo",
+                    contentDescription = stringResource(R.string.calc_bill_guide_cd),
                 )
             }
             Switch(
@@ -417,11 +443,13 @@ private fun ComparisonCard(
             ManualCostFields(state = state, onUpdate = onUpdate)
         } else {
             Text(
-                text = "Consumo base del hogar: ${AppFormat.kwh(state.baseMonthlyKwh)} (se configura en Ajustes).",
+                text = stringResource(R.string.calc_base_home, AppFormat.kwh(state.baseMonthlyKwh)),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
+
+        PeriodAndHoursControls(state = state, onUpdate = onUpdate)
 
         when (state.chartMode) {
             TariffComparison.VS -> VsChart(state = state)
@@ -449,13 +477,13 @@ private fun ManualCostFields(
                     count = ManualCostMode.entries.size,
                 ),
             ) {
-                Text(mode.label)
+                Text(stringResource(mode.labelRes))
             }
         }
     }
     when (state.manualMode) {
         ManualCostMode.DIRECT_RATE -> NumberField(
-            label = "Tarifa en B/. por kWh",
+            label = stringResource(R.string.calc_direct_rate),
             value = state.directRateInput,
             onValueChange = { value -> onUpdate { it.copy(directRateInput = value) } },
             modifier = Modifier.fillMaxWidth(),
@@ -463,13 +491,13 @@ private fun ManualCostFields(
 
         ManualCostMode.RECEIPT -> Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             NumberField(
-                label = "Total B/.",
+                label = stringResource(R.string.calc_receipt_total),
                 value = state.receiptTotalInput,
                 onValueChange = { value -> onUpdate { it.copy(receiptTotalInput = value) } },
                 modifier = Modifier.weight(1f),
             )
             NumberField(
-                label = "kWh del recibo",
+                label = stringResource(R.string.calc_receipt_kwh),
                 value = state.receiptKwhInput,
                 onValueChange = { value -> onUpdate { it.copy(receiptKwhInput = value) } },
                 modifier = Modifier.weight(1f),
@@ -478,10 +506,98 @@ private fun ManualCostFields(
     }
     if (state.tariffMode == null) {
         Text(
-            text = "Completa el total y los kWh del recibo para calcular la tarifa.",
+            text = stringResource(R.string.calc_receipt_incomplete),
             style = MaterialTheme.typography.labelMedium,
             color = MaterialTheme.colorScheme.error,
         )
+    }
+}
+
+@Composable
+private fun PeriodAndHoursControls(
+    state: CalculateUiState,
+    onUpdate: ((CalculateUiState) -> CalculateUiState) -> Unit,
+) {
+    val haptics = rememberPixelHaptics()
+    var expanded by remember { mutableStateOf(false) }
+    val rotation by animateFloatAsState(
+        targetValue = if (expanded) 180f else 0f,
+        animationSpec = PixelSpringSnappy,
+        label = "period-chevron",
+    )
+    Box(modifier = Modifier.fillMaxWidth()) {
+        OutlinedButton(
+            onClick = {
+                haptics.tap()
+                expanded = true
+            },
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Icon(Icons.Rounded.Schedule, contentDescription = null)
+            Text(
+                text = periodLabel(state.usagePeriod, state.daysInMonth),
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(start = 8.dp),
+            )
+            Icon(
+                imageVector = Icons.Rounded.ExpandMore,
+                contentDescription = null,
+                modifier = Modifier.graphicsLayer { rotationZ = rotation },
+            )
+        }
+        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+            UsagePeriod.entries.forEach { period ->
+                DropdownMenuItem(
+                    text = { Text(periodLabel(period, state.daysInMonth)) },
+                    onClick = {
+                        haptics.tap()
+                        expanded = false
+                        onUpdate { it.copy(usagePeriod = period) }
+                    },
+                )
+            }
+        }
+    }
+
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        Text(
+            text = stringResource(R.string.calculate_hours, state.hoursPerDay),
+            style = MaterialTheme.typography.titleMedium,
+            modifier = Modifier.width(152.dp),
+        )
+        Slider(
+            value = state.hoursPerDay.toFloat(),
+            onValueChange = { value ->
+                val hours = value.roundToInt()
+                if (hours != state.hoursPerDay) haptics.tap()
+                onUpdate { it.copy(hoursPerDay = hours) }
+            },
+            valueRange = 1f..24f,
+            steps = 22,
+            modifier = Modifier.weight(1f),
+        )
+    }
+    Text(
+        text = stringResource(R.string.calculate_period_hint, state.periodDays),
+        style = MaterialTheme.typography.labelMedium,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+    )
+}
+
+@Composable
+private fun periodLabel(period: UsagePeriod, daysInMonth: Int): String =
+    periodLabelText(LocalContext.current, period, daysInMonth)
+
+private fun periodLabelText(context: Context, period: UsagePeriod, daysInMonth: Int): String {
+    val month = YearMonth.now().month.getDisplayName(TextStyle.SHORT, Locale.getDefault())
+    return when (period) {
+        UsagePeriod.DAY -> context.getString(R.string.period_day)
+        UsagePeriod.FORTNIGHT -> context.getString(R.string.period_fortnight)
+        UsagePeriod.MONTH -> context.getString(R.string.period_month, month, daysInMonth)
     }
 }
 
@@ -493,18 +609,21 @@ private fun SingleChart(state: CalculateUiState) {
         return
     }
     val color = when (state.chartMode) {
-        TariffComparison.NATURGY -> MaterialTheme.colorScheme.tertiary
-        else -> MaterialTheme.colorScheme.primary
+        TariffComparison.NATURGY -> naturgyWaveColor()
+        else -> ensaWaveColor()
     }
-    PixelBar(
+    PixelWaveBar(
         label = state.chartMode.label,
         value = estimate.addedCostBalboas,
         maxValue = estimate.addedCostBalboas.coerceAtLeast(0.01),
         color = color,
     )
     Text(
-        text = "Tarifa marginal ${AppFormat.balboas(estimate.marginalBalboasPerKwh)}/kWh · " +
-            "${AppFormat.kwh(estimate.addedKwh)} del equipo al mes.",
+        text = stringResource(
+            R.string.calc_marginal,
+            marginalRate(estimate.marginalBalboasPerKwh),
+            AppFormat.kwh(estimate.addedKwh),
+        ),
         style = MaterialTheme.typography.labelMedium,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
     )
@@ -521,33 +640,51 @@ private fun VsChart(state: CalculateUiState) {
         return
     }
     val maxValue = max(ensa.addedCostBalboas, naturgy.addedCostBalboas).coerceAtLeast(0.01)
-    PixelBar(
+    PixelWaveBar(
         label = "ENSA",
         value = ensa.addedCostBalboas,
         maxValue = maxValue,
-        color = MaterialTheme.colorScheme.primary,
+        color = ensaWaveColor(),
     )
-    PixelBar(
+    PixelWaveBar(
         label = "Naturgy",
         value = naturgy.addedCostBalboas,
         maxValue = maxValue,
-        color = MaterialTheme.colorScheme.tertiary,
+        color = naturgyWaveColor(),
+    )
+    Text(
+        text = stringResource(
+            R.string.calc_vs_rates,
+            marginalRate(ensa.marginalBalboasPerKwh),
+            marginalRate(naturgy.marginalBalboasPerKwh),
+        ),
+        style = MaterialTheme.typography.labelMedium,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
     )
     state.comparisonDifference?.let { difference ->
         val cheaper = if (ensa.addedCostBalboas <= naturgy.addedCostBalboas) "ENSA" else "Naturgy"
-        Text(
-            text = if (difference < 0.005) {
-                "Diferencia exacta: B/. 0.00 al mes · ambas distribuidoras empatan."
-            } else {
-                "Diferencia exacta: ${AppFormat.balboas(difference)} al mes · $cheaper sale más barata."
-            },
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.primary,
-        )
+        val message = if (difference < 0.005) {
+            stringResource(R.string.calc_vs_tie)
+        } else {
+            stringResource(R.string.calc_vs_savings, AppFormat.balboas(difference), cheaper)
+        }
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(50))
+                .background(MaterialTheme.colorScheme.secondaryContainer)
+                .padding(horizontal = 16.dp, vertical = 10.dp),
+        ) {
+            Text(
+                text = message,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSecondaryContainer,
+            )
+        }
     }
     if (state.manualCost) {
         Text(
-            text = "El duelo VS usa los pliegos de ENSA y Naturgy; el Costo Manual aplica al modo simple.",
+            text = stringResource(R.string.calc_vs_manual_note),
             style = MaterialTheme.typography.labelMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
@@ -555,16 +692,36 @@ private fun VsChart(state: CalculateUiState) {
 }
 
 @Composable
+private fun ensaWaveColor(): Color =
+    if (androidx.compose.foundation.isSystemInDarkTheme()) {
+        Color(0xFF6FE7F2)
+    } else {
+        Color(0xFF00697A)
+    }
+
+@Composable
+private fun naturgyWaveColor(): Color =
+    if (androidx.compose.foundation.isSystemInDarkTheme()) {
+        Color(0xFFFFC46B)
+    } else {
+        Color(0xFFB25E00)
+    }
+
+private fun marginalRate(value: Double): String =
+    String.format(Locale.US, "B/. %.4f/kWh", value)
+
+@Composable
 private fun MissingChartMessage() {
     Text(
-        text = "Completa BTU/h y potencia nominal mayores que cero para ver la comparativa.",
+        text = stringResource(R.string.calc_missing_chart),
         style = MaterialTheme.typography.bodyMedium,
         color = MaterialTheme.colorScheme.error,
     )
 }
 
+/** Onda sinusoidal Pixel: fase continua, relleno suave y resorte en el avance. */
 @Composable
-private fun PixelBar(
+private fun PixelWaveBar(
     label: String,
     value: Double,
     maxValue: Double,
@@ -574,7 +731,16 @@ private fun PixelBar(
     val progress by animateFloatAsState(
         targetValue = target,
         animationSpec = PixelSpringExpressive,
-        label = "bar-$label",
+        label = "wave-$label",
+    )
+    val phase by rememberInfiniteTransition(label = "wave-phase-$label").animateFloat(
+        initialValue = 0f,
+        targetValue = (2 * PI).toFloat(),
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 2800, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart,
+        ),
+        label = "wave-phase-value-$label",
     )
     val track = MaterialTheme.colorScheme.surfaceContainerHighest
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -593,16 +759,59 @@ private fun PixelBar(
         Canvas(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(14.dp),
+                .height(52.dp),
         ) {
             val radius = CornerRadius(size.height / 2f)
             drawRoundRect(color = track, cornerRadius = radius, size = size)
             if (progress > 0.001f) {
-                drawRoundRect(
-                    color = color,
-                    cornerRadius = radius,
-                    size = Size(size.width * progress, size.height),
-                )
+                val rounded = Path().apply {
+                    addRoundRect(
+                        RoundRect(
+                            left = 0f,
+                            top = 0f,
+                            right = size.width,
+                            bottom = size.height,
+                            topLeftCornerRadius = radius,
+                            topRightCornerRadius = radius,
+                            bottomRightCornerRadius = radius,
+                            bottomLeftCornerRadius = radius,
+                        ),
+                    )
+                }
+                val fill = Path()
+                val line = Path()
+                val steps = 72
+                val amplitude = size.height * 0.22f
+                val midY = size.height / 2f
+                fill.moveTo(0f, midY)
+                line.moveTo(0f, midY)
+                for (step in 0..steps) {
+                    val x = size.width * step / steps
+                    val y = midY + sin(phase + step.toFloat() / steps * 4f * (2 * PI).toFloat()) * amplitude
+                    fill.lineTo(x, y)
+                    line.lineTo(x, y)
+                }
+                fill.lineTo(size.width, size.height)
+                fill.lineTo(0f, size.height)
+                fill.close()
+                clipPath(rounded) {
+                    clipRect(
+                        left = 0f,
+                        top = 0f,
+                        right = size.width * progress,
+                        bottom = size.height,
+                    ) {
+                        drawPath(fill, color.copy(alpha = 0.32f))
+                        drawPath(
+                            path = line,
+                            color = color,
+                            style = Stroke(
+                                width = size.height * 0.11f,
+                                cap = StrokeCap.Round,
+                            ),
+                        )
+                    }
+                }
             }
         }
     }
@@ -618,11 +827,14 @@ private fun RtcaConverterCard(
     val haptics = rememberPixelHaptics()
 
     SectionCard(
-        title = "Datos del equipo",
-        subtitle = "Etiqueta RTCA y conversor de placa en una sola tarjeta.",
+        title = stringResource(R.string.calc_equipment_title),
+        subtitle = stringResource(R.string.calc_equipment_subtitle),
     ) {
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            listOf("Etiqueta RTCA", "Conversor de placa").forEachIndexed { index, label ->
+            listOf(
+                stringResource(R.string.calc_tab_label),
+                stringResource(R.string.calc_tab_converter),
+            ).forEachIndexed { index, label ->
                 val isSelected = selectedTab == index
                 val scale by animateFloatAsState(
                     targetValue = if (isSelected) 1f else 0.96f,
@@ -665,34 +877,34 @@ private fun EquipmentFields(
     OutlinedTextField(
         value = state.spaceName,
         onValueChange = { value -> onUpdate { it.copy(spaceName = value) } },
-        label = { Text("Espacio") },
-        placeholder = { Text("Sala, recámara, local…") },
+        label = { Text(stringResource(R.string.calc_space)) },
+        placeholder = { Text(stringResource(R.string.calc_space_placeholder)) },
         singleLine = true,
         modifier = Modifier.fillMaxWidth(),
     )
     OutlinedTextField(
         value = state.brandModel,
         onValueChange = { value -> onUpdate { it.copy(brandModel = value) } },
-        label = { Text("Marca y modelo") },
-        placeholder = { Text("Hisense ATR362MA") },
+        label = { Text(stringResource(R.string.common_brand_model)) },
+        placeholder = { Text(stringResource(R.string.common_brand_placeholder)) },
         singleLine = true,
         modifier = Modifier.fillMaxWidth(),
     )
     Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
         NumberField(
-            label = "BTU/h",
+            label = stringResource(R.string.common_btu),
             value = state.btuInput,
             onValueChange = { value -> onUpdate { it.copy(btuInput = value) } },
             modifier = Modifier.weight(1f),
         )
         NumberField(
-            label = "Potencia W",
+            label = stringResource(R.string.common_watts),
             value = state.wattsInput,
             onValueChange = { value -> onUpdate { it.copy(wattsInput = value) } },
             modifier = Modifier.weight(1f),
         )
         NumberField(
-            label = "SEER",
+            label = stringResource(R.string.common_seer),
             value = state.seerInput,
             onValueChange = { value -> onUpdate { it.copy(seerInput = value) } },
             modifier = Modifier.weight(1f),
@@ -703,9 +915,9 @@ private fun EquipmentFields(
         horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         Column(modifier = Modifier.weight(1f)) {
-            Text(text = "Inverter", style = MaterialTheme.typography.titleMedium)
+            Text(text = stringResource(R.string.inverter), style = MaterialTheme.typography.titleMedium)
             Text(
-                text = "Modula la potencia y gasta menos que un equipo On/Off.",
+                text = stringResource(R.string.calc_inverter_hint),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -726,11 +938,11 @@ private fun EquipmentFields(
         modifier = Modifier.fillMaxWidth(),
     ) {
         Icon(imageVector = Icons.Rounded.CameraAlt, contentDescription = null)
-        Text(text = "Escanear etiqueta amarilla", modifier = Modifier.padding(start = 8.dp))
+        Text(text = stringResource(R.string.scanner_title), modifier = Modifier.padding(start = 8.dp))
     }
     if (state.spec == null) {
         Text(
-            text = "Completa BTU/h y potencia nominal mayores que cero para calcular.",
+            text = stringResource(R.string.calc_missing_spec),
             style = MaterialTheme.typography.labelMedium,
             color = MaterialTheme.colorScheme.error,
         )
@@ -765,7 +977,7 @@ private fun ConverterFields(
         verticalAlignment = Alignment.CenterVertically,
     ) {
         NumberField(
-            label = "Valor en ${state.converterMode.unit}",
+            label = stringResource(R.string.calc_converter_value, state.converterMode.unit),
             value = state.converterInput,
             onValueChange = { value -> onUpdate { it.copy(converterInput = value) } },
             modifier = Modifier.weight(1f),
@@ -793,7 +1005,7 @@ private fun ConverterFields(
     }
     state.converterBtu?.let { btu ->
         Text(
-            text = "Equivale a ${AppFormat.btu(btu)}.",
+            text = stringResource(R.string.calc_converter_result, AppFormat.btu(btu)),
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.primary,
         )
@@ -808,7 +1020,7 @@ private fun ConverterFields(
         enabled = state.converterBtu != null,
         modifier = Modifier.fillMaxWidth(),
     ) {
-        Text("Usar en la etiqueta")
+        Text(stringResource(R.string.calc_converter_use))
     }
 }
 
@@ -822,8 +1034,8 @@ private fun SaveAndShareCard(
 ) {
     val haptics = rememberPixelHaptics()
     SectionCard(
-        title = "Guardar y compartir",
-        subtitle = "Guarda en tu grupo y comparte la ficha en PDF o PNG.",
+        title = stringResource(R.string.calc_save_share_title),
+        subtitle = stringResource(R.string.calc_save_share_subtitle),
     ) {
         Button(
             onClick = {
@@ -831,7 +1043,9 @@ private fun SaveAndShareCard(
                 onOpenSave()
             },
             enabled = state.canSave && !state.isSaving,
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .pixelChargeHaptics(),
         ) {
             if (state.isSaving) {
                 CircularProgressIndicator(
@@ -843,7 +1057,11 @@ private fun SaveAndShareCard(
                 Icon(Icons.Rounded.Save, contentDescription = null)
             }
             Text(
-                text = if (state.isSaving) "Guardando…" else "Guardar en Perfil",
+                text = if (state.isSaving) {
+                    stringResource(R.string.calc_saving)
+                } else {
+                    stringResource(R.string.calc_save_profile)
+                },
                 modifier = Modifier.padding(start = 8.dp),
             )
         }
@@ -853,7 +1071,9 @@ private fun SaveAndShareCard(
                 onOpenShare()
             },
             enabled = state.canSave && !isExporting,
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .pixelChargeHaptics(),
         ) {
             if (isExporting) {
                 CircularProgressIndicator(
@@ -865,13 +1085,17 @@ private fun SaveAndShareCard(
                 Icon(Icons.Rounded.Share, contentDescription = null)
             }
             Text(
-                text = if (isExporting) "Generando ficha…" else "Compartir ficha",
+                text = if (isExporting) {
+                    stringResource(R.string.calc_generating)
+                } else {
+                    stringResource(R.string.calc_share)
+                },
                 modifier = Modifier.padding(start = 8.dp),
             )
         }
         if (!state.canSave) {
             Text(
-                text = "Completa la etiqueta con BTU/h y potencia para guardar o compartir.",
+                text = stringResource(R.string.calc_save_hint),
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -900,8 +1124,8 @@ private fun RemoteSimulatorCard(
     )
 
     SectionCard(
-        title = "Simulador de Control Remoto",
-        subtitle = "Prueba 18 °C–26 °C sin alterar la comparativa principal.",
+        title = stringResource(R.string.calc_simulator_title),
+        subtitle = stringResource(R.string.calc_simulator_subtitle),
     ) {
         Row(
             modifier = Modifier
@@ -915,7 +1139,11 @@ private fun RemoteSimulatorCard(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(
-                text = if (expanded) "Ocultar simulación" else "Abrir simulación",
+                text = if (expanded) {
+                    stringResource(R.string.calc_sim_hide)
+                } else {
+                    stringResource(R.string.calc_sim_open)
+                },
                 style = MaterialTheme.typography.titleMedium,
                 modifier = Modifier.weight(1f),
             )
@@ -956,7 +1184,10 @@ private fun SimulatorContent(
     val haptics = rememberPixelHaptics()
 
     SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
-        listOf("Control remoto", "Cara a cara").forEachIndexed { index, label ->
+        listOf(
+            stringResource(R.string.calc_sim_remote),
+            stringResource(R.string.calc_sim_face),
+        ).forEachIndexed { index, label ->
             SegmentedButton(
                 selected = selectedTab == index,
                 onClick = {
@@ -999,7 +1230,7 @@ private fun RemoteControl(
             },
             enabled = state.simulatedSetpointCelsius > AcUsage.SIMULATOR_MIN_CELSIUS,
         ) {
-            Icon(Icons.Rounded.Remove, contentDescription = "Bajar un grado")
+            Icon(Icons.Rounded.Remove, contentDescription = stringResource(R.string.calc_sim_lower))
         }
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Text(
@@ -1011,7 +1242,7 @@ private fun RemoteControl(
                 color = MaterialTheme.colorScheme.primary,
             )
             Text(
-                text = "Termostato simulado",
+                text = stringResource(R.string.calc_sim_thermostat),
                 style = MaterialTheme.typography.labelMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -1028,18 +1259,18 @@ private fun RemoteControl(
             },
             enabled = state.simulatedSetpointCelsius < AcUsage.SIMULATOR_MAX_CELSIUS,
         ) {
-            Icon(Icons.Rounded.Add, contentDescription = "Subir un grado")
+            Icon(Icons.Rounded.Add, contentDescription = stringResource(R.string.calc_sim_raise))
         }
     }
 
     Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
         MetricTile(
-            label = "Consumo simulado",
+            label = stringResource(R.string.calc_sim_consumption),
             value = state.simulatedMonthlyKwh?.let(AppFormat::kwh) ?: "—",
             modifier = Modifier.weight(1f),
         )
         MetricTile(
-            label = "En tu factura",
+            label = stringResource(R.string.calc_sim_bill),
             value = state.simulatedMonthlyCost?.let(AppFormat::balboas) ?: "—",
             modifier = Modifier.weight(1f),
             highlight = true,
@@ -1051,9 +1282,9 @@ private fun RemoteControl(
         horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         Column(modifier = Modifier.weight(1f)) {
-            Text(text = "Filtros limpios", style = MaterialTheme.typography.titleMedium)
+            Text(text = stringResource(R.string.calc_sim_filters), style = MaterialTheme.typography.titleMedium)
             Text(
-                text = "Un filtro sucio sube el consumo cerca de 12 %.",
+                text = stringResource(R.string.calc_sim_filters_hint),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -1067,7 +1298,7 @@ private fun RemoteControl(
         )
     }
 
-    Text(text = "Franja horaria", style = MaterialTheme.typography.titleMedium)
+    Text(text = stringResource(R.string.calc_sim_schedule), style = MaterialTheme.typography.titleMedium)
     FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         AcSchedule.entries.forEach { schedule ->
             FilterChip(
@@ -1076,13 +1307,13 @@ private fun RemoteControl(
                     haptics.tap()
                     onUpdate { it.copy(simulatedSchedule = schedule) }
                 },
-                label = { Text(schedule.label) },
+                label = { Text(stringResource(schedule.labelRes)) },
             )
         }
     }
 
     Text(
-        text = "Horas de uso: ${state.simulatedHoursPerDay} h/día",
+        text = stringResource(R.string.calculate_hours, state.simulatedHoursPerDay),
         style = MaterialTheme.typography.titleMedium,
     )
     Slider(
@@ -1096,13 +1327,13 @@ private fun RemoteControl(
         steps = 22,
     )
     Text(
-        text = "Esta simulación vive aparte: la gráfica superior conserva su consumo base.",
+        text = stringResource(R.string.calc_sim_note),
         style = MaterialTheme.typography.labelMedium,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
     )
     if (state.simulatedMonthlyKwh == null) {
         Text(
-            text = "Completa la etiqueta para ver el consumo en vivo.",
+            text = stringResource(R.string.calc_sim_missing),
             style = MaterialTheme.typography.labelMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
@@ -1115,16 +1346,16 @@ private fun FaceToFace(
     onUpdate: ((CalculateUiState) -> CalculateUiState) -> Unit,
 ) {
     val haptics = rememberPixelHaptics()
-    Text(text = "Equipo actual", style = MaterialTheme.typography.titleMedium)
+    Text(text = stringResource(R.string.calc_face_current), style = MaterialTheme.typography.titleMedium)
     Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
         NumberField(
-            label = "BTU/h actual",
+            label = stringResource(R.string.calc_face_btu),
             value = state.currentBtuInput,
             onValueChange = { value -> onUpdate { it.copy(currentBtuInput = value) } },
             modifier = Modifier.weight(1f),
         )
         NumberField(
-            label = "Potencia W",
+            label = stringResource(R.string.common_watts),
             value = state.currentWattsInput,
             onValueChange = { value -> onUpdate { it.copy(currentWattsInput = value) } },
             modifier = Modifier.weight(1f),
@@ -1135,7 +1366,7 @@ private fun FaceToFace(
         horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         NumberField(
-            label = "SEER actual",
+            label = stringResource(R.string.calc_face_seer),
             value = state.currentSeerInput,
             onValueChange = { value -> onUpdate { it.copy(currentSeerInput = value) } },
             modifier = Modifier.weight(1f),
@@ -1147,10 +1378,10 @@ private fun FaceToFace(
                 onUpdate { it.copy(currentInverter = checked) }
             },
         )
-        Text(text = "Inverter", style = MaterialTheme.typography.bodyMedium)
+        Text(text = stringResource(R.string.inverter), style = MaterialTheme.typography.bodyMedium)
     }
     NumberField(
-        label = "Inversión del equipo nuevo (B/.)",
+        label = stringResource(R.string.calc_face_investment),
         value = state.investmentInput,
         onValueChange = { value -> onUpdate { it.copy(investmentInput = value) } },
         modifier = Modifier.fillMaxWidth(),
@@ -1159,7 +1390,7 @@ private fun FaceToFace(
     val comparison = state.comparison
     if (comparison == null) {
         Text(
-            text = "Completa la etiqueta, el equipo actual y una tarifa válida para comparar.",
+            text = stringResource(R.string.calc_face_missing),
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
@@ -1168,12 +1399,12 @@ private fun FaceToFace(
 
     Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
         MetricTile(
-            label = "Equipo actual",
+            label = stringResource(R.string.calc_face_current),
             value = AppFormat.kwh(comparison.currentMonthlyKwh),
             modifier = Modifier.weight(1f),
         )
         MetricTile(
-            label = "Equipo nuevo",
+            label = stringResource(R.string.calc_face_new),
             value = AppFormat.kwh(comparison.newMonthlyKwh),
             modifier = Modifier.weight(1f),
             highlight = true,
@@ -1181,20 +1412,21 @@ private fun FaceToFace(
     }
     Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
         MetricTile(
-            label = "Ahorro mensual",
+            label = stringResource(R.string.calc_face_savings),
             value = AppFormat.balboas(comparison.monthlySavingsBalboas),
             modifier = Modifier.weight(1f),
             highlight = comparison.monthlySavingsBalboas > 0.0,
         )
         MetricTile(
-            label = "Retorno",
-            value = comparison.paybackMonths?.let { AppFormat.months(it) } ?: "No se recupera",
+            label = stringResource(R.string.calc_face_payback),
+            value = comparison.paybackMonths?.let { stringResource(R.string.months_format, it) }
+                ?: stringResource(R.string.calc_face_no_payback),
             modifier = Modifier.weight(1f),
         )
     }
     if (comparison.monthlySavingsBalboas <= 0.0) {
         Text(
-            text = "Con estos datos el equipo nuevo no ahorra: revisa la potencia, el SEER o la inversión.",
+            text = stringResource(R.string.calc_face_no_savings),
             style = MaterialTheme.typography.bodyMedium,
             color = MaterialTheme.colorScheme.error,
         )
@@ -1204,8 +1436,8 @@ private fun FaceToFace(
 @Composable
 private fun ComingSoonCard(category: EquipmentCategory) {
     SectionCard(
-        title = category.label,
-        subtitle = "Este módulo llega en la siguiente fase.",
+        title = stringResource(category.labelRes),
+        subtitle = stringResource(R.string.calc_coming_subtitle),
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -1219,9 +1451,12 @@ private fun ComingSoonCard(category: EquipmentCategory) {
                 modifier = Modifier.size(40.dp),
             )
             Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                Text(text = "Próximamente", style = MaterialTheme.typography.headlineSmall)
+                Text(text = stringResource(R.string.calc_coming_soon), style = MaterialTheme.typography.headlineSmall)
                 Text(
-                    text = "Estamos calibrando el cálculo para ${category.label.lowercase()} en Panamá.",
+                    text = stringResource(
+                        R.string.calc_coming_hint,
+                        stringResource(category.labelRes).lowercase(),
+                    ),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -1234,8 +1469,8 @@ private fun ComingSoonCard(category: EquipmentCategory) {
 private fun CapsulesEntryCard(onOpen: () -> Unit) {
     val haptics = rememberPixelHaptics()
     SectionCard(
-        title = "Cápsulas de taller",
-        subtitle = "Cinco bocetos a plumilla: SEER, 17 °C, aire pequeño, protector Inverter y Modo Dry.",
+        title = stringResource(R.string.common_capsules_title),
+        subtitle = stringResource(R.string.calc_capsules_subtitle),
     ) {
         OutlinedButton(
             onClick = {
@@ -1245,7 +1480,7 @@ private fun CapsulesEntryCard(onOpen: () -> Unit) {
             modifier = Modifier.fillMaxWidth(),
         ) {
             Icon(imageVector = Icons.Rounded.Image, contentDescription = null)
-            Text(text = "Ver las ilustraciones", modifier = Modifier.padding(start = 8.dp))
+            Text(text = stringResource(R.string.calc_capsules_open), modifier = Modifier.padding(start = 8.dp))
         }
     }
 }
@@ -1260,12 +1495,12 @@ private fun CapsulesSheet(onDismiss: () -> Unit) {
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             Text(
-                text = "Cápsulas de taller",
+                text = stringResource(R.string.common_capsules_title),
                 style = MaterialTheme.typography.headlineSmall,
                 modifier = Modifier.padding(horizontal = 24.dp),
             )
             Text(
-                text = "Desliza cada boceto: explica una decisión real de instalación en Panamá.",
+                text = stringResource(R.string.calc_capsules_swipe),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(horizontal = 24.dp),
@@ -1295,9 +1530,9 @@ private fun ShareSheet(
                 .padding(start = 24.dp, end = 24.dp, top = 8.dp, bottom = 28.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Text(text = "Compartir ficha", style = MaterialTheme.typography.headlineSmall)
+            Text(text = stringResource(R.string.calc_share), style = MaterialTheme.typography.headlineSmall)
             Text(
-                text = "La lámina respeta el modo activo: ${chartMode.label}.",
+                text = stringResource(R.string.calc_share_mode, chartMode.label),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -1331,7 +1566,7 @@ private fun ShareSheet(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
                     CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
-                    Text(text = "Generando la lámina…", style = MaterialTheme.typography.labelMedium)
+                    Text(text = stringResource(R.string.calc_share_generating), style = MaterialTheme.typography.labelMedium)
                 }
             }
             exportError?.let { message ->
@@ -1385,8 +1620,8 @@ private fun SaveToProfileDialog(
     val selectedGroup = state.groups.firstOrNull { it.id == selectedGroupId }
 
     PixelDialog(
-        title = "Guardar en Perfil",
-        confirmLabel = "Guardar",
+        title = stringResource(R.string.calc_save_profile),
+        confirmLabel = stringResource(R.string.common_save),
         confirmEnabled = valid,
         onConfirm = {
             haptics.confirm()
@@ -1402,7 +1637,7 @@ private fun SaveToProfileDialog(
             )
         },
         onDismissRequest = onDismiss,
-        dismissLabel = "Cancelar",
+        dismissLabel = stringResource(R.string.common_cancel),
         content = {
             Column(
                 modifier = Modifier
@@ -1410,7 +1645,7 @@ private fun SaveToProfileDialog(
                     .verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(10.dp),
             ) {
-                Text(text = "Grupo / propiedad", style = MaterialTheme.typography.titleMedium)
+                Text(text = stringResource(R.string.common_group_property), style = MaterialTheme.typography.titleMedium)
                 FlowRow(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalArrangement = Arrangement.spacedBy(4.dp),
@@ -1432,7 +1667,7 @@ private fun SaveToProfileDialog(
                             haptics.tap()
                             creatingGroup = true
                         },
-                        label = { Text("Nuevo grupo") },
+                        label = { Text(stringResource(R.string.common_new_group)) },
                     )
                 }
 
@@ -1440,8 +1675,8 @@ private fun SaveToProfileDialog(
                     OutlinedTextField(
                         value = newGroupName,
                         onValueChange = { newGroupName = it },
-                        label = { Text("Nombre del grupo") },
-                        placeholder = { Text("Mi Casa, Trabajo, Casa de Mamá") },
+                        label = { Text(stringResource(R.string.home_group_name)) },
+                        placeholder = { Text(stringResource(R.string.home_group_placeholder)) },
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth(),
                     )
@@ -1463,7 +1698,7 @@ private fun SaveToProfileDialog(
                         }
                     }
                     NumberField(
-                        label = "Consumo base del recibo (kWh/mes)",
+                        label = stringResource(R.string.common_base_kwh),
                         value = newGroupBase,
                         onValueChange = { newGroupBase = it },
                         modifier = Modifier.fillMaxWidth(),
@@ -1471,15 +1706,18 @@ private fun SaveToProfileDialog(
                 } else {
                     selectedGroup?.let { group ->
                         Text(
-                            text = "${group.distribuidora.displayName} · " +
-                                "base ${AppFormat.kwh(group.consumoBaseKwh)} al mes.",
+                            text = stringResource(
+                                R.string.calc_group_info,
+                                group.distribuidora.displayName,
+                                AppFormat.kwh(group.consumoBaseKwh),
+                            ),
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
                 }
 
-                Text(text = "Ubicación", style = MaterialTheme.typography.titleMedium)
+                Text(text = stringResource(R.string.common_location), style = MaterialTheme.typography.titleMedium)
                 FlowRow(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalArrangement = Arrangement.spacedBy(4.dp),
@@ -1509,8 +1747,8 @@ private fun SaveToProfileDialog(
                     OutlinedTextField(
                         value = otherLocation,
                         onValueChange = { otherLocation = it },
-                        label = { Text("Nueva ubicación") },
-                        placeholder = { Text("Balcón, Oficina, Garaje…") },
+                        label = { Text(stringResource(R.string.common_new_location)) },
+                        placeholder = { Text(stringResource(R.string.common_new_location_placeholder)) },
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth(),
                     )
@@ -1519,8 +1757,8 @@ private fun SaveToProfileDialog(
                 OutlinedTextField(
                     value = brandModel,
                     onValueChange = { brandModel = it },
-                    label = { Text("Marca y modelo") },
-                    placeholder = { Text("Hisense ATR362MA") },
+                    label = { Text(stringResource(R.string.common_brand_model)) },
+                    placeholder = { Text(stringResource(R.string.common_brand_placeholder)) },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
                 )
@@ -1583,17 +1821,29 @@ private fun NumberField(
     )
 }
 
-private fun CalculateUiState.toReportData(): ReportData? {
+private fun CalculateUiState.toReportData(context: Context): ReportData? {
     val spec = spec ?: return null
-    val kwh = monthlyKwh ?: return null
+    val kwh = periodKwh ?: return null
     val electrical = electrical ?: return null
-    val ensaCost = ensaEstimate?.addedCostBalboas ?: return null
-    val naturgyCost = naturgyEstimate?.addedCostBalboas ?: return null
+    val ensa = ensaEstimate ?: return null
+    val naturgy = naturgyEstimate ?: return null
+    val ensaCost = ensa.addedCostBalboas
+    val naturgyCost = naturgy.addedCostBalboas
     val displayCost = primaryMonthlyCost ?: minOf(ensaCost, naturgyCost)
+    val narrative = context.getString(
+        if (cleanFilters) R.string.report_narrative_clean else R.string.report_narrative_dirty,
+        spaceName.ifBlank { context.getString(R.string.report_default_space) },
+        String.format(Locale.US, "%,.0f", spec.btuPerHour),
+        if (spec.inverter) context.getString(R.string.inverter) else context.getString(R.string.no_inverter),
+        hoursPerDay.coerceIn(1, 24),
+        AppFormat.decimal(kwh),
+        AppFormat.balboas(displayCost),
+        reportTariffLabel,
+    )
 
     return ReportData(
-        spaceName = spaceName.trim().ifBlank { "Mi espacio" },
-        brandModel = brandModel.trim().ifBlank { "Sin marca/modelo" },
+        spaceName = spaceName.trim().ifBlank { context.getString(R.string.report_default_space) },
+        brandModel = brandModel.trim().ifBlank { context.getString(R.string.report_no_brand) },
         btu = spec.btuPerHour.roundToInt(),
         seer = spec.seer,
         inverter = spec.inverter,
@@ -1603,10 +1853,15 @@ private fun CalculateUiState.toReportData(): ReportData? {
         ensaMonthlyBalboas = ensaCost,
         naturgyMonthlyBalboas = naturgyCost,
         displayMonthlyBalboas = displayCost,
-        tariffLabel = if (manualCost) "$reportTariffLabel · Costo Manual" else reportTariffLabel,
-        recommendationText = reportNarrative(),
+        tariffLabel = if (manualCost) "$reportTariffLabel · ${context.getString(R.string.manual_cost)}" else reportTariffLabel,
+        recommendationText = narrative,
         electrical = electrical,
-        monthlySavingsBalboas = comparison?.monthlySavingsBalboas?.takeIf { it > 0.0 },
+        monthlySavingsBalboas = comparison?.monthlySavingsBalboas
+            ?.times(periodFactor)
+            ?.takeIf { it > 0.0 },
+        periodLabel = periodLabelText(context, usagePeriod, daysInMonth),
+        ensaMarginalBalboasPerKwh = ensa.marginalBalboasPerKwh,
+        naturgyMarginalBalboasPerKwh = naturgy.marginalBalboasPerKwh,
     )
 }
 

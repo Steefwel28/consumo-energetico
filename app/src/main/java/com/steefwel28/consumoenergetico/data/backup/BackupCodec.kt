@@ -36,13 +36,14 @@ data class BackupSnapshot(
  * ids repetidos y que cada limpieza pertenezca a un equipo existente. Un
  * archivo inválido lanza [BackupFormatException] antes de tocar Room.
  *
- * El esquema 2 añade grupos/propiedades y ubicaciones personalizadas; los
- * archivos del esquema 1 se siguen importando y caen en "Mi Casa"/"Sala".
+ * El esquema 2 añade grupos/propiedades y ubicaciones personalizadas; el 3
+ * guarda las horas de uso diario. Los archivos anteriores se siguen importando
+ * y caen en "Mi Casa"/"Sala"/8 h.
  */
 @CraftedBy("steefwel28")
 object BackupCodec {
 
-    const val SCHEMA_VERSION = 2
+    const val SCHEMA_VERSION = 3
     const val CRAFTED_BY = "steefwel28"
 
     fun encode(snapshot: BackupSnapshot): String = buildString {
@@ -197,6 +198,7 @@ object BackupCodec {
             "\"voltaje\": $voltaje, \"fecha_instalacion_millis\": $fechaInstalacionMillis, " +
             "\"fecha_ultimo_mantenimiento_millis\": $fechaUltimoMantenimientoMillis, " +
             "\"consumo_estimado_kwh_mes\": ${number(consumoEstimadoKwhMes)}, " +
+            "\"horas_uso_diario\": ${number(horasUsoDiario)}, " +
             "\"group_id\": $groupId, \"ubicacion\": \"${escape(ubicacion)}\"}"
 
     private fun MaintenanceLogEntity.toJson(): String =
@@ -243,6 +245,9 @@ object BackupCodec {
         }
         val monthlyKwh = double("consumo_estimado_kwh_mes")
         requireNonNegative(monthlyKwh, "consumo_estimado_kwh_mes de '$name'")
+        val hours = if (version >= 3L) optionalDouble("horas_uso_diario") else null
+        val dailyHours = (hours ?: 8.0).takeIf { it.isFinite() && it in 0.0..24.0 }
+            ?: throw BackupFormatException("Las horas de uso de '$name' deben estar entre 0 y 24.")
 
         val groupId = if (version >= 2L) long("group_id") else PropertyGroupEntity.DEFAULT_ID
         if (groupId !in groupIds) {
@@ -262,6 +267,7 @@ object BackupCodec {
             fechaInstalacionMillis = installedOn,
             fechaUltimoMantenimientoMillis = maintainedOn,
             consumoEstimadoKwhMes = monthlyKwh,
+            horasUsoDiario = dailyHours,
             groupId = groupId,
             ubicacion = location,
         )

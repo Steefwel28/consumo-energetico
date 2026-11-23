@@ -132,6 +132,41 @@ class CalculateUiStateTest {
     }
 
     @Test
+    fun `acepta placas comerciales de tres toneladas y conserva guardar`() {
+        val state = CalculateUiState(btuInput = "36,679", wattsInput = "3,450")
+
+        assertEquals(36_679.0, state.btu!!, 0.001)
+        assertNotNull(state.spec)
+        assertTrue(state.canSave)
+    }
+
+    @Test
+    fun `el periodo escala kWh y costo pero el escalon usa el mes real`() {
+        val month = CalculateUiState(usagePeriod = UsagePeriod.MONTH)
+        val day = month.copy(usagePeriod = UsagePeriod.DAY)
+
+        assertEquals(day.monthlyKwh!! / month.daysInMonth, day.periodKwh!!, 0.0001)
+        assertEquals(month.monthlyKwh!!, month.periodKwh!!, 0.0001)
+        assertEquals(
+            month.tariffEstimate!!.marginalBalboasPerKwh,
+            day.tariffEstimate!!.marginalBalboasPerKwh,
+            0.0000001,
+        )
+        assertEquals(
+            month.tariffEstimate!!.addedCostBalboas / month.daysInMonth,
+            day.tariffEstimate!!.addedCostBalboas,
+            0.0001,
+        )
+    }
+
+    @Test
+    fun `el equipo guardado hereda las horas configuradas`() {
+        val entity = CalculateUiState(hoursPerDay = 12).toEntity(nowMillis = 5L)!!
+
+        assertEquals(12.0, entity.horasUsoDiario, 0.0)
+    }
+
+    @Test
     fun `el simulador no altera el consumo principal de la grafica`() {
         val base = CalculateUiState()
         val simulated = base.copy(

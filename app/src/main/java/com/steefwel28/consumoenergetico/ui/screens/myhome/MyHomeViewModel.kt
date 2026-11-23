@@ -2,6 +2,7 @@ package com.steefwel28.consumoenergetico.ui.screens.myhome
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.steefwel28.consumoenergetico.R
 import com.steefwel28.consumoenergetico.core.di.AppContainer
 import com.steefwel28.consumoenergetico.core.signature.CraftedBy
 import com.steefwel28.consumoenergetico.data.local.db.AcUnitEntity
@@ -64,11 +65,15 @@ class MyHomeViewModel(
     fun saveGroup(draft: GroupDraft) {
         val name = draft.nombre.trim()
         if (name.isEmpty()) {
-            _state.update { it.copy(message = "El grupo necesita un nombre.") }
+            _state.update {
+                it.copy(message = container.appContext.getString(R.string.home_msg_name_required))
+            }
             return
         }
         if (!draft.baseKwh.isFinite() || draft.baseKwh < 0.0) {
-            _state.update { it.copy(message = "El consumo base del recibo no puede ser negativo.") }
+            _state.update {
+                it.copy(message = container.appContext.getString(R.string.home_msg_base_negative))
+            }
             return
         }
 
@@ -86,28 +91,39 @@ class MyHomeViewModel(
                 _state.update {
                     it.copy(
                         selectedGroupId = draft.id ?: savedId,
-                        message = "Grupo guardado.",
+                        message = container.appContext.getString(R.string.home_msg_group_saved),
                     )
                 }
             }.onFailure { error ->
-                _state.update { it.copy(message = error.message ?: "No se pudo guardar el grupo.") }
+                _state.update {
+                    it.copy(
+                        message = error.message
+                            ?: container.appContext.getString(R.string.home_msg_group_error),
+                    )
+                }
             }
         }
     }
 
     fun saveUnit(draft: UnitDraft) {
         if (draft.btu <= 0) {
-            _state.update { it.copy(message = "El BTU/h debe ser mayor que cero.") }
+            _state.update {
+                it.copy(message = container.appContext.getString(R.string.home_msg_btu_positive))
+            }
             return
         }
         val location = draft.ubicacion.trim()
         if (location.isEmpty()) {
-            _state.update { it.copy(message = "Elige o escribe una ubicación.") }
+            _state.update {
+                it.copy(message = container.appContext.getString(R.string.home_msg_location_required))
+            }
             return
         }
         val watts = draft.watts
         if (watts != null && (!watts.isFinite() || watts <= 0.0)) {
-            _state.update { it.copy(message = "La potencia debe ser mayor que cero W.") }
+            _state.update {
+                it.copy(message = container.appContext.getString(R.string.home_msg_watts_positive))
+            }
             return
         }
 
@@ -131,6 +147,7 @@ class MyHomeViewModel(
                     fechaInstalacionMillis = draft.fechaInstalacionMillis,
                     fechaUltimoMantenimientoMillis = draft.fechaUltimoMantenimientoMillis,
                     consumoEstimadoKwhMes = draft.consumoKwhMes ?: estimateMonthlyKwh(draft, watts),
+                    horasUsoDiario = draft.horasUsoDiario.coerceIn(1.0, 24.0),
                     groupId = draft.groupId,
                     ubicacion = location,
                 )
@@ -140,11 +157,16 @@ class MyHomeViewModel(
                 _state.update {
                     it.copy(
                         selectedGroupId = unit.groupId,
-                        message = "“${unit.ubicacion}” quedó guardado en tu perfil.",
+                        message = container.appContext.getString(R.string.home_msg_unit_saved, unit.ubicacion),
                     )
                 }
             }.onFailure { error ->
-                _state.update { it.copy(message = error.message ?: "No se pudo guardar el equipo.") }
+                _state.update {
+                    it.copy(
+                        message = error.message
+                            ?: container.appContext.getString(R.string.home_msg_unit_error),
+                    )
+                }
             }
         }
     }
@@ -154,7 +176,8 @@ class MyHomeViewModel(
         viewModelScope.launch {
             runCatching {
                 val dao = container.database.acUnitDao()
-                val unit = dao.getById(unitId) ?: error("El equipo ya no existe.")
+                val unit = dao.getById(unitId)
+                    ?: error(container.appContext.getString(R.string.home_msg_unit_missing))
                 val now = System.currentTimeMillis()
                 container.database.maintenanceLogDao().insert(
                     MaintenanceLogEntity(
@@ -165,9 +188,16 @@ class MyHomeViewModel(
                 )
                 dao.insert(unit.copy(fechaUltimoMantenimientoMillis = now))
             }.onSuccess {
-                _state.update { it.copy(message = "Mantenimiento registrado hoy.") }
+                _state.update {
+                    it.copy(message = container.appContext.getString(R.string.home_msg_maintenance_saved))
+                }
             }.onFailure { error ->
-                _state.update { it.copy(message = error.message ?: "No se pudo registrar la limpieza.") }
+                _state.update {
+                    it.copy(
+                        message = error.message
+                            ?: container.appContext.getString(R.string.home_msg_maintenance_error),
+                    )
+                }
             }
         }
     }
@@ -183,7 +213,10 @@ class MyHomeViewModel(
             seer = draft.seer,
             inverter = draft.inverter,
         )
-        return AcConsumptionCalculator.monthlyKwh(spec, AcUsage(hoursPerDay = 8.0))
+        return AcConsumptionCalculator.monthlyKwh(
+            spec,
+            AcUsage(hoursPerDay = draft.horasUsoDiario.coerceIn(1.0, 24.0)),
+        )
     }
 
     private suspend fun ensureDefaultGroup() {

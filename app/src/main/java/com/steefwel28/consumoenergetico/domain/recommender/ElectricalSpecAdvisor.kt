@@ -53,7 +53,7 @@ object ElectricalSpecAdvisor {
     const val LINE_SET_STANDARD_METERS = 3.0
     const val STANDARD_VOLTAGE = 220
 
-    private const val MAX_SUPPORTED_BTU = 36_000
+    private const val MAX_SUPPORTED_BTU = 60_000
 
     private data class Bracket(
         val maxBtu: Int,
@@ -69,6 +69,8 @@ object ElectricalSpecAdvisor {
         Bracket(24_000, 30, "#10", 2_300.0),
         Bracket(28_000, 30, "#10", 2_700.0),
         Bracket(36_000, 30, "#8", 3_500.0),
+        Bracket(48_000, 30, "#8", 4_200.0),
+        Bracket(60_000, 40, "#8", 5_400.0),
     )
 
     private val inverterProtector = SurgeProtector(

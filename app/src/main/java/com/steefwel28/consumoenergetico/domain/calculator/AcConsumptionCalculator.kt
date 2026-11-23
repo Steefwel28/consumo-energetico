@@ -8,6 +8,9 @@ import com.steefwel28.consumoenergetico.core.signature.CraftedBy
  * [seer] es el REEE/SEER impreso (`BTU/hW`); si la etiqueta no lo trae se
  * deduce de `BTU/h ÷ W`, que es exactamente el índice de eficiencia.
  */
+/** Techo comercial real que acepta la app: equipos de hasta 5 toneladas. */
+const val MAX_BTU_PER_HOUR = 60_000.0
+
 @CraftedBy("steefwel28")
 data class AcUnitSpec(
     val btuPerHour: Double,
@@ -16,7 +19,9 @@ data class AcUnitSpec(
     val inverter: Boolean = false,
 ) {
     init {
-        require(btuPerHour > 0.0) { "La capacidad debe ser mayor que cero BTU/h." }
+        require(btuPerHour in 1.0..MAX_BTU_PER_HOUR) {
+            "La capacidad debe estar entre 1 y $MAX_BTU_PER_HOUR BTU/h."
+        }
         require(nominalWatts > 0.0) { "La potencia nominal debe ser mayor que cero W." }
         require(seer == null || seer > 0.0) { "El SEER debe ser mayor que cero." }
     }
@@ -117,19 +122,20 @@ object AcConsumptionCalculator {
     const val PENALTY_PER_DEGREE_BELOW_NEUTRAL = 0.06
     const val DIRTY_FILTER_PENALTY = 0.12
 
-    // El recibo panameño es mensual; 30 días evita sobreestimar meses cortos.
+    // El recibo panameño es mensual; 30 días sigue siendo el respaldo neutro.
     const val DAYS_PER_MONTH = 30.0
+    const val DEFAULT_HOURS_PER_DAY = 8.0
 
     // Carga promedio de un split bien dimensionado en clima tropical.
     private const val INVERTER_PART_LOAD = 0.55
     private const val NON_INVERTER_DUTY_CYCLE = 0.75
 
-    /** Energía mensual en kWh para el equipo y los hábitos indicados. */
-    fun monthlyKwh(unit: AcUnitSpec, usage: AcUsage): Double {
+    /** Energía de un día completo con los hábitos indicados. */
+    fun dailyKwh(unit: AcUnitSpec, usage: AcUsage): Double {
         val load = loadFactor(usage)
         val filter = if (usage.dirtyFilters) 1.0 + DIRTY_FILTER_PENALTY else 1.0
 
-        val dailyKwh = if (unit.inverter) {
+        val daily = if (unit.inverter) {
             val deliveredBtuPerHour = unit.btuPerHour * INVERTER_PART_LOAD * load
             deliveredBtuPerHour * usage.hoursPerDay / unit.seerBtuPerWatt / 1000.0
         } else {
@@ -137,7 +143,17 @@ object AcConsumptionCalculator {
             unit.nominalWatts / 1000.0 * usage.hoursPerDay * duty
         }
 
-        return dailyKwh * DAYS_PER_MONTH * filter
+        return daily * filter
+    }
+
+    /** Energía mensual en kWh para el equipo y los hábitos indicados. */
+    fun monthlyKwh(
+        unit: AcUnitSpec,
+        usage: AcUsage,
+        daysInMonth: Double = DAYS_PER_MONTH,
+    ): Double {
+        require(daysInMonth > 0.0) { "El mes debe tener al menos un día." }
+        return dailyKwh(unit, usage) * daysInMonth
     }
 
     /**
