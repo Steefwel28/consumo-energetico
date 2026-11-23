@@ -1,6 +1,8 @@
 package com.steefwel28.consumoenergetico.ui.screens.calculate
 
 import com.steefwel28.consumoenergetico.data.local.db.AcUnitEntity
+import com.steefwel28.consumoenergetico.data.local.db.CustomLocationEntity
+import com.steefwel28.consumoenergetico.data.local.db.PropertyGroupEntity
 import com.steefwel28.consumoenergetico.domain.calculator.AcComparison
 import com.steefwel28.consumoenergetico.domain.calculator.AcConsumptionCalculator
 import com.steefwel28.consumoenergetico.domain.calculator.AcPlateConverter
@@ -9,6 +11,7 @@ import com.steefwel28.consumoenergetico.domain.calculator.AcUnitSpec
 import com.steefwel28.consumoenergetico.domain.calculator.AcUsage
 import com.steefwel28.consumoenergetico.domain.calculator.PanamaTariffEngine
 import com.steefwel28.consumoenergetico.domain.calculator.PanamaUtility
+import com.steefwel28.consumoenergetico.domain.calculator.TariffComparison
 import com.steefwel28.consumoenergetico.domain.calculator.TariffEstimate
 import com.steefwel28.consumoenergetico.domain.calculator.TariffMode
 import com.steefwel28.consumoenergetico.domain.recommender.ElectricalSpec
@@ -16,7 +19,16 @@ import com.steefwel28.consumoenergetico.domain.recommender.ElectricalSpecAdvisor
 import com.steefwel28.consumoenergetico.domain.units.LocaleNumber
 import com.steefwel28.consumoenergetico.domain.units.UnitPreferences
 import java.util.Locale
+import kotlin.math.abs
 import kotlin.math.roundToInt
+
+/** Categorías superiores; solo Aires Acondicionados está habilitado en Fase 1. */
+enum class EquipmentCategory(val label: String) {
+    AIR_CONDITIONER("Aire Acondicionado"),
+    REFRIGERATOR("Refrigeradora"),
+    FREEZER("Freezer"),
+    APPLIANCES("Electrodomésticos"),
+}
 
 /** Cómo se ingresa el costo cuando el usuario activa "Costo Manual". */
 enum class ManualCostMode(val label: String) {
@@ -31,6 +43,23 @@ enum class PlateConverterMode(val label: String, val unit: String) {
     AMPERES("Amperios", "A"),
 }
 
+/** Ubicaciones base; "Otros" se guarda en Room para reutilizarse. */
+object CalculateLocations {
+    val base = listOf("Habitación", "Sala", "Cocina", "Comedor")
+    const val OTHER = "Otros"
+    const val DEFAULT = "Sala"
+}
+
+/** Datos que el diálogo jerárquico entrega al guardar el equipo. */
+data class SaveRequest(
+    val groupId: Long?,
+    val newGroupName: String,
+    val groupUtility: PanamaUtility,
+    val groupBaseKwh: Double,
+    val location: String,
+    val brandModel: String,
+)
+
 /**
  * Estado único de la pantalla Calcular.
  *
@@ -39,6 +68,7 @@ enum class PlateConverterMode(val label: String, val unit: String) {
  * sin campos que puedan quedar desincronizados.
  */
 data class CalculateUiState(
+    val category: EquipmentCategory = EquipmentCategory.AIR_CONDITIONER,
     val spaceName: String = "Mi espacio",
     val brandModel: String = "",
     val btuInput: String = "12000",
@@ -46,6 +76,7 @@ data class CalculateUiState(
     val seerInput: String = "",
     val inverter: Boolean = true,
     val utility: PanamaUtility = PanamaUtility.ENSA,
+    val chartMode: TariffComparison = TariffComparison.ENSA,
     val manualCost: Boolean = false,
     val manualMode: ManualCostMode = ManualCostMode.DIRECT_RATE,
     val directRateInput: String = "0.18",
@@ -57,6 +88,10 @@ data class CalculateUiState(
     val cleanFilters: Boolean = true,
     val schedule: AcSchedule = AcSchedule.NIGHT,
     val hoursPerDay: Int = 8,
+    val simulatedSetpointCelsius: Int = 24,
+    val simulatedCleanFilters: Boolean = true,
+    val simulatedSchedule: AcSchedule = AcSchedule.NIGHT,
+    val simulatedHoursPerDay: Int = 8,
     val converterMode: PlateConverterMode = PlateConverterMode.TONS,
     val converterInput: String = "1",
     val converterVoltage: Int = 220,
@@ -65,6 +100,10 @@ data class CalculateUiState(
     val currentSeerInput: String = "",
     val currentInverter: Boolean = false,
     val investmentInput: String = "450",
+    val groups: List<PropertyGroupEntity> = emptyList(),
+    val customLocations: List<CustomLocationEntity> = emptyList(),
+    val selectedGroupId: Long? = null,
+    val selectedLocation: String = CalculateLocations.DEFAULT,
     val isSaving: Boolean = false,
     val savedMessage: String? = null,
     val saveError: String? = null,
@@ -99,6 +138,32 @@ data class CalculateUiState(
     val monthlyKwh: Double?
         get() = spec?.let { AcConsumptionCalculator.monthlyKwh(it, usage) }
 
+    /** Uso del simulador; vive aparte para no mover la gráfica principal. */
+    val simulatedUsage: AcUsage
+        get() = AcUsage(
+            hoursPerDay = simulatedHoursPerDay.coerceIn(1, 24).toDouble(),
+            setpointCelsius = simulatedSetpointCelsius.coerceIn(
+                AcUsage.SIMULATOR_MIN_CELSIUS,
+                AcUsage.SIMULATOR_MAX_CELSIUS,
+            ),
+            schedule = simulatedSchedule,
+            dirtyFilters = !simulatedCleanFilters,
+        )
+
+    val simulatedMonthlyKwh: Double?
+        get() = spec?.let { AcConsumptionCalculator.monthlyKwh(it, simulatedUsage) }
+
+    val simulatedTariffEstimate: TariffEstimate?
+        get() {
+            val added = simulatedMonthlyKwh ?: return null
+            val mode = tariffMode ?: return null
+            return runCatching {
+                PanamaTariffEngine.estimate(mode, baseMonthlyKwh.coerceAtLeast(0.0), added)
+            }.getOrNull()
+        }
+
+    val simulatedMonthlyCost: Double? get() = simulatedTariffEstimate?.addedCostBalboas
+
     val tariffMode: TariffMode?
         get() = when {
             !manualCost -> TariffMode.Tiered(utility)
@@ -110,13 +175,47 @@ data class CalculateUiState(
             }
         }
 
+    private fun estimateFor(mode: TariffMode): TariffEstimate? {
+        val added = monthlyKwh ?: return null
+        return runCatching {
+            PanamaTariffEngine.estimate(mode, baseMonthlyKwh.coerceAtLeast(0.0), added)
+        }.getOrNull()
+    }
+
     val tariffEstimate: TariffEstimate?
+        get() = tariffMode?.let(::estimateFor)
+
+    /** Pliego ENSA, independiente del modo manual, para el duelo VS. */
+    val ensaEstimate: TariffEstimate?
+        get() = estimateFor(TariffMode.Tiered(PanamaUtility.ENSA))
+
+    /** Pliego Naturgy, independiente del modo manual, para el duelo VS. */
+    val naturgyEstimate: TariffEstimate?
+        get() = estimateFor(TariffMode.Tiered(PanamaUtility.NATURGY))
+
+    /** Estimación de la vista activa; en VS se dibujan las dos por separado. */
+    val chartEstimate: TariffEstimate?
+        get() = when (chartMode) {
+            TariffComparison.ENSA -> if (manualCost) tariffEstimate else ensaEstimate
+            TariffComparison.NATURGY -> if (manualCost) tariffEstimate else naturgyEstimate
+            TariffComparison.VS -> null
+        }
+
+    val comparisonDifference: Double?
         get() {
-            val mode = tariffMode ?: return null
-            val added = monthlyKwh ?: return null
-            return runCatching {
-                PanamaTariffEngine.estimate(mode, baseMonthlyKwh.coerceAtLeast(0.0), added)
-            }.getOrNull()
+            val ensa = ensaEstimate?.addedCostBalboas ?: return null
+            val naturgy = naturgyEstimate?.addedCostBalboas ?: return null
+            return abs(ensa - naturgy)
+        }
+
+    /** Costo de la vista activa; en VS, el menor de los dos pliegos. */
+    val primaryMonthlyCost: Double?
+        get() = when (chartMode) {
+            TariffComparison.ENSA, TariffComparison.NATURGY -> chartEstimate?.addedCostBalboas
+            TariffComparison.VS -> listOfNotNull(
+                ensaEstimate?.addedCostBalboas,
+                naturgyEstimate?.addedCostBalboas,
+            ).minOrNull()
         }
 
     val monthlyCost: Double? get() = tariffEstimate?.addedCostBalboas
@@ -184,11 +283,18 @@ data class CalculateUiState(
             else -> "Tarifa del recibo"
         }
 
+    val reportTariffLabel: String
+        get() = when (chartMode) {
+            TariffComparison.ENSA -> "ENSA"
+            TariffComparison.NATURGY -> "Naturgy"
+            TariffComparison.VS -> "ENSA vs. Naturgy"
+        }
+
     /** Texto breve para la ficha PDF/PNG. */
     fun reportNarrative(): String {
         val spec = spec ?: return ""
         val kwh = monthlyKwh ?: return ""
-        val cost = monthlyCost ?: return ""
+        val cost = primaryMonthlyCost ?: return ""
         val filters = if (cleanFilters) {
             "Mantén los filtros limpios y el termostato en 24 °C: cada grado extra cerca de 18 °C suma casi 6 % al consumo."
         } else {
@@ -198,21 +304,26 @@ data class CalculateUiState(
             append("${spaceName.ifBlank { "Tu espacio" }} usa un equipo de ")
             append("${btuText(spec.btuPerHour)} BTU/h ${if (spec.inverter) "Inverter" else "No Inverter"}. ")
             append("Con ${hoursPerDay.coerceIn(1, 24)} h/día y termostato en $setpointCelsius °C ")
-            append("consume cerca de ${decimal(kwh)} kWh al mes, unos B/. ${decimal(cost)} en la factura. ")
+            append("consume cerca de ${decimal(kwh)} kWh al mes, unos B/. ${decimal(cost)} en la factura ")
+            append("con $reportTariffLabel. ")
             append(filters)
         }
     }
 
     /**
-     * Convierte el cálculo en el equipo que se guardará en Mi Casa. El último
-     * mantenimiento arranca hoy para que el aviso de 90 días sea exacto.
+     * Convierte el cálculo en el equipo que se guardará en el grupo elegido.
+     * El último mantenimiento arranca hoy para que el aviso de 90 días sea exacto.
      */
-    fun toEntity(nowMillis: Long): AcUnitEntity? {
+    fun toEntity(
+        nowMillis: Long,
+        groupId: Long = PropertyGroupEntity.DEFAULT_ID,
+        ubicacion: String = CalculateLocations.DEFAULT,
+    ): AcUnitEntity? {
         val spec = spec ?: return null
         val kwh = monthlyKwh ?: return null
         val electrical = electrical ?: return null
         return AcUnitEntity(
-            nombreEspacio = spaceName.trim().ifBlank { "Mi espacio" },
+            nombreEspacio = spaceName.trim().ifBlank { ubicacion.ifBlank { "Mi espacio" } },
             marcaModelo = brandModel.trim().ifBlank { "Sin marca/modelo" },
             btu = spec.btuPerHour.roundToInt(),
             seer = spec.seer,
@@ -221,6 +332,8 @@ data class CalculateUiState(
             fechaInstalacionMillis = nowMillis,
             fechaUltimoMantenimientoMillis = nowMillis,
             consumoEstimadoKwhMes = kwh,
+            groupId = groupId,
+            ubicacion = ubicacion.trim().ifBlank { CalculateLocations.DEFAULT },
         )
     }
 }

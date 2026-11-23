@@ -27,3 +27,12 @@ Aplicación nativa para **Android 17** diseñada con estética **Google Pixel (M
 
 ### 👤 Autor
 Desarrollado por **Roberto Franco** (`@steefwel28`).
+
+---
+
+### 🚀 Estado del Desarrollo (Alpha v0.3.0-alpha)
+- [x] **Bloque 0:** Arquitectura Android 17, firma `steefwel28` y verificador de releases en GitHub.
+- [x] **Bloque 1:** Motor térmico RTCA, tarifas escalonadas ENSA/Naturgy, conversor de unidades y narrativa conversacional.
+- [x] **Bloque 2:** Persistencia local en Room v2 (Grupos de Propiedades y Ubicaciones dinámicas), alertas agrupadas cada 3 meses y exportación infográfica PDF/PNG.
+- [x] **Bloque 3A:** Pantalla `Calcular` (Gráfica `ENSA | Naturgy | VS`, escáner OCR offline, simulador desplegable) y `Recomendar` con físicas de resorte (`spring`) y `Rich Haptics`.
+- [ ] **Bloque 3B (En curso):** Ilustraciones educativas a plumilla, gestor de grupos en `Mi Casa` y `Ajustes` con respaldo SAF.

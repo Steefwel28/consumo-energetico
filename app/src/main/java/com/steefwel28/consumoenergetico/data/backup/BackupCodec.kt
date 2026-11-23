@@ -134,6 +134,7 @@ object BackupCodec {
         "    {\"id\": $id, \"ac_unit_id\": $acUnitId, \"fecha_millis\": $fechaMillis, " +
             "\"nota\": \"${escape(nota)}\"}"
 
+    // shortcut: el respaldo v1 restaura equipos como "Mi Casa"/"Sala"; incluir grupos y ubicaciones cuando se suba el esquema.
     private fun Map<String, Json>.toUnit(): AcUnitEntity {
         val name = string("nombre_espacio").trim()
         if (name.isEmpty()) throw BackupFormatException("Un equipo tiene el nombre vacío.")

@@ -1,5 +1,6 @@
 package com.steefwel28.consumoenergetico.ui.components
 
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.BottomSheetDefaults
@@ -83,21 +84,31 @@ fun PixelModalBottomSheet(
 @Composable
 fun PixelDialog(
     title: String,
-    text: String,
+    text: String? = null,
     confirmLabel: String,
     onConfirm: () -> Unit,
     onDismissRequest: () -> Unit,
     dismissLabel: String? = null,
+    confirmEnabled: Boolean = true,
+    content: (@Composable ColumnScope.() -> Unit)? = null,
 ) {
     BlurBackgroundWhileVisible()
     AlertDialog(
         onDismissRequest = onDismissRequest,
         title = { Text(title) },
-        text = { Text(text) },
+        text = when {
+            content != null -> {
+                { Column { content() } }
+            }
+            text != null -> {
+                { Text(text) }
+            }
+            else -> null
+        },
         shape = MaterialTheme.shapes.large,
         containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
         confirmButton = {
-            TextButton(onClick = onConfirm) { Text(confirmLabel) }
+            TextButton(onClick = onConfirm, enabled = confirmEnabled) { Text(confirmLabel) }
         },
         dismissButton = dismissLabel?.let { label ->
             { TextButton(onClick = onDismissRequest) { Text(label) } }

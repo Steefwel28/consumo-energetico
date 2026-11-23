@@ -32,3 +32,9 @@
 - `panama-energy-domain`: Física térmica, etiquetas RTCA 23.01.78:20, pliegos ENSA/Naturgy y seguridad eléctrica en Panamá.
 - `ponytail`: Arquitectura moderna en Kotlin/Android, flujo unidireccional (`StateFlow`), Room y rendimiento sin recomposiciones innecesarias.
 - `impeccable`: Diseño visual estilo Google Pixel (Material You), jerarquía tipográfica, espaciado equilibrado, bordes `24.dp`, desenfoque sutil y calidad estética en las 5 ilustraciones a lápiz/plumilla.
+
+## Organización por Grupos de Propiedades y Exportación Contextual
+- **Grupos / Propiedades (`PropertyGroupEntity`):** Al guardar un equipo desde Calcular o desde Mi Perfil, el usuario selecciona o crea un grupo/propiedad (ej. *"Mi Casa"*, *"Trabajo"*, *"Casa de Mamá"*), asignándole su propia distribuidora (`ENSA` o `Naturgy`) y consumo base del recibo para que cada grupo calcule su propio salto de escalón tarifario.
+- **Ubicaciones Dinámicas (`CustomLocationEntity`):** Selector táctil con ubicaciones base (`Habitación`, `Sala`, `Cocina`, `Comedor`, `Otros`). Si elige `Otros`, escribe un nombre personalizado que se persiste en Room para aparecer automáticamente en futuras selecciones.
+- **Marca y Modelo:** El texto de ejemplo (placeholder) en los campos de marca/modelo debe ser siempre `Hisense` (ej. `Hisense ATR362MA`).
+- **Exportación Contextual (`ENSA` | `Naturgy` | `VS`):** Al tocar el botón de compartir (PDF o PNG), la infografía generada refleja exactamente el modo activo en pantalla: solo ENSA, solo Naturgy, o la comparativa visual dual `VS` con ambas empresas y su diferencia en dólares.

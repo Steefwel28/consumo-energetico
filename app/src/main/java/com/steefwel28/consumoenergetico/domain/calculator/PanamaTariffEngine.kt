@@ -8,6 +8,24 @@ enum class PanamaUtility(val displayName: String) {
     NATURGY("Naturgy"),
 }
 
+/** Vista elegida en la gráfica comparativa y en la ficha exportada. */
+enum class TariffComparison(val label: String) {
+    ENSA("ENSA"),
+    NATURGY("Naturgy"),
+    VS("VS"),
+}
+
+fun PanamaUtility.tariffComparison(): TariffComparison = when (this) {
+    PanamaUtility.ENSA -> TariffComparison.ENSA
+    PanamaUtility.NATURGY -> TariffComparison.NATURGY
+}
+
+fun TariffComparison.utilityOrNull(): PanamaUtility? = when (this) {
+    TariffComparison.ENSA -> PanamaUtility.ENSA
+    TariffComparison.NATURGY -> PanamaUtility.NATURGY
+    TariffComparison.VS -> null
+}
+
 /**
  * Bloque escalonado de un pliego residencial.
  *

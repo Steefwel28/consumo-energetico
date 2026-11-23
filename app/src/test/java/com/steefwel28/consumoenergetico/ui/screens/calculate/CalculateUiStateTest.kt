@@ -6,6 +6,7 @@ import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import kotlin.math.abs
 
 class CalculateUiStateTest {
 
@@ -106,5 +107,39 @@ class CalculateUiStateTest {
         assertEquals(entity.fechaInstalacionMillis, entity.fechaUltimoMantenimientoMillis)
         assertEquals(12_000, entity.btu)
         assertTrue(entity.consumoEstimadoKwhMes > 0.0)
+    }
+
+    @Test
+    fun `la comparativa calcula ENSA Naturgy y su diferencia exacta`() {
+        val state = CalculateUiState()
+
+        val ensa = state.ensaEstimate!!
+        val naturgy = state.naturgyEstimate!!
+        val expected = abs(ensa.addedCostBalboas - naturgy.addedCostBalboas)
+
+        assertTrue(ensa.addedCostBalboas > 0.0)
+        assertTrue(naturgy.addedCostBalboas > 0.0)
+        assertEquals(expected, state.comparisonDifference!!, 0.0000001)
+    }
+
+    @Test
+    fun `el equipo guardado se vincula al grupo y la ubicacion elegidos`() {
+        val entity = CalculateUiState()
+            .toEntity(nowMillis = 99L, groupId = 7L, ubicacion = "Cocina")!!
+
+        assertEquals(7L, entity.groupId)
+        assertEquals("Cocina", entity.ubicacion)
+    }
+
+    @Test
+    fun `el simulador no altera el consumo principal de la grafica`() {
+        val base = CalculateUiState()
+        val simulated = base.copy(
+            simulatedSetpointCelsius = 18,
+            simulatedCleanFilters = false,
+        )
+
+        assertEquals(base.monthlyKwh!!, simulated.monthlyKwh!!, 0.0000001)
+        assertTrue(simulated.simulatedMonthlyKwh!! > base.simulatedMonthlyKwh!!)
     }
 }

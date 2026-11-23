@@ -10,12 +10,15 @@ import android.graphics.Typeface
 import android.graphics.pdf.PdfDocument
 import androidx.core.content.FileProvider
 import com.steefwel28.consumoenergetico.core.signature.CraftedBy
+import com.steefwel28.consumoenergetico.domain.calculator.TariffComparison
 import com.steefwel28.consumoenergetico.domain.recommender.ElectricalSpec
 import java.io.File
 import java.io.FileOutputStream
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import kotlin.math.abs
+import kotlin.math.max
 
 /** Todo lo que necesita la ficha para dibujarse sin volver a consultar datos. */
 @CraftedBy("steefwel28")
@@ -27,7 +30,10 @@ data class ReportData(
     val inverter: Boolean,
     val voltage: Int,
     val monthlyKwh: Double,
-    val monthlyBalboas: Double,
+    val comparison: TariffComparison,
+    val ensaMonthlyBalboas: Double,
+    val naturgyMonthlyBalboas: Double,
+    val displayMonthlyBalboas: Double,
     val tariffLabel: String,
     val recommendationText: String,
     val electrical: ElectricalSpec,
@@ -38,9 +44,9 @@ data class ReportData(
 /**
  * Exportador nativo sin librerías: PDF vectorial carta y PNG de 1080 px.
  *
- * Ambos formatos comparten el mismo dibujo en coordenadas carta; el PNG solo
- * escala el lienzo. El archivo queda en `cacheDir/exports`, listo para
- * compartir por WhatsApp con [shareIntent].
+ * Ambos formatos comparten el mismo dibujo en coordenadas carta y respetan el
+ * modo activo: solo ENSA, solo Naturgy o el duelo visual VS con ambas barras,
+ * la diferencia exacta al mes y la ficha eléctrica completa.
  */
 @CraftedBy("steefwel28")
 object ReportExporter {
@@ -106,80 +112,237 @@ private class ReportSheet(
 ) {
 
     private val ink = paint(10f, INK)
-    private val muted = paint(9.5f, MUTED)
-    private val sectionPaint = paint(12f, ACCENT, bold = true)
+    private val muted = paint(9f, MUTED)
+    private val sectionPaint = paint(11.5f, ACCENT, bold = true)
     private val divider = paint(0.8f, DIVIDER)
 
-    private var y = MARGIN + 20f
+    private var y = 40f
 
     fun draw() {
         drawHeader()
-        drawSection(
-            title = "Equipo",
-            lines = listOf(
-                "Espacio: ${report.spaceName}",
-                "Marca y modelo: ${report.brandModel}",
-                "Capacidad: ${btuText(report.btu)} BTU/h · ${seerText()}" +
-                    " · ${if (report.inverter) "Inverter" else "No Inverter"}",
-                "Voltaje de placa: ${report.voltage} V",
-            ),
-        )
-        drawSection(
-            title = "Consumo mensual",
-            lines = buildList {
-                add("Consumo estimado: ${decimal(report.monthlyKwh)} kWh/mes")
-                add("Costo estimado: B/. ${decimal(report.monthlyBalboas)} (${report.tariffLabel})")
-                report.monthlySavingsBalboas?.let { saving ->
-                    add("Ahorro del equipo nuevo: B/. ${decimal(saving)}/mes")
-                }
-            },
-        )
+        drawStats()
+        drawEquipment()
+        drawComparison()
         drawRecommendation()
         drawElectrical()
         drawFooter()
     }
 
     private fun drawHeader() {
-        canvas.drawText("Consumo Energético", MARGIN, y, paint(20f, INK, bold = true))
-        canvas.drawText("Ficha técnica del aire acondicionado", MARGIN, y + 15f, muted)
+        canvas.drawRoundRect(
+            MARGIN,
+            28f,
+            PAGE_WIDTH - MARGIN,
+            122f,
+            20f,
+            20f,
+            paint(0f, HEADER_BG),
+        )
+        canvas.drawText(
+            "Consumo Energético",
+            MARGIN + 20f,
+            62f,
+            paint(21f, Color.WHITE, bold = true),
+        )
+        canvas.drawText(
+            "Ficha técnica del aire acondicionado",
+            MARGIN + 20f,
+            82f,
+            paint(9.5f, HEADER_MUTED),
+        )
         val date = SimpleDateFormat("d MMM yyyy", Locale.forLanguageTag("es-PA"))
             .format(Date(report.generatedAtMillis))
-        canvas.drawText(date, PAGE_WIDTH - MARGIN, y, paint(9f, MUTED, alignRight = true))
-        y += 26f
-        canvas.drawLine(MARGIN, y, PAGE_WIDTH - MARGIN, y, divider)
+        canvas.drawText(
+            date,
+            PAGE_WIDTH - MARGIN - 20f,
+            62f,
+            paint(9f, HEADER_MUTED, alignRight = true),
+        )
+        canvas.drawText(
+            "Crafted by steefwel28",
+            PAGE_WIDTH - MARGIN - 20f,
+            106f,
+            paint(8f, HEADER_MUTED, alignRight = true),
+        )
+        y = 148f
     }
 
-    private fun drawSection(title: String, lines: List<String>) {
-        startSection(title)
-        lines.forEach { line ->
-            canvas.drawText(line, MARGIN, y, ink)
-            y += 15f
+    private fun drawStats() {
+        val gap = 10f
+        val tileWidth = (CONTENT_WIDTH - gap * 2f) / 3f
+        val top = y
+        drawStatTile(
+            x = MARGIN,
+            top = top,
+            width = tileWidth,
+            value = String.format(Locale.US, "%.1f", report.monthlyKwh),
+            label = "kWh/mes",
+        )
+        drawStatTile(
+            x = MARGIN + tileWidth + gap,
+            top = top,
+            width = tileWidth,
+            value = report.seer?.let { String.format(Locale.US, "%.1f", it) } ?: "—",
+            label = "SEER",
+        )
+        drawStatTile(
+            x = MARGIN + (tileWidth + gap) * 2f,
+            top = top,
+            width = tileWidth,
+            value = "B/. " + decimal(report.displayMonthlyBalboas),
+            label = if (report.comparison == TariffComparison.VS) "costo menor" else "costo equipo",
+        )
+        y = top + 62f
+    }
+
+    private fun drawStatTile(x: Float, top: Float, width: Float, value: String, label: String) {
+        canvas.drawRoundRect(
+            x,
+            top,
+            x + width,
+            top + 56f,
+            14f,
+            14f,
+            paint(0f, TILE),
+        )
+        canvas.drawText(value, x + 12f, top + 27f, paint(15f, INK, bold = true))
+        canvas.drawText(label, x + 12f, top + 44f, paint(7.5f, MUTED))
+    }
+
+    private fun drawEquipment() {
+        startSection("Equipo")
+        drawTextLine("Espacio: ${report.spaceName}")
+        drawTextLine("Marca y modelo: ${report.brandModel}")
+        drawTextLine(
+            "Capacidad: ${btuText(report.btu)} BTU/h · ${seerText()}" +
+                " · ${if (report.inverter) "Inverter" else "No Inverter"}",
+        )
+        drawTextLine("Voltaje de placa: ${report.voltage} V")
+    }
+
+    private fun drawComparison() {
+        startSection(
+            if (report.comparison == TariffComparison.VS) {
+                "Duelo ENSA vs. Naturgy"
+            } else {
+                "Costo mensual ${report.comparison.label}"
+            },
+        )
+        when (report.comparison) {
+            TariffComparison.ENSA -> drawBarRow(
+                label = "ENSA",
+                value = report.displayMonthlyBalboas,
+                maxValue = report.displayMonthlyBalboas,
+                color = ENSA_COLOR,
+            )
+
+            TariffComparison.NATURGY -> drawBarRow(
+                label = "Naturgy",
+                value = report.displayMonthlyBalboas,
+                maxValue = report.displayMonthlyBalboas,
+                color = NATURGY_COLOR,
+            )
+
+            TariffComparison.VS -> {
+                val maxValue = max(
+                    report.ensaMonthlyBalboas,
+                    report.naturgyMonthlyBalboas,
+                ).coerceAtLeast(0.01)
+                drawBarRow("ENSA", report.ensaMonthlyBalboas, maxValue, ENSA_COLOR)
+                drawBarRow("Naturgy", report.naturgyMonthlyBalboas, maxValue, NATURGY_COLOR)
+                val difference = abs(
+                    report.ensaMonthlyBalboas - report.naturgyMonthlyBalboas,
+                )
+                val cheaper = if (report.ensaMonthlyBalboas <= report.naturgyMonthlyBalboas) {
+                    "ENSA"
+                } else {
+                    "Naturgy"
+                }
+                canvas.drawText(
+                    if (difference < 0.005) {
+                        "Diferencia: B/. 0.00 al mes · ambas distribuidoras empatan."
+                    } else {
+                        "Diferencia: B/. ${decimal(difference)} al mes · $cheaper cuesta menos."
+                    },
+                    MARGIN,
+                    y,
+                    paint(9.5f, ACCENT, bold = true),
+                )
+                y += 14f
+            }
         }
+        canvas.drawText(
+            "Tarifa aplicada: ${report.tariffLabel}",
+            MARGIN,
+            y,
+            muted,
+        )
+        y += 13f
+        report.monthlySavingsBalboas?.let { saving ->
+            canvas.drawText(
+                "Ahorro del equipo nuevo: B/. ${decimal(saving)}/mes",
+                MARGIN,
+                y,
+                paint(9f, ACCENT, bold = true),
+            )
+            y += 13f
+        }
+    }
+
+    private fun drawBarRow(label: String, value: Double, maxValue: Double, color: Int) {
+        canvas.drawText(label, MARGIN, y, paint(10.5f, INK, bold = true))
+        canvas.drawText(
+            "B/. ${decimal(value)}",
+            PAGE_WIDTH - MARGIN,
+            y,
+            paint(10.5f, color, bold = true, alignRight = true),
+        )
+        y += 8f
+        canvas.drawRoundRect(
+            MARGIN,
+            y,
+            PAGE_WIDTH - MARGIN,
+            y + 11f,
+            5.5f,
+            5.5f,
+            paint(0f, TRACK),
+        )
+        val ratio = (value / maxValue.coerceAtLeast(0.01)).toFloat().coerceIn(0f, 1f)
+        if (ratio > 0f) {
+            canvas.drawRoundRect(
+                MARGIN,
+                y,
+                MARGIN + CONTENT_WIDTH * ratio,
+                y + 11f,
+                5.5f,
+                5.5f,
+                paint(0f, color),
+            )
+        }
+        y += 24f
     }
 
     private fun drawRecommendation() {
         startSection("Recomendación del espacio")
         wrapped(report.recommendationText, ink, CONTENT_WIDTH).forEach { line ->
             canvas.drawText(line, MARGIN, y, ink)
-            y += 14f
+            y += 13f
         }
     }
 
     private fun drawElectrical() {
         val spec = report.electrical
-        val lines = buildList {
-            add("Breaker dedicado: ${spec.breakerAmps} A · Cable ${spec.wireGauge}")
-            add("Corriente estimada: ${decimal(spec.estimatedAmps)} A a ${spec.voltage} V")
-            add(
-                "Protector de voltaje: ≥ ${surgeText(spec.surgeProtectorJoules)} J · " +
-                    "reconexión ${spec.reconnectDelayMinutes.first}–${spec.reconnectDelayMinutes.last} min",
-            )
-        }
-        drawSection("Ficha eléctrica", lines)
+        startSection("Ficha eléctrica")
+        drawTextLine("Breaker dedicado: ${spec.breakerAmps} A · Cable ${spec.wireGauge}")
+        drawTextLine("Corriente estimada: ${decimal(spec.estimatedAmps)} A a ${spec.voltage} V")
+        drawTextLine(
+            "Protector de voltaje: ≥ ${surgeText(spec.surgeProtectorJoules)} Julios · " +
+                "reconexión ${spec.reconnectDelayMinutes.first}–${spec.reconnectDelayMinutes.last} min",
+        )
         spec.installationAlert?.let { alert ->
             wrapped(alert, muted, CONTENT_WIDTH).forEach { line ->
                 canvas.drawText(line, MARGIN, y, muted)
-                y += 13f
+                y += 12f
             }
         }
     }
@@ -187,6 +350,12 @@ private class ReportSheet(
     private fun drawFooter() {
         val footerY = PAGE_HEIGHT - MARGIN
         canvas.drawLine(MARGIN, footerY - 18f, PAGE_WIDTH - MARGIN, footerY - 18f, divider)
+        canvas.drawText(
+            "Consumo Energético · Panamá",
+            MARGIN,
+            footerY,
+            paint(8f, MUTED),
+        )
         canvas.drawText(
             "Crafted by steefwel28",
             PAGE_WIDTH - MARGIN,
@@ -196,11 +365,16 @@ private class ReportSheet(
     }
 
     private fun startSection(title: String) {
-        y += 16f
+        y += 12f
         canvas.drawText(title, MARGIN, y, sectionPaint)
-        y += 6f
+        y += 5f
         canvas.drawLine(MARGIN, y, PAGE_WIDTH - MARGIN, y, divider)
-        y += 14f
+        y += 12f
+    }
+
+    private fun drawTextLine(text: String) {
+        canvas.drawText(text, MARGIN, y, ink)
+        y += 13f
     }
 
     private fun seerText(): String =
@@ -224,7 +398,7 @@ private class ReportSheet(
 
     private fun btuText(value: Int): String = String.format(Locale.US, "%,d", value)
 
-    private fun decimal(value: Double): String = String.format(Locale.US, "%.1f", value)
+    private fun decimal(value: Double): String = String.format(Locale.US, "%.2f", value)
 
     private fun surgeText(joules: Int): String = String.format(Locale.US, "%,d", joules)
 }
@@ -239,6 +413,12 @@ private const val INK = 0xFF1B1B1F.toInt()
 private const val MUTED = 0xFF5F6368.toInt()
 private const val ACCENT = 0xFF00696D.toInt()
 private const val DIVIDER = 0xFFE0E0E0.toInt()
+private const val TRACK = 0xFFE7EAED.toInt()
+private const val TILE = 0xFFF2F4F5.toInt()
+private const val HEADER_BG = 0xFF07484C.toInt()
+private const val HEADER_MUTED = 0xFFB8D4D4.toInt()
+private const val ENSA_COLOR = 0xFF00696D.toInt()
+private const val NATURGY_COLOR = 0xFFB26A00.toInt()
 
 private fun paint(size: Float, color: Int, bold: Boolean = false, alignRight: Boolean = false) =
     Paint(Paint.ANTI_ALIAS_FLAG).apply {

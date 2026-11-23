@@ -1,0 +1,240 @@
+{
+  "formatVersion": 1,
+  "database": {
+    "version": 2,
+    "identityHash": "6af621ce4af375f44ede9bb88cdd3f88",
+    "entities": [
+      {
+        "tableName": "ac_units",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `nombreEspacio` TEXT NOT NULL, `marcaModelo` TEXT NOT NULL, `btu` INTEGER NOT NULL, `seer` REAL, `esInverter` INTEGER NOT NULL, `voltaje` INTEGER NOT NULL, `fechaInstalacionMillis` INTEGER NOT NULL, `fechaUltimoMantenimientoMillis` INTEGER NOT NULL, `consumoEstimadoKwhMes` REAL NOT NULL, `groupId` INTEGER NOT NULL DEFAULT 1, `ubicacion` TEXT NOT NULL DEFAULT 'Sala')",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "nombreEspacio",
+            "columnName": "nombreEspacio",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "marcaModelo",
+            "columnName": "marcaModelo",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "btu",
+            "columnName": "btu",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "seer",
+            "columnName": "seer",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "esInverter",
+            "columnName": "esInverter",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "voltaje",
+            "columnName": "voltaje",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "fechaInstalacionMillis",
+            "columnName": "fechaInstalacionMillis",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "fechaUltimoMantenimientoMillis",
+            "columnName": "fechaUltimoMantenimientoMillis",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "consumoEstimadoKwhMes",
+            "columnName": "consumoEstimadoKwhMes",
+            "affinity": "REAL",
+            "notNull": true
+          },
+          {
+            "fieldPath": "groupId",
+            "columnName": "groupId",
+            "affinity": "INTEGER",
+            "notNull": true,
+            "defaultValue": "1"
+          },
+          {
+            "fieldPath": "ubicacion",
+            "columnName": "ubicacion",
+            "affinity": "TEXT",
+            "notNull": true,
+            "defaultValue": "'Sala'"
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_ac_units_groupId",
+            "unique": false,
+            "columnNames": [
+              "groupId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_ac_units_groupId` ON `${TABLE_NAME}` (`groupId`)"
+          }
+        ]
+      },
+      {
+        "tableName": "maintenance_logs",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `acUnitId` INTEGER NOT NULL, `fechaMillis` INTEGER NOT NULL, `nota` TEXT NOT NULL, FOREIGN KEY(`acUnitId`) REFERENCES `ac_units`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "acUnitId",
+            "columnName": "acUnitId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "fechaMillis",
+            "columnName": "fechaMillis",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "nota",
+            "columnName": "nota",
+            "affinity": "TEXT",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_maintenance_logs_acUnitId",
+            "unique": false,
+            "columnNames": [
+              "acUnitId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_maintenance_logs_acUnitId` ON `${TABLE_NAME}` (`acUnitId`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "ac_units",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "acUnitId"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          }
+        ]
+      },
+      {
+        "tableName": "property_groups",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `nombreGrupo` TEXT NOT NULL, `distribuidora` TEXT NOT NULL, `consumoBaseKwh` REAL NOT NULL)",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "nombreGrupo",
+            "columnName": "nombreGrupo",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "distribuidora",
+            "columnName": "distribuidora",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "consumoBaseKwh",
+            "columnName": "consumoBaseKwh",
+            "affinity": "REAL",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        }
+      },
+      {
+        "tableName": "custom_locations",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `nombreUbicacion` TEXT NOT NULL)",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "nombreUbicacion",
+            "columnName": "nombreUbicacion",
+            "affinity": "TEXT",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_custom_locations_nombreUbicacion",
+            "unique": true,
+            "columnNames": [
+              "nombreUbicacion"
+            ],
+            "orders": [],
+            "createSql": "CREATE UNIQUE INDEX IF NOT EXISTS `index_custom_locations_nombreUbicacion` ON `${TABLE_NAME}` (`nombreUbicacion`)"
+          }
+        ]
+      }
+    ],
+    "setupQueries": [
+      "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '6af621ce4af375f44ede9bb88cdd3f88')"
+    ]
+  }
+}
