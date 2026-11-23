@@ -17,17 +17,30 @@ private val LightColors = lightColorScheme(
     onPrimaryContainer = TealOnPrimaryContainerLight,
     secondary = SlateSecondaryLight,
     onSecondary = SlateOnSecondaryLight,
+    secondaryContainer = SlateSecondaryContainerLight,
+    onSecondaryContainer = SlateOnSecondaryContainerLight,
     tertiary = BlueTertiaryLight,
     onTertiary = BlueOnTertiaryLight,
+    tertiaryContainer = BlueTertiaryContainerLight,
+    onTertiaryContainer = BlueOnTertiaryContainerLight,
     background = SurfaceLight,
     onBackground = OnSurfaceLight,
     surface = SurfaceLight,
     onSurface = OnSurfaceLight,
     surfaceVariant = SurfaceVariantLight,
     onSurfaceVariant = OnSurfaceVariantLight,
+    surfaceTint = TealPrimaryLight,
+    inverseSurface = InverseSurfaceLight,
+    inverseOnSurface = InverseOnSurfaceLight,
     outline = OutlineLight,
+    outlineVariant = OutlineVariantLight,
     error = ErrorLight,
     onError = OnErrorLight,
+    surfaceContainerLowest = SurfaceContainerLowestLight,
+    surfaceContainerLow = SurfaceContainerLowLight,
+    surfaceContainer = SurfaceContainerLight,
+    surfaceContainerHigh = SurfaceContainerHighLight,
+    surfaceContainerHighest = SurfaceContainerHighestLight,
 )
 
 private val DarkColors = darkColorScheme(
@@ -37,21 +50,37 @@ private val DarkColors = darkColorScheme(
     onPrimaryContainer = TealOnPrimaryContainerDark,
     secondary = SlateSecondaryDark,
     onSecondary = SlateOnSecondaryDark,
+    secondaryContainer = SlateSecondaryContainerDark,
+    onSecondaryContainer = SlateOnSecondaryContainerDark,
     tertiary = BlueTertiaryDark,
     onTertiary = BlueOnTertiaryDark,
+    tertiaryContainer = BlueTertiaryContainerDark,
+    onTertiaryContainer = BlueOnTertiaryContainerDark,
     background = SurfaceDark,
     onBackground = OnSurfaceDark,
     surface = SurfaceDark,
     onSurface = OnSurfaceDark,
     surfaceVariant = SurfaceVariantDark,
     onSurfaceVariant = OnSurfaceVariantDark,
+    surfaceTint = TealPrimaryDark,
+    inverseSurface = InverseSurfaceDark,
+    inverseOnSurface = InverseOnSurfaceDark,
     outline = OutlineDark,
+    outlineVariant = OutlineVariantDark,
     error = ErrorDark,
     onError = OnErrorDark,
+    surfaceContainerLowest = SurfaceContainerLowestDark,
+    surfaceContainerLow = SurfaceContainerLowDark,
+    surfaceContainer = SurfaceContainerDark,
+    surfaceContainerHigh = SurfaceContainerHighDark,
+    surfaceContainerHighest = SurfaceContainerHighestDark,
 )
 
 /**
- * Tema Material 3 con color dinámico (Android 12+) y respaldo tonal propio.
+ * Tema Material 3: color dinámico (Android 12+) con respaldo esmeralda/cian.
+ *
+ * Las tarjetas usan los niveles `surfaceContainer*`; el desenfoque de hojas y
+ * diálogos vive en [com.steefwel28.consumoenergetico.ui.components.PixelOverlayState].
  */
 @Composable
 fun ConsumoEnergeticoTheme(
