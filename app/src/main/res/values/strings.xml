@@ -2,4 +2,7 @@
 <resources>
     <string name="app_name">Consumo Energético</string>
     <string name="version_signature">v%1$s · %2$s</string>
+    <string name="maintenance_channel_name">Recordatorios de mantenimiento</string>
+    <string name="maintenance_channel_description">Avisos agrupados cada 3 meses para limpiar tus aires acondicionados.</string>
+    <string name="maintenance_notification_title">Mantenimiento de aires acondicionados</string>
 </resources>

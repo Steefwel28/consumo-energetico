@@ -1,0 +1,144 @@
+{
+  "formatVersion": 1,
+  "database": {
+    "version": 1,
+    "identityHash": "29e6bda78509cf56f49b06ac6e3a9635",
+    "entities": [
+      {
+        "tableName": "ac_units",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `nombreEspacio` TEXT NOT NULL, `marcaModelo` TEXT NOT NULL, `btu` INTEGER NOT NULL, `seer` REAL, `esInverter` INTEGER NOT NULL, `voltaje` INTEGER NOT NULL, `fechaInstalacionMillis` INTEGER NOT NULL, `fechaUltimoMantenimientoMillis` INTEGER NOT NULL, `consumoEstimadoKwhMes` REAL NOT NULL)",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "nombreEspacio",
+            "columnName": "nombreEspacio",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "marcaModelo",
+            "columnName": "marcaModelo",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "btu",
+            "columnName": "btu",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "seer",
+            "columnName": "seer",
+            "affinity": "REAL"
+          },
+          {
+            "fieldPath": "esInverter",
+            "columnName": "esInverter",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "voltaje",
+            "columnName": "voltaje",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "fechaInstalacionMillis",
+            "columnName": "fechaInstalacionMillis",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "fechaUltimoMantenimientoMillis",
+            "columnName": "fechaUltimoMantenimientoMillis",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "consumoEstimadoKwhMes",
+            "columnName": "consumoEstimadoKwhMes",
+            "affinity": "REAL",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        }
+      },
+      {
+        "tableName": "maintenance_logs",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `acUnitId` INTEGER NOT NULL, `fechaMillis` INTEGER NOT NULL, `nota` TEXT NOT NULL, FOREIGN KEY(`acUnitId`) REFERENCES `ac_units`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "acUnitId",
+            "columnName": "acUnitId",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "fechaMillis",
+            "columnName": "fechaMillis",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "nota",
+            "columnName": "nota",
+            "affinity": "TEXT",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        },
+        "indices": [
+          {
+            "name": "index_maintenance_logs_acUnitId",
+            "unique": false,
+            "columnNames": [
+              "acUnitId"
+            ],
+            "orders": [],
+            "createSql": "CREATE INDEX IF NOT EXISTS `index_maintenance_logs_acUnitId` ON `${TABLE_NAME}` (`acUnitId`)"
+          }
+        ],
+        "foreignKeys": [
+          {
+            "table": "ac_units",
+            "onDelete": "CASCADE",
+            "onUpdate": "NO ACTION",
+            "columns": [
+              "acUnitId"
+            ],
+            "referencedColumns": [
+              "id"
+            ]
+          }
+        ]
+      }
+    ],
+    "setupQueries": [
+      "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '29e6bda78509cf56f49b06ac6e3a9635')"
+    ]
+  }
+}
