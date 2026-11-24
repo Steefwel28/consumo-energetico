@@ -67,6 +67,9 @@
     <string name="calc_comparison_title">Tariff comparison</string>
     <string name="calc_comparison_subtitle">ENSA, Naturgy, or the VS duel with the exact monthly difference.</string>
     <string name="calc_manual_hint">Use the real rate from your bill instead of the preloaded tariff.</string>
+    <string name="calc_manual_chip">Manual rate</string>
+    <string name="calc_identify_equipment">Identify unit (optional)</string>
+    <string name="period_month_chip">Month · %1$s</string>
     <string name="calc_bill_guide_cd">Guide to find consumption and total on the bill</string>
     <string name="calc_base_home">Home base consumption: %1$s (set in Settings).</string>
     <string name="calc_direct_rate">Rate in B/. per kWh</string>
@@ -406,7 +409,7 @@
     <string name="calc_empty_chart">Enter the data above to calculate</string>
 
     <!-- My Home · bills -->
-    <string name="home_register_bill">+ Add bill</string>
+    <string name="home_register_bill">Add bill</string>
     <string name="home_climatization_split">%1$d%% Cooling · %2$d%% Rest of home</string>
     <string name="home_bill_history_title">Bill history</string>
     <string name="home_bill_kwh_tab">kWh</string>

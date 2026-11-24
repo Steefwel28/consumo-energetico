@@ -51,6 +51,10 @@
    Do instead: keep `SplashChip(alignment, x, y, width, height, color, maxAlpha, revealAtMs)` private in `ExpressiveSplashScreen.kt`; morph keyframes 0→1→2→3 at 0/600/1200/2000 ms.
 6. **[2026-11-23] Liquid Glass orbes follow scroll via root `nestedScroll`**
    Do instead: keep `LiquidGlassScrollConnection` in `LiquidGlassBackground.kt` + `.nestedScroll(...)` on `ConsumoApp` content Box; no scroll wiring needed in screens.
+7. **[2026-11-23] Lens/refraction only on floating layers, never on content cards**
+   Do instead: use `Modifier.liquidGlassLens()` (AGSL `RuntimeShader`, API 33+) via `LiquidGlassSurface(lens = true)` for nav bar / sheets / ☰ menu; inside `ModalBottomSheet`/`Dialog` haze cannot sample other windows, so the lens tint is the only glass there.
+8. **[2026-11-23] Turning Liquid Glass off leaves an emerald window + orbs**
+   Do instead: keep all three shields — `LiquidGlassBackground` early `return` when `!LocalLiquidGlass.current`, `ConsumoApp` Box `.background(colorScheme.background)` when not glass, and `MainActivity` re-writing `window.setBackgroundDrawable(...)` in `LaunchedEffect(appearance)`.
 
 ## User Directives
 1. **[2026-11-23] Signature and donation identity**

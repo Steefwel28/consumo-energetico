@@ -67,6 +67,9 @@
     <string name="calc_comparison_title">Comparativa de tarifa</string>
     <string name="calc_comparison_subtitle">ENSA, Naturgy o el duelo VS con la diferencia exacta al mes.</string>
     <string name="calc_manual_hint">Usa la tarifa real de tu factura en vez del pliego precargado.</string>
+    <string name="calc_manual_chip">Tarifa manual</string>
+    <string name="calc_identify_equipment">Identificar equipo (opcional)</string>
+    <string name="period_month_chip">Mes · %1$s</string>
     <string name="calc_bill_guide_cd">Guía para ubicar consumo y total en el recibo</string>
     <string name="calc_base_home">Consumo base del hogar: %1$s (se configura en Ajustes).</string>
     <string name="calc_direct_rate">Tarifa en B/. por kWh</string>
@@ -406,7 +409,7 @@
     <string name="calc_empty_chart">Ingresa los datos arriba para calcular</string>
 
     <!-- Mi Casa · facturas -->
-    <string name="home_register_bill">+ Registrar factura</string>
+    <string name="home_register_bill">Registrar factura</string>
     <string name="home_climatization_split">%1$d %% Climatización · %2$d %% Resto del hogar</string>
     <string name="home_bill_history_title">Historial de facturas</string>
     <string name="home_bill_kwh_tab">kWh</string>

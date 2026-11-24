@@ -80,6 +80,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.RoundRect
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
@@ -403,13 +404,13 @@ private fun ComparisonCard(
         title = stringResource(R.string.calc_comparison_title),
         subtitle = stringResource(R.string.calc_comparison_subtitle),
     ) {
+        // ENSA | VS | Naturgy: VS al centro y seleccionado por defecto para que
+        // la comparativa completa aparezca desde el primer segundo.
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .horizontalScroll(rememberScrollState()),
+            modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            TariffComparison.entries.forEach { mode ->
+            listOf(TariffComparison.ENSA, TariffComparison.VS, TariffComparison.NATURGY).forEach { mode ->
                 val isSelected = state.chartMode == mode
                 val scale by animateFloatAsState(
                     targetValue = if (isSelected) 1f else 0.96f,
@@ -427,27 +428,65 @@ private fun ComparisonCard(
                             )
                         }
                     },
-                    label = { Text(mode.label) },
-                    modifier = Modifier.graphicsLayer {
-                        scaleX = scale
-                        scaleY = scale
+                    label = {
+                        Text(
+                            text = mode.label,
+                            maxLines = 1,
+                            textAlign = TextAlign.Center,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.fillMaxWidth(),
+                        )
                     },
+                    modifier = Modifier
+                        .weight(1f)
+                        .graphicsLayer {
+                            scaleX = scale
+                            scaleY = scale
+                        },
                 )
             }
         }
 
+        when (state.chartMode) {
+            TariffComparison.VS -> VsChart(state = state)
+            else -> SingleChart(state = state)
+        }
+
+        HoursControl(state = state, onUpdate = onUpdate)
+
         Row(
+            modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(4.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Text(text = stringResource(R.string.manual_cost), style = MaterialTheme.typography.titleMedium)
-                Text(
-                    text = stringResource(R.string.calc_manual_hint),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
+            PeriodSelector(
+                state = state,
+                onUpdate = onUpdate,
+                modifier = Modifier.weight(1f),
+            )
+            FilterChip(
+                selected = state.manualCost,
+                onClick = {
+                    haptics.tap()
+                    onUpdate { it.copy(manualCost = !it.manualCost) }
+                },
+                label = {
+                    Text(
+                        text = stringResource(R.string.calc_manual_chip),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                },
+                trailingIcon = {
+                    Icon(
+                        imageVector = Icons.Rounded.ExpandMore,
+                        contentDescription = null,
+                        modifier = Modifier.graphicsLayer {
+                            rotationZ = if (state.manualCost) 180f else 0f
+                        },
+                    )
+                },
+            )
             IconButton(onClick = {
                 haptics.tap()
                 onOpenBillGuide()
@@ -457,30 +496,11 @@ private fun ComparisonCard(
                     contentDescription = stringResource(R.string.calc_bill_guide_cd),
                 )
             }
-            Switch(
-                checked = state.manualCost,
-                onCheckedChange = { checked ->
-                    haptics.tap()
-                    onUpdate { it.copy(manualCost = checked) }
-                },
-            )
         }
 
+        // El input de B/. solo existe cuando el modo manual está encendido.
         if (state.manualCost) {
             ManualCostFields(state = state, onUpdate = onUpdate)
-        } else {
-            Text(
-                text = stringResource(R.string.calc_base_home, AppFormat.kwh(state.baseMonthlyKwh)),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
-
-        PeriodAndHoursControls(state = state, onUpdate = onUpdate)
-
-        when (state.chartMode) {
-            TariffComparison.VS -> VsChart(state = state)
-            else -> SingleChart(state = state)
         }
     }
 }
@@ -541,31 +561,62 @@ private fun ManualCostFields(
 }
 
 @Composable
-private fun PeriodAndHoursControls(
+private fun HoursControl(
     state: CalculateUiState,
     onUpdate: ((CalculateUiState) -> CalculateUiState) -> Unit,
 ) {
     val haptics = rememberPixelHaptics()
+    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+        Text(
+            text = stringResource(R.string.calculate_hours, state.hoursPerDay),
+            style = MaterialTheme.typography.titleSmall,
+        )
+        Slider(
+            value = state.hoursPerDay.toFloat(),
+            onValueChange = { value ->
+                val hours = value.roundToInt()
+                if (hours != state.hoursPerDay) haptics.tap()
+                onUpdate { it.copy(hoursPerDay = hours) }
+            },
+            valueRange = 1f..24f,
+            steps = 22,
+            modifier = Modifier.fillMaxWidth(),
+        )
+    }
+}
+
+/** Selector de periodo compacto: una fila con `Mes` junto al chip manual. */
+@Composable
+private fun PeriodSelector(
+    state: CalculateUiState,
+    onUpdate: ((CalculateUiState) -> CalculateUiState) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val haptics = rememberPixelHaptics()
+    val context = LocalContext.current
     var expanded by remember { mutableStateOf(false) }
     val rotation by animateFloatAsState(
         targetValue = if (expanded) 180f else 0f,
         animationSpec = PixelSpringSnappy,
         label = "period-chevron",
     )
-    Box(modifier = Modifier.fillMaxWidth()) {
+    Box(modifier = modifier) {
         OutlinedButton(
             onClick = {
                 haptics.tap()
                 expanded = true
             },
             modifier = Modifier.fillMaxWidth(),
+            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
         ) {
             Icon(Icons.Rounded.Schedule, contentDescription = null)
             Text(
-                text = periodLabel(state.usagePeriod, state.daysInMonth),
+                text = periodChipLabel(context, state.usagePeriod),
                 modifier = Modifier
                     .weight(1f)
-                    .padding(start = 8.dp),
+                    .padding(start = 6.dp),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
             )
             Icon(
                 imageVector = Icons.Rounded.ExpandMore,
@@ -586,33 +637,16 @@ private fun PeriodAndHoursControls(
             }
         }
     }
+}
 
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(10.dp),
-    ) {
-        Text(
-            text = stringResource(R.string.calculate_hours, state.hoursPerDay),
-            style = MaterialTheme.typography.titleMedium,
-            modifier = Modifier.width(152.dp),
-        )
-        Slider(
-            value = state.hoursPerDay.toFloat(),
-            onValueChange = { value ->
-                val hours = value.roundToInt()
-                if (hours != state.hoursPerDay) haptics.tap()
-                onUpdate { it.copy(hoursPerDay = hours) }
-            },
-            valueRange = 1f..24f,
-            steps = 22,
-            modifier = Modifier.weight(1f),
-        )
+/** Etiqueta corta para el chip de periodo (el desplegable conserva el detalle). */
+private fun periodChipLabel(context: Context, period: UsagePeriod): String {
+    val month = YearMonth.now().month.getDisplayName(TextStyle.SHORT, Locale.getDefault())
+    return when (period) {
+        UsagePeriod.DAY -> context.getString(R.string.period_day)
+        UsagePeriod.FORTNIGHT -> context.getString(R.string.period_fortnight)
+        UsagePeriod.MONTH -> context.getString(R.string.period_month_chip, month)
     }
-    Text(
-        text = stringResource(R.string.calculate_period_hint, state.periodDays),
-        style = MaterialTheme.typography.labelMedium,
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
-    )
 }
 
 @Composable
@@ -737,39 +771,51 @@ private fun naturgyWaveColor(): Color =
 private fun marginalRate(value: Double): String =
     String.format(Locale.US, "B/. %.4f/kWh", value)
 
-/** Estado vacío: una onda tenue en reposo invita a completar los datos. */
+/**
+ * Estado vacío: línea recta gris estática con `B/. 0.00`. Sin animación de onda
+ * hasta que exista consumo real.
+ */
 @Composable
 private fun RestingWaveChart() {
-    val track = MaterialTheme.colorScheme.surfaceContainerHighest
     val ink = MaterialTheme.colorScheme.onSurfaceVariant
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        Text(
-            text = stringResource(R.string.calc_empty_chart),
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-        Canvas(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(52.dp),
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
         ) {
-            val radius = CornerRadius(size.height / 2f)
-            drawRoundRect(color = track, cornerRadius = radius, size = size)
-            val steps = 72
-            val amplitude = size.height * 0.14f
-            val midY = size.height / 2f
-            val path = Path()
-            for (step in 0..steps) {
-                val x = size.width * step / steps
-                val y = midY + sin(step.toFloat() / steps * 4f * (2 * PI).toFloat()) * amplitude
-                if (step == 0) path.moveTo(x, y) else path.lineTo(x, y)
-            }
-            drawPath(
-                path = path,
-                color = ink.copy(alpha = 0.32f),
-                style = Stroke(width = size.height * 0.08f, cap = StrokeCap.Round),
+            Text(
+                text = stringResource(R.string.calc_empty_chart),
+                style = MaterialTheme.typography.bodyMedium,
+                color = ink,
+            )
+            Text(
+                text = AppFormat.balboas(0.0),
+                style = MaterialTheme.typography.titleMedium,
+                color = ink,
             )
         }
+        StaticWaveLine(color = ink.copy(alpha = 0.45f))
+    }
+}
+
+/** Línea recta gris sin animación: reposo de la gráfica. */
+@Composable
+private fun StaticWaveLine(color: Color) {
+    val track = MaterialTheme.colorScheme.surfaceContainerHighest
+    Canvas(
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(52.dp),
+    ) {
+        drawRoundRect(color = track, cornerRadius = CornerRadius(size.height / 2f), size = size)
+        drawLine(
+            color = color,
+            start = Offset(0f, size.height / 2f),
+            end = Offset(size.width, size.height / 2f),
+            strokeWidth = size.height * 0.08f,
+            cap = StrokeCap.Round,
+        )
     }
 }
 
@@ -782,6 +828,26 @@ private fun PixelWaveBar(
     color: Color,
 ) {
     val target = (value / maxValue.coerceAtLeast(0.01)).toFloat().coerceIn(0f, 1f)
+    // Sin consumo no se compone la onda: cero animaciones en reposo.
+    if (target <= 0.001f) {
+        val ink = MaterialTheme.colorScheme.onSurfaceVariant
+        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(text = label, style = MaterialTheme.typography.titleMedium)
+                Text(
+                    text = AppFormat.balboas(0.0),
+                    style = MaterialTheme.typography.titleMedium,
+                    color = ink,
+                )
+            }
+            StaticWaveLine(color = ink.copy(alpha = 0.45f))
+        }
+        return
+    }
     val progress by animateFloatAsState(
         targetValue = target,
         animationSpec = PixelSpringExpressive,
@@ -1004,22 +1070,11 @@ private fun EquipmentFields(
     val wattsFocus = remember { FocusRequester() }
     val seerFocus = remember { FocusRequester() }
     val hints = placeholdersFor(state.category)
-
-    OutlinedTextField(
-        value = state.spaceName,
-        onValueChange = { value -> onUpdate { it.copy(spaceName = value) } },
-        label = { Text(stringResource(R.string.calc_space)) },
-        placeholder = { Text(stringResource(R.string.calc_space_placeholder)) },
-        singleLine = true,
-        modifier = Modifier.fillMaxWidth(),
-    )
-    OutlinedTextField(
-        value = state.brandModel,
-        onValueChange = { value -> onUpdate { it.copy(brandModel = value) } },
-        label = { Text(stringResource(R.string.common_brand_model)) },
-        placeholder = { Text(hints.brand) },
-        singleLine = true,
-        modifier = Modifier.fillMaxWidth(),
+    var identifyExpanded by remember { mutableStateOf(false) }
+    val identifyRotation by animateFloatAsState(
+        targetValue = if (identifyExpanded) 180f else 0f,
+        animationSpec = PixelSpringSnappy,
+        label = "identify-chevron",
     )
 
     if (state.category == EquipmentCategory.AIR_CONDITIONER) {
@@ -1105,6 +1160,48 @@ private fun EquipmentFields(
                 haptics.tap()
                 onUpdate { it.copy(inverter = checked) }
             },
+        )
+    }
+
+    // Espacio y marca quedan plegados: cotizar rápido sin ruido visual.
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(16.dp))
+            .clickable {
+                haptics.tap()
+                identifyExpanded = !identifyExpanded
+            }
+            .padding(vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            text = stringResource(R.string.calc_identify_equipment),
+            style = MaterialTheme.typography.titleSmall,
+            modifier = Modifier.weight(1f),
+        )
+        Icon(
+            imageVector = Icons.Rounded.ExpandMore,
+            contentDescription = null,
+            modifier = Modifier.graphicsLayer { rotationZ = identifyRotation },
+        )
+    }
+    if (identifyExpanded) {
+        OutlinedTextField(
+            value = state.spaceName,
+            onValueChange = { value -> onUpdate { it.copy(spaceName = value) } },
+            label = { Text(stringResource(R.string.calc_space)) },
+            placeholder = { Text(stringResource(R.string.calc_space_placeholder)) },
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth(),
+        )
+        OutlinedTextField(
+            value = state.brandModel,
+            onValueChange = { value -> onUpdate { it.copy(brandModel = value) } },
+            label = { Text(stringResource(R.string.common_brand_model)) },
+            placeholder = { Text(hints.brand) },
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth(),
         )
     }
     if (state.spec == null) {

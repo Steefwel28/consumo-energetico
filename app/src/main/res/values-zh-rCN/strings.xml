@@ -67,6 +67,9 @@
     <string name="calc_comparison_title">电价对比</string>
     <string name="calc_comparison_subtitle">ENSA、Naturgy 或 VS 对决，显示每月精确差额。</string>
     <string name="calc_manual_hint">使用电费单上的真实电价，而非预置电价表。</string>
+    <string name="calc_manual_chip">手动电价</string>
+    <string name="calc_identify_equipment">识别设备（可选）</string>
+    <string name="period_month_chip">%1$s 月</string>
     <string name="calc_bill_guide_cd">在电费单上找到用电量与总额的指南</string>
     <string name="calc_base_home">家庭基础用电量：%1$s（在设置中配置）。</string>
     <string name="calc_direct_rate">电价（B/./kWh）</string>
@@ -406,7 +409,7 @@
     <string name="calc_empty_chart">请在上方输入数据以计算</string>
 
     <!-- 我家 · 账单 -->
-    <string name="home_register_bill">+ 记录账单</string>
+    <string name="home_register_bill">记录账单</string>
     <string name="home_climatization_split">%1$d%% 空调 · %2$d%% 家庭其他用电</string>
     <string name="home_bill_history_title">账单历史</string>
     <string name="home_bill_kwh_tab">kWh</string>

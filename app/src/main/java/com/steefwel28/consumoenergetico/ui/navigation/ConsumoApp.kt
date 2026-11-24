@@ -78,6 +78,7 @@ import com.steefwel28.consumoenergetico.ui.components.LocalPixelOverlayState
 import com.steefwel28.consumoenergetico.ui.components.PixelDialog
 import com.steefwel28.consumoenergetico.ui.components.PixelOverlayState
 import com.steefwel28.consumoenergetico.ui.components.PixelSpringExpressive
+import com.steefwel28.consumoenergetico.ui.components.liquidGlassLens
 import com.steefwel28.consumoenergetico.ui.components.pixelChargeHaptics
 import com.steefwel28.consumoenergetico.ui.components.rememberPixelHaptics
 import com.steefwel28.consumoenergetico.ui.screens.calculate.CalculateRoute
@@ -183,7 +184,13 @@ private fun MainScaffold(
     val route = currentRoute?.destination?.route
 
     CompositionLocalProvider(LocalHazeState provides hazeState) {
-        Box(modifier = Modifier.fillMaxSize()) {
+        // Fondo explícito del modo activo: al apagar Liquid Glass los orbes
+        // desaparecen y el esquema Día/Noche/OLED queda limpio en el mismo frame.
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(if (glass) Color.Transparent else MaterialTheme.colorScheme.background),
+        ) {
             if (glass) {
                 LiquidGlassBackground(
                     modifier = Modifier.hazeSource(hazeState),
@@ -191,7 +198,7 @@ private fun MainScaffold(
                 )
             }
             Scaffold(
-                modifier = if (menuOpen) Modifier.blur(16.dp) else Modifier,
+                modifier = if (menuOpen) Modifier.blur(24.dp) else Modifier,
                 containerColor = if (glass) Color.Transparent else MaterialTheme.colorScheme.background,
                 contentWindowInsets = WindowInsets.safeDrawing.only(
                     WindowInsetsSides.Horizontal + WindowInsetsSides.Top,
@@ -272,7 +279,7 @@ private fun MainScaffold(
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
-                        .background(Color.Black.copy(alpha = 0.34f))
+                        .background(Color.Black.copy(alpha = 0.26f))
                         .clickable(
                             interactionSource = remember { MutableInteractionSource() },
                             indication = null,
@@ -380,7 +387,8 @@ private fun TopMenuBar(
                         scaleY = scale
                         this.alpha = alpha
                     }
-                    .alpha(if (expanded) 1f else 0.6f),
+                    .alpha(if (expanded) 1f else 0.6f)
+                    .liquidGlassLens(cornerRadius = 24.dp),
                 shape = MaterialTheme.shapes.large,
                 containerColor = if (glass) {
                     MaterialTheme.colorScheme.surface.copy(alpha = 0.16f)
@@ -488,6 +496,7 @@ private fun PixelNavigationBar(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
         containerColor = MaterialTheme.colorScheme.surfaceContainer,
+        lens = true,
     ) {
     NavigationBar(
         containerColor = Color.Transparent,

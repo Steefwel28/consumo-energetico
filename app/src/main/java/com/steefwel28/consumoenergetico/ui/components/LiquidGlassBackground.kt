@@ -81,6 +81,8 @@ fun LiquidGlassBackground(
     modifier: Modifier = Modifier,
     scrollFraction: Float = 0f,
 ) {
+    // Blindaje: si el switch está apagado no se compone ningún orbe oscuro.
+    if (!LocalLiquidGlass.current) return
     val powerSave = rememberPowerSaveMode()
     val blurAllowed = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && !powerSave
     val scroll = scrollFraction.coerceIn(0f, 1f)
@@ -187,6 +189,8 @@ fun LiquidGlassSurface(
     modifier: Modifier = Modifier,
     shape: Shape = RoundedCornerShape(24.dp),
     containerColor: Color = Color.Transparent,
+    lens: Boolean = false,
+    lensRadius: Dp = 24.dp,
     content: @Composable BoxScope.() -> Unit,
 ) {
     val glass = LocalLiquidGlass.current
@@ -205,7 +209,9 @@ fun LiquidGlassSurface(
                     else -> Modifier
                 },
             )
-            .then(if (glass) Modifier.border(liquidGlassBorder(), shape) else Modifier),
+            .then(if (glass) Modifier.border(liquidGlassBorder(), shape) else Modifier)
+            // Lente líquido solo en capas flotantes; las tarjetas quedan limpias.
+            .then(if (lens) Modifier.liquidGlassLens(lensRadius) else Modifier),
     ) {
         if (glass) {
             // Brillo interno en el 22 % superior: simula el grosor del cristal.

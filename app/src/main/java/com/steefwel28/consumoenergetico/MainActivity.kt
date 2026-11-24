@@ -10,6 +10,7 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.graphics.toArgb
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.steefwel28.consumoenergetico.data.datastore.AppearanceCache
 import com.steefwel28.consumoenergetico.data.worker.MaintenanceReminderScheduler
@@ -18,6 +19,8 @@ import com.steefwel28.consumoenergetico.domain.settings.ThemeMode
 import com.steefwel28.consumoenergetico.ui.navigation.ConsumoApp
 import com.steefwel28.consumoenergetico.ui.theme.ConsumoEnergeticoTheme
 import com.steefwel28.consumoenergetico.ui.theme.LocalLiquidGlass
+import com.steefwel28.consumoenergetico.ui.theme.SurfaceDark
+import com.steefwel28.consumoenergetico.ui.theme.SurfaceLight
 
 class MainActivity : AppCompatActivity() {
 
@@ -40,8 +43,13 @@ class MainActivity : AppCompatActivity() {
             )
             val darkTheme = appearance.mode.isDark()
 
-            // Guarda el espejo ligero para el próximo arranque.
-            LaunchedEffect(appearance) { AppearanceCache.write(this@MainActivity, appearance) }
+            // Guarda el espejo ligero para el próximo arranque y re-aplica el fondo
+            // de ventana: sin esto el esmeralda oscuro de Liquid Glass se queda
+            // pegado al apagar el switch (edge-to-edge deja ver la ventana).
+            LaunchedEffect(appearance) {
+                AppearanceCache.write(this@MainActivity, appearance)
+                window.setBackgroundDrawable(ColorDrawable(windowBackgroundColor(appearance)))
+            }
 
             ConsumoEnergeticoTheme(
                 darkTheme = darkTheme,
@@ -64,8 +72,11 @@ class MainActivity : AppCompatActivity() {
 
     private fun windowBackgroundColor(appearance: AppearancePreferences): Int = when {
         appearance.liquidGlass -> LIQUID_GLASS_BACKGROUND
-        appearance.mode.isDark() -> AndroidColor.BLACK
-        else -> AndroidColor.WHITE
+        appearance.mode.isDark() -> {
+            if (appearance.oledPure) AndroidColor.BLACK else SurfaceDark.toArgb()
+        }
+
+        else -> SurfaceLight.toArgb()
     }
 
     private companion object {

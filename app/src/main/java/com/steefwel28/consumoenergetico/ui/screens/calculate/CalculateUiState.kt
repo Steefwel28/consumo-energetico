@@ -84,7 +84,7 @@ data class CalculateUiState(
     val seerInput: String = "",
     val inverter: Boolean = true,
     val utility: PanamaUtility = PanamaUtility.ENSA,
-    val chartMode: TariffComparison = TariffComparison.ENSA,
+    val chartMode: TariffComparison = TariffComparison.VS,
     val manualCost: Boolean = false,
     val manualMode: ManualCostMode = ManualCostMode.DIRECT_RATE,
     val directRateInput: String = "0.18",

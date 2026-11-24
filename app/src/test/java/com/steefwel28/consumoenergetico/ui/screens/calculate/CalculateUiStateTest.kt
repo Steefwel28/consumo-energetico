@@ -1,5 +1,6 @@
 package com.steefwel28.consumoenergetico.ui.screens.calculate
 
+import com.steefwel28.consumoenergetico.domain.calculator.TariffComparison
 import com.steefwel28.consumoenergetico.domain.calculator.TariffMode
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
@@ -193,8 +194,14 @@ class CalculateUiStateTest {
     }
 
     @Test
-    fun `sin datos la grafica queda en estado vacio`() {
+    fun `la comparativa arranca en VS para mostrar ambas tarifas`() {
         val state = CalculateUiState()
+
+        assertEquals(TariffComparison.VS, state.chartMode)
+    }
+
+    @Test
+    fun `sin datos la grafica queda en estado vacio`() {        val state = CalculateUiState()
 
         assertNull(state.btu)
         assertNull(state.spec)

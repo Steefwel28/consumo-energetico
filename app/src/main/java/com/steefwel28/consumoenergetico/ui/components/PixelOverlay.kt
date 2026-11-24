@@ -21,6 +21,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.shape.RoundedCornerShape
 import com.steefwel28.consumoenergetico.ui.theme.LocalLiquidGlass
@@ -91,6 +92,7 @@ fun PixelModalBottomSheet(
                 LiquidGlassSurface(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
+                    lens = true,
                 ) {
                     Column(content = content)
                 }
@@ -115,9 +117,17 @@ fun PixelDialog(
 ) {
     BlurBackgroundWhileVisible()
     val haptics = rememberPixelHaptics()
+    val glass = LocalLiquidGlass.current
     LaunchedEffect(Unit) { haptics.tap() }
     AlertDialog(
         onDismissRequest = onDismissRequest,
+        modifier = if (glass) {
+            Modifier
+                .clip(MaterialTheme.shapes.large)
+                .liquidGlassLens(cornerRadius = 24.dp)
+        } else {
+            Modifier
+        },
         title = { Text(title) },
         text = when {
             content != null -> {
@@ -129,7 +139,11 @@ fun PixelDialog(
             else -> null
         },
         shape = MaterialTheme.shapes.large,
-        containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+        containerColor = if (glass) {
+            Color.Transparent
+        } else {
+            MaterialTheme.colorScheme.surfaceContainerHigh
+        },
         confirmButton = {
             TextButton(
                 onClick = onConfirm,
