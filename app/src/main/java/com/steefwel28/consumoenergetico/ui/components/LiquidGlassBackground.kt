@@ -196,7 +196,15 @@ fun LiquidGlassSurface(
     val glass = LocalLiquidGlass.current
     val hazeState = LocalHazeState.current
     val powerSave = rememberPowerSaveMode()
-    val tint = Color(0xFF0A1F1C).copy(alpha = if (powerSave) 0.86f else 0.52f)
+    // Sin HazeState (hoja/diálogo en otra ventana) el respaldo debe ser oscuro casi opaco
+    // para que el texto y los bocetos no se mezclen con el contenido de atrás.
+    val tint = Color(0xFF0A1F1C).copy(
+        alpha = when {
+            hazeState == null -> 0.93f
+            powerSave -> 0.86f
+            else -> 0.52f
+        },
+    )
 
     Box(
         modifier = modifier

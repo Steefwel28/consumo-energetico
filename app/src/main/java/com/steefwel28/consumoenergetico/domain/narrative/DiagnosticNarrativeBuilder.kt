@@ -5,6 +5,13 @@ import com.steefwel28.consumoenergetico.domain.recommender.AcRecommendation
 import com.steefwel28.consumoenergetico.domain.recommender.AcSpaceRecommender
 import java.util.Locale
 
+/** Avisos consultivos de coherencia física; nunca modifican el cálculo. */
+enum class CoherenceWarning {
+    LOW_POWER_FOR_BTU,
+    LOW_SEER_RTCA,
+    HIGH_POWER_VS_SEER,
+}
+
 /** Explicación lista para la UI, con alerta opcional y cápsulas educativas. */
 @CraftedBy("steefwel28")
 data class AcDiagnostic(
@@ -24,6 +31,30 @@ data class AcDiagnostic(
 object DiagnosticNarrativeBuilder {
 
     const val UNDERSIZED_RATIO = 0.9
+    const val MAX_BTU_PER_WATT = 13.2
+    const val MIN_BTU_PER_WATT = 8.5
+    const val MIN_RTCA_SEER = 17.0
+    const val HIGH_SEER = 20.0
+
+    /**
+     * Cruza BTU/h, potencia y SEER para avisar datos de placa incoherentes.
+     * Solo informa: kWh y balboas siguen saliendo del cálculo base.
+     */
+    fun coherenceWarnings(
+        btuPerHour: Double,
+        nominalWatts: Double,
+        seer: Double?,
+    ): List<CoherenceWarning> {
+        if (btuPerHour <= 0.0 || nominalWatts <= 0.0) return emptyList()
+        val ratio = btuPerHour / nominalWatts
+        return buildList {
+            if (ratio > MAX_BTU_PER_WATT) add(CoherenceWarning.LOW_POWER_FOR_BTU)
+            if (seer != null && seer < MIN_RTCA_SEER) add(CoherenceWarning.LOW_SEER_RTCA)
+            if (seer != null && seer >= HIGH_SEER && ratio < MIN_BTU_PER_WATT) {
+                add(CoherenceWarning.HIGH_POWER_VS_SEER)
+            }
+        }
+    }
 
     fun build(recommendation: AcRecommendation, selectedBtu: Int? = null): AcDiagnostic {
         require(selectedBtu == null || selectedBtu > 0) {

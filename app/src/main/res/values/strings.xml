@@ -444,4 +444,9 @@
     <string name="about_github">GitHub</string>
     <string name="about_yappy">Invítame un café · Yappy (%1$s)</string>
     <string name="about_title">Acerca</string>
+    <!-- Calcular · Avisos de coherencia física -->
+    <string name="calc_advisory_title">Revisión técnica</string>
+    <string name="calc_advisory_low_power">Los BTU/h no cuadran con esa potencia: puede ser la potencia mínima del equipo o un dato inflado. En Panamá, un compresor limitado tarda más en enfriar y trabaja al 100 % sin entrar pronto en modulación Inverter, así que el consumo real sube.</string>
+    <string name="calc_advisory_low_seer">El SEER está por debajo del mínimo RTCA 23.01.78:20 vigente en Panamá. El equipo gastará más energía por cada BTU entregado.</string>
+    <string name="calc_advisory_high_power">La potencia declarada es alta frente al SEER. Verifica la potencia nominal en la placa y revisa el breaker y el cable en Recomendar.</string>
 </resources>

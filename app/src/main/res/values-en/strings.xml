@@ -444,4 +444,9 @@
     <string name="about_github">GitHub</string>
     <string name="about_yappy">Buy me a coffee · Yappy (%1$s)</string>
     <string name="about_title">About</string>
+    <!-- Calculate · Physical coherence advisories -->
+    <string name="calc_advisory_title">Technical check</string>
+    <string name="calc_advisory_low_power">The BTU/h do not match that wattage: it may be the minimum power or an inflated figure. In Panama a limited compressor takes longer to cool and runs at 100 % without reaching Inverter modulation soon, so real consumption rises.</string>
+    <string name="calc_advisory_low_seer">The SEER is below the minimum of RTCA 23.01.78:20 in force in Panama. The unit will use more energy for every BTU delivered.</string>
+    <string name="calc_advisory_high_power">The declared wattage is high for the SEER. Check the rated power on the nameplate and review the breaker and wiring in Recommend.</string>
 </resources>

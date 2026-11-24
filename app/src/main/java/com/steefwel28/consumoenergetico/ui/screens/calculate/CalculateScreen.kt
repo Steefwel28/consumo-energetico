@@ -51,6 +51,7 @@ import androidx.compose.material.icons.rounded.Remove
 import androidx.compose.material.icons.rounded.Save
 import androidx.compose.material.icons.rounded.Schedule
 import androidx.compose.material.icons.rounded.Share
+import androidx.compose.material.icons.rounded.WarningAmber
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
@@ -111,6 +112,7 @@ import com.steefwel28.consumoenergetico.domain.calculator.PanamaUtility
 import com.steefwel28.consumoenergetico.domain.calculator.TariffComparison
 import com.steefwel28.consumoenergetico.domain.calculator.TariffEstimate
 import com.steefwel28.consumoenergetico.domain.calculator.utilityOrNull
+import com.steefwel28.consumoenergetico.domain.narrative.CoherenceWarning
 import com.steefwel28.consumoenergetico.domain.scanner.RtcaLabelReading
 import com.steefwel28.consumoenergetico.domain.units.LocaleNumber
 import com.steefwel28.consumoenergetico.ui.AppViewModelProvider
@@ -132,7 +134,6 @@ import java.time.YearMonth
 import java.time.format.TextStyle
 import java.util.Locale
 import kotlin.math.PI
-import kotlin.math.max
 import kotlin.math.roundToInt
 import kotlin.math.sin
 import kotlinx.coroutines.Dispatchers
@@ -291,6 +292,8 @@ fun CalculateScreen(
             }
         }
 
+        item { CoherenceAdvisoryCard(warnings = state.coherenceWarnings) }
+
         item {
             Text(
                 text = stringResource(R.string.calc_footer),
@@ -370,7 +373,7 @@ private fun CategorySelector(
             .horizontalScroll(rememberScrollState()),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        EquipmentCategory.entries.forEach { category ->
+        EquipmentCategory.available.forEach { category ->
             val isSelected = category == selected
             val scale by animateFloatAsState(
                 targetValue = if (isSelected) 1f else 0.96f,
@@ -700,17 +703,17 @@ private fun VsChart(state: CalculateUiState) {
         RestingWaveChart()
         return
     }
-    val maxValue = max(ensa.addedCostBalboas, naturgy.addedCostBalboas).coerceAtLeast(0.01)
+    // Cada carril se llena al 100 % con su propio monto; la diferencia se lee en las cifras.
     PixelWaveBar(
         label = "ENSA",
         value = ensa.addedCostBalboas,
-        maxValue = maxValue,
+        maxValue = ensa.addedCostBalboas.coerceAtLeast(0.01),
         color = ensaWaveColor(),
     )
     PixelWaveBar(
         label = "Naturgy",
         value = naturgy.addedCostBalboas,
-        maxValue = maxValue,
+        maxValue = naturgy.addedCostBalboas.coerceAtLeast(0.01),
         color = naturgyWaveColor(),
     )
     Text(
@@ -2014,6 +2017,53 @@ private fun NumberField(
 }
 
 private const val CHART_ITEM_INDEX = 3
+
+@Composable
+private fun CoherenceAdvisoryCard(warnings: List<CoherenceWarning>) {
+    if (warnings.isEmpty()) return
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(20.dp))
+            .background(AdvisoryAmberSurface)
+            .padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Icon(
+                imageVector = Icons.Rounded.WarningAmber,
+                contentDescription = null,
+                modifier = Modifier.size(20.dp),
+                tint = AdvisoryAmberInk,
+            )
+            Text(
+                text = stringResource(R.string.calc_advisory_title),
+                style = MaterialTheme.typography.titleMedium,
+                color = AdvisoryAmberInk,
+            )
+        }
+        warnings.forEach { warning ->
+            Text(
+                text = stringResource(
+                    when (warning) {
+                        CoherenceWarning.LOW_POWER_FOR_BTU -> R.string.calc_advisory_low_power
+                        CoherenceWarning.LOW_SEER_RTCA -> R.string.calc_advisory_low_seer
+                        CoherenceWarning.HIGH_POWER_VS_SEER -> R.string.calc_advisory_high_power
+                    },
+                ),
+                style = MaterialTheme.typography.bodyMedium,
+                color = AdvisoryAmberInk,
+            )
+        }
+    }
+}
+
+// Ámbar claro fijo: legible en Día, Noche y OLED.
+private val AdvisoryAmberSurface = Color(0xFFFFE7B8)
+private val AdvisoryAmberInk = Color(0xFF4A3200)
 
 private fun CalculateUiState.toReportData(context: Context): ReportData? {
     val spec = spec ?: return null

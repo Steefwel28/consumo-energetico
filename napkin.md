@@ -37,6 +37,8 @@
    Do instead: no Retrofit/OkHttp/Firebase/PDF libs; the only network call allowed is `HttpURLConnection` (4s timeout) to the GitHub releases API.
 4. **[2026-11-23] Splash haptics must match the 2 s timeline**
    Do instead: stage 1 `tick(0.25f)`, stage 2 `tick(0.45f)`+`tick(0.52f)`, stage 3 ramp `tick(0.58f..1.0f)` then `pop()` at 2000 ms with `1.0f → 1.12f` bounce.
+5. **[2026-11-23] Physical coherence advisories must never touch kWh/B/.**
+   Do instead: audit BTU/W/SEER only via `DiagnosticNarrativeBuilder.coherenceWarnings` (pure, returns `CoherenceWarning` enum) and map it to strings in the UI; never feed the enum into `AcUnitSpec`, tariff or export code.
 
 ## Compose UI Guardrails
 1. **[2026-11-23] Liquid Glass only blurs inside the main window**
@@ -55,6 +57,10 @@
    Do instead: use `Modifier.liquidGlassLens()` (AGSL `RuntimeShader`, API 33+) via `LiquidGlassSurface(lens = true)` for nav bar / sheets / ☰ menu; inside `ModalBottomSheet`/`Dialog` haze cannot sample other windows, so the lens tint is the only glass there.
 8. **[2026-11-23] Turning Liquid Glass off leaves an emerald window + orbs**
    Do instead: keep all three shields — `LiquidGlassBackground` early `return` when `!LocalLiquidGlass.current`, `ConsumoApp` Box `.background(colorScheme.background)` when not glass, and `MainActivity` re-writing `window.setBackgroundDrawable(...)` in `LaunchedEffect(appearance)`.
+9. **[2026-11-23] Dialogs/sheets in their own window have no HazeState**
+   Do instead: `LiquidGlassSurface` fallback tint is `0.93f` when `LocalHazeState.current == null`; `SketchGuides.GuideDialog` uses its own `#111917` `0.95f` card + `liquidGlassBorder()` instead of glass, so sketches never blend with the screen behind.
+10. **[2026-11-23] Fase 1 hides unsupported categories**
+    Do instead: render chips from `EquipmentCategory.available` (only `AIR_CONDITIONER`); keep the full enum intact so Refrigeradora/Freezer return by flipping that one list in v0.7.0.
 
 ## User Directives
 1. **[2026-11-23] Signature and donation identity**

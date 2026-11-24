@@ -17,6 +17,8 @@ import com.steefwel28.consumoenergetico.domain.calculator.TariffMode
 import com.steefwel28.consumoenergetico.domain.recommender.ElectricalSpec
 import com.steefwel28.consumoenergetico.domain.recommender.ElectricalSpecAdvisor
 import com.steefwel28.consumoenergetico.domain.units.LocaleNumber
+import com.steefwel28.consumoenergetico.domain.narrative.CoherenceWarning
+import com.steefwel28.consumoenergetico.domain.narrative.DiagnosticNarrativeBuilder
 import com.steefwel28.consumoenergetico.domain.units.UnitPreferences
 import java.time.YearMonth
 import java.util.Locale
@@ -29,6 +31,12 @@ enum class EquipmentCategory(val label: String) {
     REFRIGERATOR("Refrigeradora"),
     FREEZER("Freezer"),
     APPLIANCES("Electrodomésticos"),
+    ;
+
+    companion object {
+        /** Fase 1: solo aire acondicionado a la vista; el resto vuelve en v0.7.0. */
+        val available: List<EquipmentCategory> = listOf(AIR_CONDITIONER)
+    }
 }
 
 /** Cómo se ingresa el costo cuando el usuario activa "Costo Manual". */
@@ -271,6 +279,16 @@ data class CalculateUiState(
                     inverter = inverter,
                 )
             }.getOrNull()
+        }
+
+    /** Avisos consultivos de placa; no alteran kWh ni balboas. */
+    val coherenceWarnings: List<CoherenceWarning>
+        get() {
+            val btu = btu ?: return emptyList()
+            val watts = nominalWatts ?: return emptyList()
+            // Con potencia estimada por SEER el cociente es circular: no se audita.
+            if (wattsEstimatedBySeer) return emptyList()
+            return DiagnosticNarrativeBuilder.coherenceWarnings(btu, watts, seer)
         }
 
     val currentSpec: AcUnitSpec?

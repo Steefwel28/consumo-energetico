@@ -444,4 +444,9 @@
     <string name="about_github">GitHub</string>
     <string name="about_yappy">请我喝咖啡 · Yappy（%1$s）</string>
     <string name="about_title">关于</string>
+    <!-- 计算 · 物理一致性提示 -->
+    <string name="calc_advisory_title">技术复核</string>
+    <string name="calc_advisory_low_power">BTU/h 与功率不匹配：可能是最小功率或虚标数据。在巴拿马，受限的压缩机降温更慢、长时间以 100% 运行，难以尽早进入变频调节，实际耗电会上升。</string>
+    <string name="calc_advisory_low_seer">SEER 低于巴拿马现行的 RTCA 23.01.78:20 最低标准，每交付 1 BTU 将消耗更多电能。</string>
+    <string name="calc_advisory_high_power">功率相对 SEER 偏高。请在铭牌上核对额定功率，并在「推荐」中检查断路器和线径。</string>
 </resources>

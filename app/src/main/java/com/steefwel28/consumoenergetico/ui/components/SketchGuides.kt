@@ -1,6 +1,8 @@
 package com.steefwel28.consumoenergetico.ui.components
 
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -11,9 +13,9 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
@@ -59,27 +61,32 @@ private fun GuideDialog(
     sketch: @Composable () -> Unit,
 ) {
     Dialog(onDismissRequest = onDismiss) {
-        // Sin HazeState dentro de la ventana del diálogo: cristal por tinte + canto.
-        CompositionLocalProvider(LocalHazeState provides null) {
-            LiquidGlassSurface(
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(28.dp),
-            ) {
-                Column(
-                    modifier = Modifier.padding(20.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp),
-                ) {
-                    Text(text = title, style = MaterialTheme.typography.titleLarge)
-                    sketch()
-                    TextButton(
-                        onClick = onDismiss,
-                        modifier = Modifier.align(Alignment.End),
-                    ) { Text(stringResource(R.string.calc_guide_close)) }
-                }
-            }
+        // Respaldo oscuro casi opaco: el boceto se lee aunque viva en otra ventana de Android.
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(GuideShape)
+                .background(GuideSurface)
+                .border(liquidGlassBorder(), GuideShape)
+                .padding(20.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.titleLarge,
+                color = Ink,
+            )
+            sketch()
+            TextButton(
+                onClick = onDismiss,
+                modifier = Modifier.align(Alignment.End),
+            ) { Text(stringResource(R.string.calc_guide_close), color = InkSoft) }
         }
     }
 }
+
+private val GuideShape = RoundedCornerShape(28.dp)
+private val GuideSurface = Color(0xFF111917).copy(alpha = 0.95f)
 
 private val Ink = Color(0xFFE8FFFA)
 private val InkSoft = Color(0xFF7FE3F7)
@@ -94,7 +101,7 @@ private fun RtcaLabelSketch() {
         val sheetWidth = size.width * 0.52f
         val sheetHeight = size.height * 0.88f
         drawRoundRect(
-            color = LabelAmber.copy(alpha = 0.16f),
+            color = LabelAmber.copy(alpha = 0.22f),
             topLeft = Offset(sheetLeft, sheetTop),
             size = Size(sheetWidth, sheetHeight),
             cornerRadius = CornerRadius(10f, 10f),
@@ -104,16 +111,16 @@ private fun RtcaLabelSketch() {
             topLeft = Offset(sheetLeft, sheetTop),
             size = Size(sheetWidth, sheetHeight),
             cornerRadius = CornerRadius(10f, 10f),
-            style = Stroke(width = 1.4f),
+            style = Stroke(width = 2.5.dp.toPx()),
         )
         // Renglones simulados de la etiqueta.
         repeat(4) { index ->
             val y = sheetTop + sheetHeight * (0.16f + index * 0.2f)
             drawLine(
-                color = Ink.copy(alpha = 0.22f),
+                color = Ink.copy(alpha = 0.38f),
                 start = Offset(sheetLeft + 12f, y),
                 end = Offset(sheetLeft + sheetWidth * 0.62f, y),
-                strokeWidth = 1f,
+                strokeWidth = 2.dp.toPx(),
             )
         }
 
@@ -148,7 +155,7 @@ private fun NameplateSketch() {
         val plateWidth = size.width * 0.52f
         val plateHeight = size.height * 0.88f
         drawRoundRect(
-            color = Color.White.copy(alpha = 0.10f),
+            color = Color.White.copy(alpha = 0.18f),
             topLeft = Offset(plateLeft, plateTop),
             size = Size(plateWidth, plateHeight),
             cornerRadius = CornerRadius(6f, 6f),
@@ -158,7 +165,7 @@ private fun NameplateSketch() {
             topLeft = Offset(plateLeft, plateTop),
             size = Size(plateWidth, plateHeight),
             cornerRadius = CornerRadius(6f, 6f),
-            style = Stroke(width = 1.4f),
+            style = Stroke(width = 2.5.dp.toPx()),
         )
         // Cuatro remaches en las esquinas de la placa.
         listOf(
@@ -166,12 +173,12 @@ private fun NameplateSketch() {
             Offset(plateLeft + plateWidth - 8f, plateTop + 8f),
             Offset(plateLeft + 8f, plateTop + plateHeight - 8f),
             Offset(plateLeft + plateWidth - 8f, plateTop + plateHeight - 8f),
-        ).forEach { drawCircle(color = Ink.copy(alpha = 0.4f), radius = 2.6f, center = it) }
+        ).forEach { drawCircle(color = Ink.copy(alpha = 0.6f), radius = 3.4f, center = it) }
         drawLine(
-            color = Ink.copy(alpha = 0.25f),
+            color = Ink.copy(alpha = 0.4f),
             start = Offset(plateLeft + 10f, plateTop + plateHeight * 0.5f),
             end = Offset(plateLeft + plateWidth - 10f, plateTop + plateHeight * 0.5f),
-            strokeWidth = 1f,
+            strokeWidth = 2.dp.toPx(),
         )
 
         val textX = size.width * 0.64f
@@ -213,15 +220,15 @@ private fun DrawScope.annotation(
         textMeasurer = measurer,
         text = text,
         topLeft = textPos,
-        style = TextStyle(color = Ink, fontSize = 11.sp, fontWeight = FontWeight.Medium),
+        style = TextStyle(color = Ink, fontSize = 12.sp, fontWeight = FontWeight.Medium),
     )
-    val start = Offset(textPos.x - 6f, textPos.y + 9f)
+    val start = Offset(textPos.x - 6f, textPos.y + 10f)
     drawLine(
         color = InkSoft,
         start = start,
         end = target,
-        strokeWidth = 1.2f,
+        strokeWidth = 2.dp.toPx(),
         pathEffect = PathEffect.dashPathEffect(floatArrayOf(6f, 4f)),
     )
-    drawCircle(color = InkSoft, radius = 2.4f, center = target)
+    drawCircle(color = InkSoft, radius = 3.4f, center = target)
 }
