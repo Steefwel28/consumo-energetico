@@ -388,4 +388,52 @@
     <string name="report_no_brand">No brand/model</string>
     <string name="report_narrative_clean">%1$s uses a %2$s BTU/h %3$s unit. At %4$d h/day and a 24 °C thermostat it consumes about %5$s kWh in the period, roughly %6$s on the bill with %7$s. Keep the filters clean and the thermostat at 24 °C: each extra degree near 18 °C adds almost 6 %% to consumption.</string>
     <string name="report_narrative_dirty">%1$s uses a %2$s BTU/h %3$s unit. At %4$d h/day and a 24 °C thermostat it consumes about %5$s kWh in the period, roughly %6$s on the bill with %7$s. Dirty filters force the compressor and raise consumption by about 12 %%; clean them every month.</string>
+    <!-- Top menu -->
+    <string name="menu_open_cd">Open menu</string>
+    <string name="menu_simulator">Remote simulator</string>
+    <string name="menu_capsules">Technical data</string>
+    <string name="menu_capsules_subtitle">Five pen illustrations</string>
+    <string name="menu_settings">Settings</string>
+    <string name="menu_settings_subtitle">Appearance, units and backup</string>
+
+    <!-- Calculate v0.6 -->
+    <string name="calc_watts_estimated">Estimated by SEER</string>
+    <string name="calc_empty_chart">Enter the data above to calculate</string>
+
+    <!-- My Home · bills -->
+    <string name="home_register_bill">+ Add bill</string>
+    <string name="home_climatization_split">%1$d%% Cooling · %2$d%% Rest of home</string>
+    <string name="home_bill_history_title">Bill history</string>
+    <string name="home_bill_kwh_tab">kWh</string>
+    <string name="home_bill_cost_tab">B/.</string>
+    <string name="home_bill_no_previous">First recorded month</string>
+    <string name="home_bill_variation_tie">No change from the previous month</string>
+    <string name="home_bill_variation_up">+%1$.1f%% from the previous month</string>
+    <string name="home_bill_variation_down">%1$.1f%% from the previous month</string>
+    <string name="home_bill_effective">Effective rate: %1$s</string>
+    <string name="home_bill_dialog_title">Bill for %1$s</string>
+    <string name="home_bill_month">Billing month</string>
+    <string name="home_bill_real_kwh">Actual usage (kWh)</string>
+    <string name="home_bill_paid">Total paid B/.</string>
+    <string name="home_msg_bill_kwh_positive">Bill usage must be greater than zero.</string>
+    <string name="home_msg_bill_paid_negative">Total paid cannot be negative.</string>
+    <string name="home_msg_bill_saved">Bill added to the history.</string>
+    <string name="home_msg_bill_error">The bill could not be saved.</string>
+
+    <!-- Settings · v0.6 -->
+    <string name="set_appearance_title">Appearance</string>
+    <string name="set_appearance_subtitle">Theme, OLED Pure Black and the Liquid Glass atmosphere.</string>
+    <string name="set_theme_mode">Theme</string>
+    <string name="set_theme_day">Day</string>
+    <string name="set_theme_night">Night</string>
+    <string name="set_theme_system">System</string>
+    <string name="set_oled">OLED Pure Black</string>
+    <string name="set_oled_hint">True #000000 background to save battery on OLED screens.</string>
+    <string name="set_liquid_glass">Liquid Glass (iOS 27 style)</string>
+    <string name="set_liquid_glass_hint">Cyan and emerald orbs with translucent surfaces and hardware blur.</string>
+    <string name="set_liquid_glass_notice">Controlled by the Liquid Glass atmosphere</string>
+    <string name="about_signature">Roberto Franco · @steefwel28</string>
+    <string name="about_github">GitHub</string>
+    <string name="about_yappy">Buy me a coffee · Yappy (%1$s)</string>
+    <string name="about_title">About</string>
 </resources>

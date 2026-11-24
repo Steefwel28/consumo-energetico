@@ -1,6 +1,7 @@
 package com.steefwel28.consumoenergetico.data.backup
 
 import com.steefwel28.consumoenergetico.data.local.db.AcUnitEntity
+import com.steefwel28.consumoenergetico.data.local.db.BillRecordEntity
 import com.steefwel28.consumoenergetico.data.local.db.CustomLocationEntity
 import com.steefwel28.consumoenergetico.data.local.db.MaintenanceLogEntity
 import com.steefwel28.consumoenergetico.data.local.db.PropertyGroupEntity
@@ -84,16 +85,39 @@ class BackupCodecTest {
             ),
             MaintenanceLogEntity(id = 2, acUnitId = 2, fechaMillis = 1_690_000_000_000L, nota = ""),
         ),
+        bills = listOf(
+            BillRecordEntity(
+                id = 1,
+                groupId = 1,
+                year = 2026,
+                month = 1,
+                realKwh = 175.5,
+                paidBalboas = 41.25,
+                utility = PanamaUtility.ENSA,
+                createdAtMillis = 1_700_000_000_000L,
+            ),
+            BillRecordEntity(
+                id = 2,
+                groupId = 2,
+                year = 2026,
+                month = 2,
+                realKwh = 240.5,
+                paidBalboas = 60.0,
+                utility = PanamaUtility.NATURGY,
+                createdAtMillis = 1_700_100_000_000L,
+            ),
+        ),
     )
 
     @Test
     fun `serializa y recupera el respaldo completo con grupos y ubicaciones`() {
         val json = BackupCodec.encode(snapshot)
         assertTrue(json.contains("\"crafted_by\": \"steefwel28\""))
-        assertTrue(json.contains("\"schema_version\": 3"))
+        assertTrue(json.contains("\"schema_version\": 4"))
         assertTrue(json.contains("\"horas_uso_diario\""))
         assertTrue(json.contains("\"property_groups\""))
         assertTrue(json.contains("\"custom_locations\""))
+        assertTrue(json.contains("\"bill_records\""))
         assertTrue(json.contains("\"utility\": \"NATURGY\""))
         assertEquals(snapshot, BackupCodec.decode(json))
     }
@@ -132,11 +156,23 @@ class BackupCodecTest {
         assertTrue(decoded.locations.isEmpty())
         assertEquals(PropertyGroupEntity.DEFAULT_ID, decoded.units.single().groupId)
         assertEquals("Sala", decoded.units.single().ubicacion)
+        assertTrue(decoded.bills.isEmpty())
+    }
+
+    @Test
+    fun `descarta facturas de un grupo que no viene en el respaldo`() {
+        val orphan = snapshot.copy(
+            bills = snapshot.bills + snapshot.bills.first().copy(id = 9, groupId = 99, month = 3),
+        )
+
+        val decoded = BackupCodec.decode(BackupCodec.encode(orphan))
+
+        assertEquals(snapshot.bills, decoded.bills)
     }
 
     @Test
     fun `rechaza un esquema de otra version`() {
-        val json = BackupCodec.encode(snapshot).replace("\"schema_version\": 3", "\"schema_version\": 4")
+        val json = BackupCodec.encode(snapshot).replace("\"schema_version\": 4", "\"schema_version\": 5")
         val error = assertThrows(BackupFormatException::class.java) { BackupCodec.decode(json) }
         assertTrue(error.message!!.contains("esquema"))
     }

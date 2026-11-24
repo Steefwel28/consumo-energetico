@@ -388,4 +388,52 @@
     <string name="report_no_brand">Sin marca/modelo</string>
     <string name="report_narrative_clean">%1$s usa un equipo de %2$s BTU/h %3$s. Con %4$d h/día y termostato en 24 °C consume cerca de %5$s kWh en el periodo, unos %6$s en la factura con %7$s. Mantén los filtros limpios y el termostato en 24 °C: cada grado extra cerca de 18 °C suma casi 6 %% al consumo.</string>
     <string name="report_narrative_dirty">%1$s usa un equipo de %2$s BTU/h %3$s. Con %4$d h/día y termostato en 24 °C consume cerca de %5$s kWh en el periodo, unos %6$s en la factura con %7$s. Los filtros sucios fuerzan el compresor y elevan el consumo cerca de 12 %%; límpialos cada mes.</string>
+    <!-- Menú superior -->
+    <string name="menu_open_cd">Abrir menú</string>
+    <string name="menu_simulator">Simulador remoto</string>
+    <string name="menu_capsules">Datos técnicos</string>
+    <string name="menu_capsules_subtitle">Cinco bocetos a plumilla</string>
+    <string name="menu_settings">Ajustes</string>
+    <string name="menu_settings_subtitle">Apariencia, unidades y respaldo</string>
+
+    <!-- Calcular v0.6 -->
+    <string name="calc_watts_estimated">Estimado por SEER</string>
+    <string name="calc_empty_chart">Ingresa los datos arriba para calcular</string>
+
+    <!-- Mi Casa · facturas -->
+    <string name="home_register_bill">+ Registrar factura</string>
+    <string name="home_climatization_split">%1$d %% Climatización · %2$d %% Resto del hogar</string>
+    <string name="home_bill_history_title">Historial de facturas</string>
+    <string name="home_bill_kwh_tab">kWh</string>
+    <string name="home_bill_cost_tab">B/.</string>
+    <string name="home_bill_no_previous">Primer mes registrado</string>
+    <string name="home_bill_variation_tie">Sin variación frente al mes anterior</string>
+    <string name="home_bill_variation_up">+%1$.1f %% frente al mes anterior</string>
+    <string name="home_bill_variation_down">%1$.1f %% frente al mes anterior</string>
+    <string name="home_bill_effective">Tarifa efectiva: %1$s</string>
+    <string name="home_bill_dialog_title">Factura de %1$s</string>
+    <string name="home_bill_month">Mes del recibo</string>
+    <string name="home_bill_real_kwh">Consumo real (kWh)</string>
+    <string name="home_bill_paid">Total pagado B/.</string>
+    <string name="home_msg_bill_kwh_positive">El consumo del recibo debe ser mayor que cero.</string>
+    <string name="home_msg_bill_paid_negative">El total pagado no puede ser negativo.</string>
+    <string name="home_msg_bill_saved">Factura registrada en el historial.</string>
+    <string name="home_msg_bill_error">No se pudo registrar la factura.</string>
+
+    <!-- Ajustes · v0.6 -->
+    <string name="set_appearance_title">Apariencia</string>
+    <string name="set_appearance_subtitle">Tema, Negro Puro OLED y la atmósfera Liquid Glass.</string>
+    <string name="set_theme_mode">Tema</string>
+    <string name="set_theme_day">Día</string>
+    <string name="set_theme_night">Noche</string>
+    <string name="set_theme_system">Sistema</string>
+    <string name="set_oled">Negro Puro OLED</string>
+    <string name="set_oled_hint">Fondo #000000 real para ahorrar batería en pantallas OLED.</string>
+    <string name="set_liquid_glass">Liquid Glass (estilo iOS 27)</string>
+    <string name="set_liquid_glass_hint">Orbes cian y esmeralda con superficies translúcidas y desenfoque por hardware.</string>
+    <string name="set_liquid_glass_notice">Controlado por la atmósfera Liquid Glass</string>
+    <string name="about_signature">Roberto Franco · @steefwel28</string>
+    <string name="about_github">GitHub</string>
+    <string name="about_yappy">Invítame un café · Yappy (%1$s)</string>
+    <string name="about_title">Acerca</string>
 </resources>

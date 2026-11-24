@@ -8,7 +8,16 @@ import androidx.compose.material3.dynamicDarkColorScheme
 import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.staticCompositionLocalOf
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+
+/**
+ * Interruptor global de la atmósfera Liquid Glass. Las superficies lo leen
+ * para volverse translúcidas y con borde especular sin pasar parámetros por
+ * cada pantalla.
+ */
+val LocalLiquidGlass = staticCompositionLocalOf { false }
 
 private val LightColors = lightColorScheme(
     primary = TealPrimaryLight,
@@ -86,9 +95,10 @@ private val DarkColors = darkColorScheme(
 fun ConsumoEnergeticoTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
     dynamicColor: Boolean = true,
+    oledPure: Boolean = false,
     content: @Composable () -> Unit,
 ) {
-    val colorScheme = when {
+    val baseScheme = when {
         dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
             val context = LocalContext.current
             if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
@@ -96,6 +106,17 @@ fun ConsumoEnergeticoTheme(
 
         darkTheme -> DarkColors
         else -> LightColors
+    }
+    // Negro Puro OLED: #000000 real en fondo y superficies base del modo oscuro.
+    val colorScheme = if (darkTheme && oledPure) {
+        baseScheme.copy(
+            background = Color.Black,
+            surface = Color.Black,
+            surfaceContainerLowest = Color.Black,
+            surfaceContainerLow = Color(0xFF050505),
+        )
+    } else {
+        baseScheme
     }
 
     MaterialTheme(

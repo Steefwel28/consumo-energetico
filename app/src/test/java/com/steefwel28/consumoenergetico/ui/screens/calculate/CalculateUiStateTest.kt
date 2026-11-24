@@ -10,9 +10,11 @@ import kotlin.math.abs
 
 class CalculateUiStateTest {
 
+    private fun baseState() = CalculateUiState(btuInput = "12000", wattsInput = "1150")
+
     @Test
     fun `el estado inicial calcula consumo y ficha electrica`() {
-        val state = CalculateUiState()
+        val state = baseState()
 
         assertNotNull(state.spec)
         assertTrue(state.monthlyKwh!! > 0.0)
@@ -24,6 +26,8 @@ class CalculateUiStateTest {
     @Test
     fun `la tarifa directa manual cobra exactamente por kWh`() {
         val state = CalculateUiState(
+            btuInput = "12000",
+            wattsInput = "1150",
             manualCost = true,
             manualMode = ManualCostMode.DIRECT_RATE,
             directRateInput = "0.25",
@@ -39,6 +43,8 @@ class CalculateUiStateTest {
     @Test
     fun `el recibo deduce la tarifa del total entre los kWh`() {
         val state = CalculateUiState(
+            btuInput = "12000",
+            wattsInput = "1150",
             manualCost = true,
             manualMode = ManualCostMode.RECEIPT,
             receiptTotalInput = "52",
@@ -54,6 +60,8 @@ class CalculateUiStateTest {
     @Test
     fun `un recibo sin kWh no produce tarifa`() {
         val state = CalculateUiState(
+            btuInput = "12000",
+            wattsInput = "1150",
             manualCost = true,
             manualMode = ManualCostMode.RECEIPT,
             receiptTotalInput = "52",
@@ -66,7 +74,7 @@ class CalculateUiStateTest {
 
     @Test
     fun `bajar el termostato y ensuciar los filtros sube el consumo`() {
-        val clean = CalculateUiState()
+        val clean = baseState()
 
         assertTrue(clean.copy(setpointCelsius = 18).monthlyKwh!! > clean.monthlyKwh!!)
         assertTrue(clean.copy(cleanFilters = false).monthlyKwh!! > clean.monthlyKwh!!)
@@ -75,6 +83,8 @@ class CalculateUiStateTest {
     @Test
     fun `el comparador detecta ahorro y retorno`() {
         val state = CalculateUiState(
+            btuInput = "12000",
+            wattsInput = "1150",
             currentBtuInput = "12000",
             currentWattsInput = "1600",
             currentInverter = false,
@@ -98,8 +108,12 @@ class CalculateUiStateTest {
 
     @Test
     fun `el equipo guardado hereda nombre y fecha de hoy`() {
-        val entity = CalculateUiState(spaceName = "  Sala  ", brandModel = "")
-            .toEntity(nowMillis = 123_456L)!!
+        val entity = CalculateUiState(
+            spaceName = "  Sala  ",
+            brandModel = "",
+            btuInput = "12000",
+            wattsInput = "1150",
+        ).toEntity(nowMillis = 123_456L)!!
 
         assertEquals("Sala", entity.nombreEspacio)
         assertEquals("Sin marca/modelo", entity.marcaModelo)
@@ -111,7 +125,7 @@ class CalculateUiStateTest {
 
     @Test
     fun `la comparativa calcula ENSA Naturgy y su diferencia exacta`() {
-        val state = CalculateUiState()
+        val state = baseState()
 
         val ensa = state.ensaEstimate!!
         val naturgy = state.naturgyEstimate!!
@@ -124,7 +138,7 @@ class CalculateUiStateTest {
 
     @Test
     fun `el equipo guardado se vincula al grupo y la ubicacion elegidos`() {
-        val entity = CalculateUiState()
+        val entity = baseState()
             .toEntity(nowMillis = 99L, groupId = 7L, ubicacion = "Cocina")!!
 
         assertEquals(7L, entity.groupId)
@@ -142,7 +156,7 @@ class CalculateUiStateTest {
 
     @Test
     fun `el periodo escala kWh y costo pero el escalon usa el mes real`() {
-        val month = CalculateUiState(usagePeriod = UsagePeriod.MONTH)
+        val month = baseState().copy(usagePeriod = UsagePeriod.MONTH)
         val day = month.copy(usagePeriod = UsagePeriod.DAY)
 
         assertEquals(day.monthlyKwh!! / month.daysInMonth, day.periodKwh!!, 0.0001)
@@ -161,14 +175,14 @@ class CalculateUiStateTest {
 
     @Test
     fun `el equipo guardado hereda las horas configuradas`() {
-        val entity = CalculateUiState(hoursPerDay = 12).toEntity(nowMillis = 5L)!!
+        val entity = baseState().copy(hoursPerDay = 12).toEntity(nowMillis = 5L)!!
 
         assertEquals(12.0, entity.horasUsoDiario, 0.0)
     }
 
     @Test
     fun `el simulador no altera el consumo principal de la grafica`() {
-        val base = CalculateUiState()
+        val base = baseState()
         val simulated = base.copy(
             simulatedSetpointCelsius = 18,
             simulatedCleanFilters = false,
@@ -176,5 +190,25 @@ class CalculateUiStateTest {
 
         assertEquals(base.monthlyKwh!!, simulated.monthlyKwh!!, 0.0000001)
         assertTrue(simulated.simulatedMonthlyKwh!! > base.simulatedMonthlyKwh!!)
+    }
+
+    @Test
+    fun `sin datos la grafica queda en estado vacio`() {
+        val state = CalculateUiState()
+
+        assertNull(state.btu)
+        assertNull(state.spec)
+        assertNull(state.monthlyKwh)
+        assertNull(state.chartEstimate)
+    }
+
+    @Test
+    fun `sin watts estima la potencia con BTU y SEER`() {
+        val state = CalculateUiState(btuInput = "12000", seerInput = "21")
+
+        assertTrue(state.wattsEstimatedBySeer)
+        assertEquals(12_000.0 / (21.0 * 0.293), state.nominalWatts!!, 0.01)
+        assertNotNull(state.spec)
+        assertTrue(state.monthlyKwh!! > 0.0)
     }
 }

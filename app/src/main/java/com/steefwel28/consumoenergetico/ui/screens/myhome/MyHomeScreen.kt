@@ -12,15 +12,20 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -31,6 +36,7 @@ import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.History
 import androidx.compose.material3.Button
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -64,6 +70,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.steefwel28.consumoenergetico.R
 import com.steefwel28.consumoenergetico.core.di.AppContainer
 import com.steefwel28.consumoenergetico.data.local.db.AcUnitEntity
+import com.steefwel28.consumoenergetico.data.local.db.BillRecordEntity
 import com.steefwel28.consumoenergetico.data.local.db.MaintenanceLogEntity
 import com.steefwel28.consumoenergetico.data.local.db.PropertyGroupEntity
 import com.steefwel28.consumoenergetico.domain.calculator.PanamaUtility
@@ -78,8 +85,12 @@ import com.steefwel28.consumoenergetico.ui.components.pixelChargeHaptics
 import com.steefwel28.consumoenergetico.ui.components.rememberPixelHaptics
 import com.steefwel28.consumoenergetico.ui.theme.ConsumoEnergeticoTheme
 import java.text.SimpleDateFormat
+import java.time.Month
+import java.time.YearMonth
+import java.time.format.TextStyle
 import java.util.Date
 import java.util.Locale
+import kotlin.math.abs
 import kotlin.math.roundToInt
 
 @Composable
@@ -93,6 +104,7 @@ fun MyHomeRoute(
         onSelectGroup = viewModel::selectGroup,
         onSaveGroup = viewModel::saveGroup,
         onSaveUnit = viewModel::saveUnit,
+        onSaveBill = viewModel::saveBill,
         onRegisterMaintenance = viewModel::registerMaintenance,
         onDismissMessage = viewModel::dismissMessage,
     )
@@ -104,6 +116,7 @@ fun MyHomeScreen(
     onSelectGroup: (Long) -> Unit,
     onSaveGroup: (GroupDraft) -> Unit,
     onSaveUnit: (UnitDraft) -> Unit,
+    onSaveBill: (BillDraft) -> Unit,
     onRegisterMaintenance: (Long) -> Unit,
     onDismissMessage: () -> Unit,
 ) {
@@ -112,6 +125,7 @@ fun MyHomeScreen(
     var showNewUnit by remember { mutableStateOf(false) }
     var editingUnit by remember { mutableStateOf<AcUnitEntity?>(null) }
     var historyUnit by remember { mutableStateOf<AcUnitEntity?>(null) }
+    var showBillDialog by remember { mutableStateOf(false) }
     val haptics = rememberPixelHaptics()
     val group = state.selectedGroup
 
@@ -163,11 +177,16 @@ fun MyHomeScreen(
         } else {
             item {
                 GroupSummaryCard(
+                    state = state,
                     group = group,
                     estimate = state.summary,
                     onEdit = {
                         haptics.tap()
                         editingGroup = group
+                    },
+                    onRegisterBill = {
+                        haptics.tap()
+                        showBillDialog = true
                     },
                 )
             }
@@ -286,6 +305,17 @@ fun MyHomeScreen(
         )
     }
 
+    if (showBillDialog && group != null) {
+        BillDialog(
+            group = group,
+            onDismiss = { showBillDialog = false },
+            onSave = { draft ->
+                onSaveBill(draft)
+                showBillDialog = false
+            },
+        )
+    }
+
     state.message?.let { message ->
         PixelDialog(
             title = stringResource(R.string.home_title),
@@ -348,9 +378,11 @@ private fun GroupsCard(
 
 @Composable
 private fun GroupSummaryCard(
+    state: MyHomeUiState,
     group: PropertyGroupEntity,
     estimate: TariffEstimate?,
     onEdit: () -> Unit,
+    onRegisterBill: () -> Unit,
 ) {
     SectionCard(
         title = stringResource(R.string.home_summary_title, group.nombreGrupo),
@@ -402,12 +434,211 @@ private fun GroupSummaryCard(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
+
+        state.climatizationSplit?.let { (climatization, rest) ->
+            ClimatizationBar(climatization = climatization, rest = rest)
+        }
+
+        if (state.recentBills.isNotEmpty()) {
+            BillMonthBars(state = state)
+        }
+
+        FilledTonalButton(
+            onClick = onRegisterBill,
+            modifier = Modifier.fillMaxWidth().pixelChargeHaptics(),
+        ) {
+            Icon(Icons.Rounded.Add, contentDescription = null)
+            Text(
+                text = stringResource(R.string.home_register_bill),
+                modifier = Modifier.padding(start = 8.dp),
+            )
+        }
         OutlinedButton(onClick = onEdit, modifier = Modifier.fillMaxWidth()) {
             Icon(Icons.Rounded.Edit, contentDescription = null)
             Text(text = stringResource(R.string.home_edit_group), modifier = Modifier.padding(start = 8.dp))
         }
     }
 }
+
+/** Reparto del último recibo real: climatización contra el resto del hogar. */
+@Composable
+private fun ClimatizationBar(climatization: Double, rest: Double) {
+    val total = (climatization + rest).coerceAtLeast(0.01)
+    val climatizationShare = climatization / total
+    val restShare = 1.0 - climatizationShare
+    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Text(
+            text = stringResource(
+                R.string.home_climatization_split,
+                (climatizationShare * 100).roundToInt(),
+                (restShare * 100).roundToInt(),
+            ),
+            style = MaterialTheme.typography.titleSmall,
+        )
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(50))
+                .background(MaterialTheme.colorScheme.surfaceContainerHighest),
+        ) {
+            Box(
+                modifier = Modifier
+                    .weight(climatizationShare.toFloat().coerceAtLeast(0.001f))
+                    .height(14.dp)
+                    .background(MaterialTheme.colorScheme.primary),
+            )
+            Box(
+                modifier = Modifier
+                    .weight(restShare.toFloat().coerceAtLeast(0.001f))
+                    .height(14.dp)
+                    .background(MaterialTheme.colorScheme.tertiary),
+            )
+        }
+    }
+}
+
+/** Barras Pixel deslizables con el histórico real; toca un mes para el detalle. */
+@Composable
+private fun BillMonthBars(state: MyHomeUiState) {
+    val haptics = rememberPixelHaptics()
+    var showKwh by remember { mutableStateOf(true) }
+    var selected by remember { mutableStateOf<BillRecordEntity?>(null) }
+    val bills = state.recentBills
+    val maxKwh = bills.maxOf { it.realKwh }.coerceAtLeast(0.01)
+    val maxCost = bills.maxOf { it.paidBalboas }.coerceAtLeast(0.01)
+
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween,
+    ) {
+        Text(
+            text = stringResource(R.string.home_bill_history_title),
+            style = MaterialTheme.typography.titleMedium,
+        )
+        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            FilterChip(
+                selected = showKwh,
+                onClick = {
+                    haptics.tap()
+                    showKwh = true
+                },
+                label = { Text(stringResource(R.string.home_bill_kwh_tab)) },
+            )
+            FilterChip(
+                selected = !showKwh,
+                onClick = {
+                    haptics.tap()
+                    showKwh = false
+                },
+                label = { Text(stringResource(R.string.home_bill_cost_tab)) },
+            )
+        }
+    }
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .horizontalScroll(rememberScrollState()),
+        horizontalArrangement = Arrangement.spacedBy(10.dp),
+        verticalAlignment = Alignment.Bottom,
+    ) {
+        bills.forEach { bill ->
+            val value = if (showKwh) bill.realKwh else bill.paidBalboas
+            val maxValue = if (showKwh) maxKwh else maxCost
+            val fraction by animateFloatAsState(
+                targetValue = (value / maxValue).toFloat().coerceIn(0f, 1f),
+                animationSpec = PixelSpringSnappy,
+                label = "bill-bar-${bill.id}",
+            )
+            val isSelected = selected?.id == bill.id
+            Column(
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(4.dp),
+                modifier = Modifier.clickable {
+                    haptics.tap()
+                    selected = bill
+                },
+            ) {
+                Text(
+                    text = if (showKwh) AppFormat.kwhNumber(value) else AppFormat.balboas(value),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Box(
+                    modifier = Modifier
+                        .width(34.dp)
+                        .height(96.dp)
+                        .clip(RoundedCornerShape(17.dp))
+                        .background(MaterialTheme.colorScheme.surfaceContainerHighest),
+                    contentAlignment = Alignment.BottomCenter,
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .fillMaxHeight(fraction.coerceAtLeast(0.04f))
+                            .clip(RoundedCornerShape(17.dp))
+                            .background(
+                                if (isSelected) {
+                                    MaterialTheme.colorScheme.primary
+                                } else {
+                                    MaterialTheme.colorScheme.secondaryContainer
+                                },
+                            ),
+                    )
+                }
+                Text(
+                    text = monthLabel(bill.year, bill.month),
+                    style = MaterialTheme.typography.labelSmall,
+                )
+            }
+        }
+    }
+
+    selected?.let { bill ->
+        val variation = state.variationPercent(bill)
+        val variationText = when {
+            variation == null -> stringResource(R.string.home_bill_no_previous)
+            abs(variation) < 0.05 -> stringResource(R.string.home_bill_variation_tie)
+            variation > 0 -> stringResource(R.string.home_bill_variation_up, variation)
+            else -> stringResource(R.string.home_bill_variation_down, abs(variation))
+        }
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(18.dp))
+                .background(MaterialTheme.colorScheme.surfaceContainerHigh)
+                .padding(horizontal = 14.dp, vertical = 10.dp),
+            verticalArrangement = Arrangement.spacedBy(2.dp),
+        ) {
+            Text(
+                text = monthLabel(bill.year, bill.month) + " · " + AppFormat.kwh(bill.realKwh),
+                style = MaterialTheme.typography.titleSmall,
+            )
+            Text(
+                text = variationText,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            bill.effectiveBalboasPerKwh?.let { rate ->
+                Text(
+                    text = stringResource(
+                        R.string.home_bill_effective,
+                        String.format(Locale.US, "B/. %.4f/kWh", rate),
+                    ),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+    }
+}
+
+private fun monthLabel(year: Int, month: Int): String {
+    val name = Month.of(month).getDisplayName(TextStyle.SHORT, Locale.getDefault())
+    return "$name ${year % 100}"
+}
+
 
 @Composable
 private fun NotificationsCard() {
@@ -809,6 +1040,90 @@ private fun UnitDialog(
 }
 
 @Composable
+private fun BillDialog(
+    group: PropertyGroupEntity,
+    onDismiss: () -> Unit,
+    onSave: (BillDraft) -> Unit,
+) {
+    val haptics = rememberPixelHaptics()
+    val today = remember { YearMonth.now() }
+    val months = remember(today) { (0L..11L).map { today.minusMonths(it) } }
+    var selected by remember { mutableStateOf(months.first()) }
+    var kwhInput by remember { mutableStateOf("") }
+    var paidInput by remember { mutableStateOf("") }
+
+    val realKwh = LocaleNumber.parse(kwhInput)
+    val paid = LocaleNumber.parse(paidInput)
+    val valid = realKwh != null && realKwh > 0.0 && paid != null && paid >= 0.0
+
+    PixelDialog(
+        title = stringResource(R.string.home_bill_dialog_title, group.nombreGrupo),
+        confirmLabel = stringResource(R.string.common_save),
+        confirmEnabled = valid,
+        onConfirm = {
+            haptics.confirm()
+            onSave(
+                BillDraft(
+                    groupId = group.id,
+                    year = selected.year,
+                    month = selected.monthValue,
+                    realKwh = realKwh ?: 0.0,
+                    paidBalboas = paid ?: 0.0,
+                    utility = group.distribuidora,
+                ),
+            )
+        },
+        onDismissRequest = onDismiss,
+        dismissLabel = stringResource(R.string.common_cancel),
+        content = {
+            Column(
+                modifier = Modifier
+                    .heightIn(max = 430.dp)
+                    .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                Text(text = stringResource(R.string.home_bill_month), style = MaterialTheme.typography.titleMedium)
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    months.forEach { month ->
+                        FilterChip(
+                            selected = month == selected,
+                            onClick = {
+                                haptics.tap()
+                                selected = month
+                            },
+                            label = {
+                                Text(
+                                    month.month.getDisplayName(TextStyle.SHORT, Locale.getDefault()) +
+                                        " " + month.year,
+                                )
+                            },
+                        )
+                    }
+                }
+                OutlinedTextField(
+                    value = kwhInput,
+                    onValueChange = { kwhInput = it },
+                    label = { Text(stringResource(R.string.home_bill_real_kwh)) },
+                    placeholder = { Text("180") },
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                OutlinedTextField(
+                    value = paidInput,
+                    onValueChange = { paidInput = it },
+                    label = { Text(stringResource(R.string.home_bill_paid)) },
+                    placeholder = { Text("32.50") },
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
+        },
+    )
+}
+
+@Composable
 private fun HistoryDialog(
     unit: AcUnitEntity,
     logs: List<MaintenanceLogEntity>,
@@ -879,6 +1194,7 @@ private fun MyHomeScreenPreview() {
             onSelectGroup = {},
             onSaveGroup = {},
             onSaveUnit = {},
+            onSaveBill = {},
             onRegisterMaintenance = {},
             onDismissMessage = {},
         )

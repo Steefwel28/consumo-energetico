@@ -22,7 +22,8 @@ sealed interface BackupRestoreResult {
  *
  * La importación valida el archivo entero con [BackupCodec] antes de abrir
  * la transacción; si algo está corrupto, Room no se toca. El esquema 2
- * incluye grupos de propiedades y ubicaciones personalizadas.
+ * incluye grupos de propiedades y ubicaciones personalizadas y el 4 el
+ * histórico de facturas reales.
  */
 @CraftedBy("steefwel28")
 class LocalBackupManager(
@@ -62,6 +63,7 @@ class LocalBackupManager(
             logs = database.maintenanceLogDao().getAll(),
             groups = groups,
             locations = database.customLocationDao().getAll(),
+            bills = database.billRecordDao().getAll(),
         )
         return BackupCodec.encode(snapshot)
     }
@@ -78,10 +80,15 @@ class LocalBackupManager(
             database.acUnitDao().deleteAll()
             database.propertyGroupDao().deleteAll()
             database.customLocationDao().deleteAll()
+            // shortcut: BillRecordDao no expone deleteAll/insertAll; el SQL directo
+            // evita tocar el DAO, que cae fuera del alcance de este cambio.
+            database.openHelper.writableDatabase.execSQL("DELETE FROM bill_records")
             database.propertyGroupDao().insertAll(snapshot.groups)
             database.customLocationDao().insertAll(snapshot.locations)
             database.acUnitDao().insertAll(snapshot.units)
             database.maintenanceLogDao().insertAll(snapshot.logs)
+            val billDao = database.billRecordDao()
+            snapshot.bills.forEach { bill -> billDao.insert(bill) }
         }
         preferences.updateUnitPreferences(snapshot.unitPreferences)
         preferences.setUtility(snapshot.utility)

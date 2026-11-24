@@ -3,18 +3,29 @@ package com.steefwel28.consumoenergetico.ui.navigation
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.WindowInsetsSides
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.AutoStories
+import androidx.compose.material.icons.rounded.Menu
+import androidx.compose.material.icons.rounded.Settings
+import androidx.compose.material.icons.rounded.SettingsRemote
 import androidx.compose.material3.Badge
 import androidx.compose.material3.BadgedBox
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
@@ -24,13 +35,19 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.blur
+import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.stringResource
@@ -38,6 +55,7 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -45,6 +63,11 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.steefwel28.consumoenergetico.R
 import com.steefwel28.consumoenergetico.core.di.AppContainer
+import com.steefwel28.consumoenergetico.domain.settings.AppearancePreferences
+import com.steefwel28.consumoenergetico.ui.AppViewModelProvider
+import com.steefwel28.consumoenergetico.ui.components.AppFormat
+import com.steefwel28.consumoenergetico.ui.components.LiquidGlassBackground
+import com.steefwel28.consumoenergetico.ui.components.LiquidGlassScrollConnection
 import com.steefwel28.consumoenergetico.ui.components.LocalPixelOverlayState
 import com.steefwel28.consumoenergetico.ui.components.PixelDialog
 import com.steefwel28.consumoenergetico.ui.components.PixelOverlayState
@@ -52,16 +75,24 @@ import com.steefwel28.consumoenergetico.ui.components.PixelSpringExpressive
 import com.steefwel28.consumoenergetico.ui.components.pixelChargeHaptics
 import com.steefwel28.consumoenergetico.ui.components.rememberPixelHaptics
 import com.steefwel28.consumoenergetico.ui.screens.calculate.CalculateRoute
+import com.steefwel28.consumoenergetico.ui.screens.calculate.CalculateUiState
+import com.steefwel28.consumoenergetico.ui.screens.calculate.CalculateViewModel
+import com.steefwel28.consumoenergetico.ui.screens.calculate.CapsulesSheet
+import com.steefwel28.consumoenergetico.ui.screens.calculate.RemoteSimulatorSheet
 import com.steefwel28.consumoenergetico.ui.screens.myhome.MyHomeRoute
 import com.steefwel28.consumoenergetico.ui.screens.recommend.RecommendRoute
 import com.steefwel28.consumoenergetico.ui.screens.settings.SettingsRoute
 import com.steefwel28.consumoenergetico.ui.screens.splash.ExpressiveSplashScreen
+import com.steefwel28.consumoenergetico.ui.theme.LocalLiquidGlass
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 @Composable
-fun ConsumoApp(container: AppContainer) {
+fun ConsumoApp(
+    container: AppContainer,
+    appearance: AppearancePreferences = AppearancePreferences(),
+) {
     val navController = rememberNavController()
     val overlay = remember { PixelOverlayState() }
     val pendingUpdate by container.releaseChecker.hasPendingUpdate.collectAsStateWithLifecycle()
@@ -69,6 +100,9 @@ fun ConsumoApp(container: AppContainer) {
     val scope = rememberCoroutineScope()
     val uriHandler = LocalUriHandler.current
     var splashDone by rememberSaveable { mutableStateOf(false) }
+    val calculateViewModel: CalculateViewModel = viewModel(
+        factory = AppViewModelProvider.calculate(container),
+    )
 
     // Precarga Room y verificación de releases en paralelo durante el splash.
     LaunchedEffect(Unit) {
@@ -90,6 +124,7 @@ fun ConsumoApp(container: AppContainer) {
                     navController = navController,
                     overlay = overlay,
                     pendingUpdate = pendingUpdate,
+                    calculateViewModel = calculateViewModel,
                 )
 
                 // Aviso inicial de actualización: se muestra una vez por versión en la
@@ -126,17 +161,41 @@ private fun MainScaffold(
     navController: androidx.navigation.NavHostController,
     overlay: PixelOverlayState,
     pendingUpdate: Boolean,
+    calculateViewModel: CalculateViewModel,
 ) {
-    Scaffold(
-            containerColor = MaterialTheme.colorScheme.background,
+    val glass = LocalLiquidGlass.current
+    val calculateState by calculateViewModel.state.collectAsStateWithLifecycle()
+    var showSimulator by rememberSaveable { mutableStateOf(false) }
+    var showCapsules by rememberSaveable { mutableStateOf(false) }
+    val glassScroll = remember { mutableFloatStateOf(0f) }
+    val glassScrollConnection = remember { LiquidGlassScrollConnection(glassScroll) }
+
+    Box(modifier = Modifier.fillMaxSize()) {
+        if (glass) {
+            LiquidGlassBackground(scrollFraction = glassScroll.floatValue)
+        }
+        Scaffold(
+            containerColor = if (glass) Color.Transparent else MaterialTheme.colorScheme.background,
             contentWindowInsets = WindowInsets.safeDrawing.only(
                 WindowInsetsSides.Horizontal + WindowInsetsSides.Top,
             ),
+            topBar = {
+                TopMenuBar(
+                    pendingUpdate = pendingUpdate,
+                    simulatorSubtitle = calculateState.simulatorSubtitle(),
+                    onSimulator = { showSimulator = true },
+                    onCapsules = { showCapsules = true },
+                    onSettings = {
+                        navController.navigate(AppDestination.SETTINGS.route) {
+                            launchSingleTop = true
+                        }
+                    },
+                )
+            },
             bottomBar = {
                 PixelNavigationBar(
                     currentRoute = navController.currentBackStackEntryAsState().value
                         ?.destination?.route,
-                    pendingUpdate = pendingUpdate,
                     onNavigate = { destination ->
                         navController.navigate(destination.route) {
                             popUpTo(navController.graph.findStartDestination().id) {
@@ -152,6 +211,7 @@ private fun MainScaffold(
             Box(
                 modifier = Modifier
                     .fillMaxSize()
+                    .nestedScroll(glassScrollConnection)
                     .padding(innerPadding)
                     .then(
                         if (overlay.blurRadius > 0.dp) {
@@ -164,11 +224,11 @@ private fun MainScaffold(
                 NavHost(
                     navController = navController,
                     startDestination = AppDestination.CALCULATE.route,
-                    enterTransition = { fadeIn(tween(220)) },
-                    exitTransition = { fadeOut(tween(160)) },
+                    enterTransition = { androidx.compose.animation.fadeIn(tween(220)) },
+                    exitTransition = { androidx.compose.animation.fadeOut(tween(160)) },
                 ) {
                     composable(AppDestination.CALCULATE.route) {
-                        CalculateRoute(container)
+                        CalculateRoute(container, viewModel = calculateViewModel)
                     }
                     composable(AppDestination.RECOMMEND.route) {
                         RecommendRoute(container)
@@ -182,24 +242,220 @@ private fun MainScaffold(
                 }
             }
         }
+    }
+
+    if (showSimulator) {
+        RemoteSimulatorSheet(
+            state = calculateState.simulatorSeed(),
+            onUpdate = calculateViewModel::update,
+            onDismiss = { showSimulator = false },
+        )
+    }
+    if (showCapsules) {
+        CapsulesSheet(onDismiss = { showCapsules = false })
+    }
+}
+
+/** Si las casillas siguen vacías, el simulador arranca con 12,000 BTU · SEER 21. */
+private fun CalculateUiState.simulatorSeed(): CalculateUiState =
+    if (spec != null) this else copy(btuInput = "12000", wattsInput = "", seerInput = "21")
+
+private fun CalculateUiState.simulatorSubtitle(): String {
+    val seeded = simulatorSeed()
+    val btu = seeded.btu ?: 12_000.0
+    val seer = seeded.seer ?: 21.0
+    return "${AppFormat.btuNumber(btu)} BTU · SEER ${AppFormat.decimal(seer)}"
+}
+
+/** Menú superior `☰`: acceso al simulador, las cápsulas y Ajustes. */
+@Composable
+private fun TopMenuBar(
+    pendingUpdate: Boolean,
+    simulatorSubtitle: String,
+    onSimulator: () -> Unit,
+    onCapsules: () -> Unit,
+    onSettings: () -> Unit,
+) {
+    val haptics = rememberPixelHaptics()
+    val glass = LocalLiquidGlass.current
+    var expanded by rememberSaveable { mutableStateOf(false) }
+    val scale by animateFloatAsState(
+        targetValue = if (expanded) 1f else 0.88f,
+        animationSpec = PixelSpringExpressive,
+        label = "menu-scale",
+    )
+    val alpha by animateFloatAsState(
+        targetValue = if (expanded) 1f else 0f,
+        animationSpec = tween(140),
+        label = "menu-alpha",
+    )
+
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .statusBarsPadding()
+            .height(48.dp)
+            .padding(end = 10.dp),
+        contentAlignment = Alignment.CenterEnd,
+    ) {
+        Box {
+            val menuIcon: @Composable () -> Unit = {
+                Icon(
+                    imageVector = Icons.Rounded.Menu,
+                    contentDescription = stringResource(R.string.menu_open_cd),
+                )
+            }
+            if (pendingUpdate) {
+                BadgedBox(
+                    badge = {
+                        Badge(
+                            containerColor = MaterialTheme.colorScheme.error,
+                            contentColor = MaterialTheme.colorScheme.onError,
+                        ) { Text("A") }
+                    },
+                ) {
+                    IconButton(
+                        onClick = {
+                            haptics.tap()
+                            expanded = true
+                        },
+                        modifier = Modifier.pixelChargeHaptics(),
+                    ) { menuIcon() }
+                }
+            } else {
+                IconButton(
+                    onClick = {
+                        haptics.tap()
+                        expanded = true
+                    },
+                    modifier = Modifier.pixelChargeHaptics(),
+                ) { menuIcon() }
+            }
+
+            DropdownMenu(
+                expanded = expanded,
+                onDismissRequest = { expanded = false },
+                modifier = Modifier
+                    .graphicsLayer {
+                        scaleX = scale
+                        scaleY = scale
+                        this.alpha = alpha
+                    }
+                    .alpha(if (expanded) 1f else 0.6f),
+                shape = MaterialTheme.shapes.large,
+                containerColor = if (glass) {
+                    MaterialTheme.colorScheme.surface.copy(alpha = 0.16f)
+                } else {
+                    MaterialTheme.colorScheme.surfaceContainerHigh
+                },
+                tonalElevation = 0.dp,
+                shadowElevation = if (glass) 0.dp else 3.dp,
+                border = if (glass) {
+                    BorderStroke(
+                        width = 1.dp,
+                        brush = Brush.linearGradient(
+                            listOf(
+                                Color.White.copy(alpha = 0.5f),
+                                Color.White.copy(alpha = 0.06f),
+                                Color.White.copy(alpha = 0.26f),
+                            ),
+                        ),
+                    )
+                } else {
+                    null
+                },
+            ) {
+                DropdownMenuItem(
+                    text = {
+                        Column {
+                            Text(
+                                text = stringResource(R.string.menu_simulator),
+                                style = MaterialTheme.typography.titleSmall,
+                            )
+                            Text(
+                                text = simulatorSubtitle,
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    },
+                    leadingIcon = {
+                        Icon(Icons.Rounded.SettingsRemote, contentDescription = null)
+                    },
+                    onClick = {
+                        haptics.tap()
+                        expanded = false
+                        onSimulator()
+                    },
+                )
+                DropdownMenuItem(
+                    text = {
+                        Column {
+                            Text(
+                                text = stringResource(R.string.menu_capsules),
+                                style = MaterialTheme.typography.titleSmall,
+                            )
+                            Text(
+                                text = stringResource(R.string.menu_capsules_subtitle),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    },
+                    leadingIcon = {
+                        Icon(Icons.Rounded.AutoStories, contentDescription = null)
+                    },
+                    onClick = {
+                        haptics.tap()
+                        expanded = false
+                        onCapsules()
+                    },
+                )
+                DropdownMenuItem(
+                    text = {
+                        Column {
+                            Text(
+                                text = stringResource(R.string.menu_settings),
+                                style = MaterialTheme.typography.titleSmall,
+                            )
+                            Text(
+                                text = stringResource(R.string.menu_settings_subtitle),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    },
+                    leadingIcon = {
+                        Icon(Icons.Rounded.Settings, contentDescription = null)
+                    },
+                    onClick = {
+                        haptics.tap()
+                        expanded = false
+                        onSettings()
+                    },
+                )
+            }
+        }
+    }
 }
 
 @Composable
 private fun PixelNavigationBar(
     currentRoute: String?,
-    pendingUpdate: Boolean,
     onNavigate: (AppDestination) -> Unit,
 ) {
     val haptics = rememberPixelHaptics()
     NavigationBar(
-        containerColor = MaterialTheme.colorScheme.surfaceContainer,
+        containerColor = if (LocalLiquidGlass.current) {
+            MaterialTheme.colorScheme.surface.copy(alpha = 0.16f)
+        } else {
+            MaterialTheme.colorScheme.surfaceContainer
+        },
         tonalElevation = 0.dp,
     ) {
-        AppDestination.entries.forEach { destination ->
+        AppDestination.tabs.forEach { destination ->
             val selected = currentRoute == destination.route
-            val hasBadge = destination == AppDestination.SETTINGS && pendingUpdate
             val label = stringResource(destination.labelRes)
-            val badgeDescription = stringResource(R.string.nav_update_available, label)
             val scale by animateFloatAsState(
                 targetValue = if (selected) 1f else 0.9f,
                 animationSpec = PixelSpringExpressive,
@@ -213,39 +469,19 @@ private fun PixelNavigationBar(
                     onNavigate(destination)
                 },
                 icon = {
-                    val icon: @Composable () -> Unit = {
-                        Icon(
-                            imageVector = destination.icon,
-                            contentDescription = null,
-                            modifier = Modifier.graphicsLayer {
-                                scaleX = scale
-                                scaleY = scale
-                            },
-                        )
-                    }
-                    if (hasBadge) {
-                        BadgedBox(
-                            badge = {
-                                Badge(
-                                    containerColor = MaterialTheme.colorScheme.error,
-                                    contentColor = MaterialTheme.colorScheme.onError,
-                                ) { Text("A") }
-                            },
-                        ) { icon() }
-                    } else {
-                        icon()
-                    }
+                    Icon(
+                        imageVector = destination.icon,
+                        contentDescription = null,
+                        modifier = Modifier.graphicsLayer {
+                            scaleX = scale
+                            scaleY = scale
+                        },
+                    )
                 },
                 label = { Text(label) },
                 modifier = Modifier
                     .pixelChargeHaptics()
-                    .then(
-                        if (hasBadge) {
-                            Modifier.semantics { contentDescription = badgeDescription }
-                        } else {
-                            Modifier
-                        },
-                    ),
+                    .semantics { contentDescription = label },
             )
         }
     }

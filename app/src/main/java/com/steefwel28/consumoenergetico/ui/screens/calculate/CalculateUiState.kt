@@ -79,8 +79,8 @@ data class CalculateUiState(
     val category: EquipmentCategory = EquipmentCategory.AIR_CONDITIONER,
     val spaceName: String = "Mi espacio",
     val brandModel: String = "",
-    val btuInput: String = "12000",
-    val wattsInput: String = "1150",
+    val btuInput: String = "",
+    val wattsInput: String = "",
     val seerInput: String = "",
     val inverter: Boolean = true,
     val utility: PanamaUtility = PanamaUtility.ENSA,
@@ -119,8 +119,19 @@ data class CalculateUiState(
 ) {
 
     val btu: Double? get() = btuInput.toDecimal(1.0..60_000.0)
-    val nominalWatts: Double? get() = wattsInput.toDecimal(1.0..20_000.0)
     val seer: Double? get() = seerInput.toDecimal(1.0..40.0)
+
+    /** Sin potencia en placa se estima con BTU/h y SEER: W = BTU / (SEER × 0.293). */
+    val wattsEstimatedBySeer: Boolean
+        get() = wattsInput.isBlank() && btu != null && seer != null
+
+    val nominalWatts: Double?
+        get() = wattsInput.toDecimal(1.0..20_000.0)
+            ?: if (wattsEstimatedBySeer) {
+                (btu!! / (seer!! * 0.293)).takeIf { it in 1.0..20_000.0 }
+            } else {
+                null
+            }
     val directRate: Double? get() = directRateInput.toDecimal(0.0..10.0)?.takeIf { it > 0.0 }
     val receiptTotal: Double? get() = receiptTotalInput.toDecimal(0.0..100_000.0)
     val receiptKwh: Double? get() = receiptKwhInput.toDecimal(0.0..100_000.0)?.takeIf { it > 0.0 }

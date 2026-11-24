@@ -1,6 +1,7 @@
 package com.steefwel28.consumoenergetico.ui.screens.myhome
 
 import com.steefwel28.consumoenergetico.data.local.db.AcUnitEntity
+import com.steefwel28.consumoenergetico.data.local.db.BillRecordEntity
 import com.steefwel28.consumoenergetico.data.local.db.CustomLocationEntity
 import com.steefwel28.consumoenergetico.data.local.db.MaintenanceLogEntity
 import com.steefwel28.consumoenergetico.data.local.db.PropertyGroupEntity
@@ -24,6 +25,16 @@ data class GroupDraft(
     val nombre: String,
     val utility: PanamaUtility,
     val baseKwh: Double,
+)
+
+/** Datos del formulario de factura real. */
+data class BillDraft(
+    val groupId: Long,
+    val year: Int,
+    val month: Int,
+    val realKwh: Double,
+    val paidBalboas: Double,
+    val utility: PanamaUtility,
 )
 
 /** Datos del formulario de equipo; `id` nulo crea uno nuevo. */
@@ -57,6 +68,7 @@ data class MyHomeUiState(
     val units: List<AcUnitEntity> = emptyList(),
     val locations: List<CustomLocationEntity> = emptyList(),
     val logs: List<MaintenanceLogEntity> = emptyList(),
+    val bills: List<BillRecordEntity> = emptyList(),
     val selectedGroupId: Long? = null,
     val nowMillis: Long = System.currentTimeMillis(),
     val message: String? = null,
@@ -104,4 +116,37 @@ data class MyHomeUiState(
 
     fun historyFor(unitId: Long): List<MaintenanceLogEntity> =
         logs.filter { it.acUnitId == unitId }.sortedByDescending { it.fechaMillis }
+
+    /** Facturas del grupo activo, de la más antigua a la más reciente. */
+    val groupBills: List<BillRecordEntity>
+        get() = selectedGroup?.let { group ->
+            bills.filter { it.groupId == group.id }
+                .sortedWith(compareBy({ it.year }, { it.month }))
+        }.orEmpty()
+
+    /** Hasta 12 meses visibles en las barras Pixel. */
+    val recentBills: List<BillRecordEntity>
+        get() = groupBills.takeLast(12)
+
+    /** Último recibo registrado; alimenta el reparto Climatización/Hogar. */
+    val latestBill: BillRecordEntity?
+        get() = groupBills.lastOrNull()
+
+    /** kWh de climatización (equipos) frente al resto del hogar del último recibo. */
+    val climatizationSplit: Pair<Double, Double>?
+        get() {
+            val total = latestBill?.realKwh?.takeIf { it > 0.0 } ?: return null
+            val climatization = groupUnits.sumOf { it.consumoEstimadoKwhMes }.coerceAtMost(total)
+            return climatization to (total - climatization).coerceAtLeast(0.0)
+        }
+
+    /** Variación porcentual frente al mes anterior (null si no hay anterior). */
+    fun variationPercent(record: BillRecordEntity): Double? {
+        val series = groupBills
+        val index = series.indexOfFirst { it.id == record.id }
+        if (index <= 0) return null
+        val previous = series[index - 1].realKwh
+        if (previous <= 0.0) return null
+        return (record.realKwh - previous) / previous * 100.0
+    }
 }

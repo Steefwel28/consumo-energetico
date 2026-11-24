@@ -388,4 +388,52 @@
     <string name="report_no_brand">无品牌/型号</string>
     <string name="report_narrative_clean">%1$s 使用一台 %2$s BTU/h 的%3$s设备。每天 %4$d 小时、温控 24 °C 时，本周期约耗电 %5$s kWh，按 %7$s 计费约 %6$s。保持滤网清洁、温控 24 °C：接近 18 °C 每多降一度约增加 6 %% 耗电。</string>
     <string name="report_narrative_dirty">%1$s 使用一台 %2$s BTU/h 的%3$s设备。每天 %4$d 小时、温控 24 °C 时，本周期约耗电 %5$s kWh，按 %7$s 计费约 %6$s。滤网脏污会逼迫压缩机，耗电增加约 12 %%；请每月清洁。</string>
+    <!-- 顶部菜单 -->
+    <string name="menu_open_cd">打开菜单</string>
+    <string name="menu_simulator">遥控模拟器</string>
+    <string name="menu_capsules">技术资料</string>
+    <string name="menu_capsules_subtitle">五张钢笔插画</string>
+    <string name="menu_settings">设置</string>
+    <string name="menu_settings_subtitle">外观、单位与备份</string>
+
+    <!-- 计算 v0.6 -->
+    <string name="calc_watts_estimated">按 SEER 估算</string>
+    <string name="calc_empty_chart">请在上方输入数据以计算</string>
+
+    <!-- 我家 · 账单 -->
+    <string name="home_register_bill">+ 记录账单</string>
+    <string name="home_climatization_split">%1$d%% 空调 · %2$d%% 家庭其他用电</string>
+    <string name="home_bill_history_title">账单历史</string>
+    <string name="home_bill_kwh_tab">kWh</string>
+    <string name="home_bill_cost_tab">B/.</string>
+    <string name="home_bill_no_previous">第一个记录月份</string>
+    <string name="home_bill_variation_tie">与上月无变化</string>
+    <string name="home_bill_variation_up">较上月 +%1$.1f%%</string>
+    <string name="home_bill_variation_down">较上月 %1$.1f%%</string>
+    <string name="home_bill_effective">实际费率：%1$s</string>
+    <string name="home_bill_dialog_title">%1$s 的账单</string>
+    <string name="home_bill_month">账单月份</string>
+    <string name="home_bill_real_kwh">实际用电量（kWh）</string>
+    <string name="home_bill_paid">支付总额 B/.</string>
+    <string name="home_msg_bill_kwh_positive">账单用电量必须大于零。</string>
+    <string name="home_msg_bill_paid_negative">支付总额不能为负数。</string>
+    <string name="home_msg_bill_saved">账单已记录到历史。</string>
+    <string name="home_msg_bill_error">无法记录账单。</string>
+
+    <!-- 设置 · v0.6 -->
+    <string name="set_appearance_title">外观</string>
+    <string name="set_appearance_subtitle">主题、纯黑 OLED 与 Liquid Glass 氛围。</string>
+    <string name="set_theme_mode">主题</string>
+    <string name="set_theme_day">白天</string>
+    <string name="set_theme_night">夜间</string>
+    <string name="set_theme_system">跟随系统</string>
+    <string name="set_oled">纯黑 OLED</string>
+    <string name="set_oled_hint">真正的 #000000 背景，在 OLED 屏幕上更省电。</string>
+    <string name="set_liquid_glass">Liquid Glass（iOS 27 风格）</string>
+    <string name="set_liquid_glass_hint">青色与翡翠色光球、半透明表面和硬件模糊。</string>
+    <string name="set_liquid_glass_notice">由 Liquid Glass 氛围控制</string>
+    <string name="about_signature">Roberto Franco · @steefwel28</string>
+    <string name="about_github">GitHub</string>
+    <string name="about_yappy">请我喝咖啡 · Yappy（%1$s）</string>
+    <string name="about_title">关于</string>
 </resources>

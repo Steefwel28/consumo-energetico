@@ -12,8 +12,8 @@ android {
         applicationId = "com.steefwel28.consumoenergetico"
         minSdk = 26
         targetSdk = 37
-        versionCode = 5
-        versionName = "0.5.0-alpha"
+        versionCode = 6
+        versionName = "0.6.0-alpha"
 
         buildConfigField("String", "AUTHOR_SIGNATURE", "\"steefwel28\"")
         buildConfigField(

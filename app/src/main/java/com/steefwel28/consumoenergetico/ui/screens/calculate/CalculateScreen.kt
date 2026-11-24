@@ -7,20 +7,13 @@ package com.steefwel28.consumoenergetico.ui.screens.calculate
 
 import android.content.Context
 import android.content.Intent
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
-import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
-import androidx.compose.animation.expandVertically
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -39,8 +32,10 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -81,6 +76,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.RoundRect
 import androidx.compose.ui.geometry.Size
@@ -92,7 +89,9 @@ import androidx.compose.ui.graphics.drawscope.clipPath
 import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
@@ -164,12 +163,12 @@ fun CalculateScreen(
     var showBillGuide by remember { mutableStateOf(false) }
     var showSaveDialog by remember { mutableStateOf(false) }
     var showShareSheet by remember { mutableStateOf(false) }
-    var showCapsules by remember { mutableStateOf(false) }
     var isExporting by remember { mutableStateOf(false) }
     var exportError by remember { mutableStateOf<String?>(null) }
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val haptics = rememberPixelHaptics()
+    val listState = rememberLazyListState()
 
     val share: (Boolean) -> Unit = { asPng ->
         val report = state.toReportData(context)
@@ -203,6 +202,7 @@ fun CalculateScreen(
 
     LazyColumn(
         modifier = Modifier.fillMaxWidth(),
+        state = listState,
         contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 20.dp, bottom = 32.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
@@ -226,19 +226,25 @@ fun CalculateScreen(
             )
         }
 
+        item {
+            ScanLabelButton(onOpenScanner = { showScanner = true })
+        }
+
         if (state.category == EquipmentCategory.AIR_CONDITIONER) {
+            item {
+                RtcaConverterCard(
+                    state = state,
+                    onUpdate = onUpdate,
+                    onSeerDone = {
+                        scope.launch { listState.animateScrollToItem(CHART_ITEM_INDEX) }
+                    },
+                )
+            }
             item {
                 ComparisonCard(
                     state = state,
                     onUpdate = onUpdate,
                     onOpenBillGuide = { showBillGuide = true },
-                )
-            }
-            item {
-                RtcaConverterCard(
-                    state = state,
-                    onUpdate = onUpdate,
-                    onOpenScanner = { showScanner = true },
                 )
             }
             item {
@@ -250,14 +256,32 @@ fun CalculateScreen(
                     onOpenShare = { showShareSheet = true },
                 )
             }
-            item {
-                RemoteSimulatorCard(state = state, onUpdate = onUpdate)
-            }
-            item {
-                CapsulesEntryCard(onOpen = { showCapsules = true })
-            }
         } else {
-            item { ComingSoonCard(state.category) }
+            item {
+                RtcaConverterCard(
+                    state = state,
+                    onUpdate = onUpdate,
+                    onSeerDone = {
+                        scope.launch { listState.animateScrollToItem(CHART_ITEM_INDEX) }
+                    },
+                )
+            }
+            item {
+                ComparisonCard(
+                    state = state,
+                    onUpdate = onUpdate,
+                    onOpenBillGuide = { showBillGuide = true },
+                )
+            }
+            item {
+                SaveAndShareCard(
+                    state = state,
+                    isExporting = isExporting,
+                    exportError = exportError,
+                    onOpenSave = { showSaveDialog = true },
+                    onOpenShare = { showShareSheet = true },
+                )
+            }
         }
 
         item {
@@ -279,9 +303,6 @@ fun CalculateScreen(
     }
     if (showBillGuide) {
         BillGuideSheet(onDismiss = { showBillGuide = false })
-    }
-    if (showCapsules) {
-        CapsulesSheet(onDismiss = { showCapsules = false })
     }
     if (showSaveDialog) {
         SaveToProfileDialog(
@@ -605,7 +626,7 @@ private fun periodLabelText(context: Context, period: UsagePeriod, daysInMonth: 
 private fun SingleChart(state: CalculateUiState) {
     val estimate = state.chartEstimate
     if (estimate == null) {
-        MissingChartMessage()
+        RestingWaveChart()
         return
     }
     val color = when (state.chartMode) {
@@ -632,11 +653,11 @@ private fun SingleChart(state: CalculateUiState) {
 @Composable
 private fun VsChart(state: CalculateUiState) {
     val ensa = state.ensaEstimate ?: run {
-        MissingChartMessage()
+        RestingWaveChart()
         return
     }
     val naturgy = state.naturgyEstimate ?: run {
-        MissingChartMessage()
+        RestingWaveChart()
         return
     }
     val maxValue = max(ensa.addedCostBalboas, naturgy.addedCostBalboas).coerceAtLeast(0.01)
@@ -710,13 +731,40 @@ private fun naturgyWaveColor(): Color =
 private fun marginalRate(value: Double): String =
     String.format(Locale.US, "B/. %.4f/kWh", value)
 
+/** Estado vacío: una onda tenue en reposo invita a completar los datos. */
 @Composable
-private fun MissingChartMessage() {
-    Text(
-        text = stringResource(R.string.calc_missing_chart),
-        style = MaterialTheme.typography.bodyMedium,
-        color = MaterialTheme.colorScheme.error,
-    )
+private fun RestingWaveChart() {
+    val track = MaterialTheme.colorScheme.surfaceContainerHighest
+    val ink = MaterialTheme.colorScheme.onSurfaceVariant
+    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Text(
+            text = stringResource(R.string.calc_empty_chart),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Canvas(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(52.dp),
+        ) {
+            val radius = CornerRadius(size.height / 2f)
+            drawRoundRect(color = track, cornerRadius = radius, size = size)
+            val steps = 72
+            val amplitude = size.height * 0.14f
+            val midY = size.height / 2f
+            val path = Path()
+            for (step in 0..steps) {
+                val x = size.width * step / steps
+                val y = midY + sin(step.toFloat() / steps * 4f * (2 * PI).toFloat()) * amplitude
+                if (step == 0) path.moveTo(x, y) else path.lineTo(x, y)
+            }
+            drawPath(
+                path = path,
+                color = ink.copy(alpha = 0.32f),
+                style = Stroke(width = size.height * 0.08f, cap = StrokeCap.Round),
+            )
+        }
+    }
 }
 
 /** Onda sinusoidal Pixel: fase continua, relleno suave y resorte en el avance. */
@@ -818,62 +866,114 @@ private fun PixelWaveBar(
 }
 
 @Composable
+private fun ScanLabelButton(onOpenScanner: () -> Unit) {
+    val haptics = rememberPixelHaptics()
+
+    FilledTonalButton(
+        onClick = {
+            haptics.tap()
+            onOpenScanner()
+        },
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Icon(imageVector = Icons.Rounded.CameraAlt, contentDescription = null)
+        Text(text = stringResource(R.string.scanner_title), modifier = Modifier.padding(start = 8.dp))
+    }
+}
+
+@Composable
 private fun RtcaConverterCard(
     state: CalculateUiState,
     onUpdate: ((CalculateUiState) -> CalculateUiState) -> Unit,
-    onOpenScanner: () -> Unit,
+    onSeerDone: () -> Unit,
 ) {
     var selectedTab by remember { mutableStateOf(0) }
     val haptics = rememberPixelHaptics()
+    val isAc = state.category == EquipmentCategory.AIR_CONDITIONER
 
     SectionCard(
         title = stringResource(R.string.calc_equipment_title),
         subtitle = stringResource(R.string.calc_equipment_subtitle),
     ) {
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            listOf(
-                stringResource(R.string.calc_tab_label),
-                stringResource(R.string.calc_tab_converter),
-            ).forEachIndexed { index, label ->
-                val isSelected = selectedTab == index
-                val scale by animateFloatAsState(
-                    targetValue = if (isSelected) 1f else 0.96f,
-                    animationSpec = PixelSpringSnappy,
-                    label = "card-tab-$index",
-                )
-                FilterChip(
-                    selected = isSelected,
-                    onClick = {
-                        haptics.tap()
-                        selectedTab = index
-                    },
-                    label = { Text(label) },
-                    modifier = Modifier.graphicsLayer {
-                        scaleX = scale
-                        scaleY = scale
-                    },
-                )
+        if (isAc) {
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                listOf(
+                    stringResource(R.string.calc_tab_label),
+                    stringResource(R.string.calc_tab_converter),
+                ).forEachIndexed { index, label ->
+                    val isSelected = selectedTab == index
+                    val scale by animateFloatAsState(
+                        targetValue = if (isSelected) 1f else 0.96f,
+                        animationSpec = PixelSpringSnappy,
+                        label = "card-tab-$index",
+                    )
+                    FilterChip(
+                        selected = isSelected,
+                        onClick = {
+                            haptics.tap()
+                            selectedTab = index
+                        },
+                        label = { Text(label) },
+                        modifier = Modifier.graphicsLayer {
+                            scaleX = scale
+                            scaleY = scale
+                        },
+                    )
+                }
             }
         }
-        if (selectedTab == 0) {
+        if (isAc && selectedTab == 1) {
+            ConverterFields(state = state, onUpdate = onUpdate)
+        } else {
             EquipmentFields(
                 state = state,
                 onUpdate = onUpdate,
-                onOpenScanner = onOpenScanner,
+                onSeerDone = onSeerDone,
             )
-        } else {
-            ConverterFields(state = state, onUpdate = onUpdate)
         }
     }
+}
+
+/** Etiquetas de ejemplo translúcidas según la categoría activa. */
+private data class EquipmentPlaceholders(
+    val brand: String,
+    val btu: String,
+    val watts: String,
+    val seer: String,
+)
+
+private fun placeholdersFor(category: EquipmentCategory): EquipmentPlaceholders = when (category) {
+    EquipmentCategory.AIR_CONDITIONER -> EquipmentPlaceholders(
+        brand = "Hisense ATR122HA",
+        btu = "12000",
+        watts = "1134",
+        seer = "21",
+    )
+
+    EquipmentCategory.REFRIGERATOR,
+    EquipmentCategory.FREEZER,
+    EquipmentCategory.APPLIANCES,
+    -> EquipmentPlaceholders(
+        brand = "Hisense RT-33",
+        btu = "",
+        watts = "180",
+        seer = "",
+    )
 }
 
 @Composable
 private fun EquipmentFields(
     state: CalculateUiState,
     onUpdate: ((CalculateUiState) -> CalculateUiState) -> Unit,
-    onOpenScanner: () -> Unit,
+    onSeerDone: () -> Unit,
 ) {
     val haptics = rememberPixelHaptics()
+    val keyboard = LocalSoftwareKeyboardController.current
+    val btuFocus = remember { FocusRequester() }
+    val wattsFocus = remember { FocusRequester() }
+    val seerFocus = remember { FocusRequester() }
+    val hints = placeholdersFor(state.category)
+
     OutlinedTextField(
         value = state.spaceName,
         onValueChange = { value -> onUpdate { it.copy(spaceName = value) } },
@@ -886,28 +986,74 @@ private fun EquipmentFields(
         value = state.brandModel,
         onValueChange = { value -> onUpdate { it.copy(brandModel = value) } },
         label = { Text(stringResource(R.string.common_brand_model)) },
-        placeholder = { Text(stringResource(R.string.common_brand_placeholder)) },
+        placeholder = { Text(hints.brand) },
         singleLine = true,
         modifier = Modifier.fillMaxWidth(),
     )
+
+    if (state.category == EquipmentCategory.AIR_CONDITIONER) {
+        Row(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            modifier = Modifier.horizontalScroll(rememberScrollState()),
+        ) {
+            listOf(9_000, 12_000, 18_000, 24_000, 36_000).forEach { btu ->
+                FilterChip(
+                    selected = state.btu?.roundToInt() == btu,
+                    onClick = {
+                        haptics.tap()
+                        onUpdate { it.copy(btuInput = btu.toString()) }
+                    },
+                    label = {
+                        Text(if (btu % 1_000 == 0) "${btu / 1_000}k" else btu.toString())
+                    },
+                )
+            }
+        }
+    }
+
     Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
         NumberField(
             label = stringResource(R.string.common_btu),
             value = state.btuInput,
             onValueChange = { value -> onUpdate { it.copy(btuInput = value) } },
-            modifier = Modifier.weight(1f),
+            placeholder = hints.btu,
+            imeAction = ImeAction.Next,
+            onImeAction = { wattsFocus.requestFocus() },
+            modifier = Modifier
+                .weight(1f)
+                .focusRequester(btuFocus),
         )
         NumberField(
             label = stringResource(R.string.common_watts),
             value = state.wattsInput,
             onValueChange = { value -> onUpdate { it.copy(wattsInput = value) } },
-            modifier = Modifier.weight(1f),
+            placeholder = hints.watts,
+            imeAction = ImeAction.Next,
+            onImeAction = { seerFocus.requestFocus() },
+            modifier = Modifier
+                .weight(1f)
+                .focusRequester(wattsFocus),
         )
         NumberField(
             label = stringResource(R.string.common_seer),
             value = state.seerInput,
             onValueChange = { value -> onUpdate { it.copy(seerInput = value) } },
-            modifier = Modifier.weight(1f),
+            placeholder = hints.seer,
+            imeAction = ImeAction.Done,
+            onImeAction = {
+                keyboard?.hide()
+                onSeerDone()
+            },
+            modifier = Modifier
+                .weight(1f)
+                .focusRequester(seerFocus),
+        )
+    }
+    if (state.wattsEstimatedBySeer) {
+        Text(
+            text = stringResource(R.string.calc_watts_estimated),
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.primary,
         )
     }
     Row(
@@ -929,16 +1075,6 @@ private fun EquipmentFields(
                 onUpdate { it.copy(inverter = checked) }
             },
         )
-    }
-    FilledTonalButton(
-        onClick = {
-            haptics.tap()
-            onOpenScanner()
-        },
-        modifier = Modifier.fillMaxWidth(),
-    ) {
-        Icon(imageVector = Icons.Rounded.CameraAlt, contentDescription = null)
-        Text(text = stringResource(R.string.scanner_title), modifier = Modifier.padding(start = 8.dp))
     }
     if (state.spec == null) {
         Text(
@@ -1110,67 +1246,33 @@ private fun SaveAndShareCard(
     }
 }
 
+/**
+ * Hoja del simulador abierta desde el menú superior `☰`, fuera del scroll de
+ * Calcular. Reutiliza el mismo estado para que el consumo en vivo responda.
+ */
 @Composable
-private fun RemoteSimulatorCard(
+fun RemoteSimulatorSheet(
     state: CalculateUiState,
     onUpdate: ((CalculateUiState) -> CalculateUiState) -> Unit,
+    onDismiss: () -> Unit,
 ) {
-    var expanded by remember { mutableStateOf(false) }
-    val haptics = rememberPixelHaptics()
-    val rotation by animateFloatAsState(
-        targetValue = if (expanded) 180f else 0f,
-        animationSpec = PixelSpringSnappy,
-        label = "simulator-chevron",
-    )
-
-    SectionCard(
-        title = stringResource(R.string.calc_simulator_title),
-        subtitle = stringResource(R.string.calc_simulator_subtitle),
-    ) {
-        Row(
+    PixelModalBottomSheet(onDismissRequest = onDismiss) {
+        Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .clip(RoundedCornerShape(16.dp))
-                .clickable {
-                    haptics.tap()
-                    expanded = !expanded
-                }
-                .padding(vertical = 4.dp),
-            verticalAlignment = Alignment.CenterVertically,
+                .padding(start = 24.dp, end = 24.dp, top = 8.dp, bottom = 28.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             Text(
-                text = if (expanded) {
-                    stringResource(R.string.calc_sim_hide)
-                } else {
-                    stringResource(R.string.calc_sim_open)
-                },
-                style = MaterialTheme.typography.titleMedium,
-                modifier = Modifier.weight(1f),
+                text = stringResource(R.string.calc_simulator_title),
+                style = MaterialTheme.typography.headlineSmall,
             )
-            Icon(
-                imageVector = Icons.Rounded.ExpandMore,
-                contentDescription = null,
-                modifier = Modifier.graphicsLayer { rotationZ = rotation },
+            Text(
+                text = stringResource(R.string.calc_simulator_subtitle),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
-        }
-        AnimatedVisibility(
-            visible = expanded,
-            enter = expandVertically(
-                animationSpec = spring(
-                    dampingRatio = 0.68f,
-                    stiffness = Spring.StiffnessMediumLow,
-                ),
-            ) + fadeIn(),
-            exit = shrinkVertically(
-                animationSpec = spring(
-                    dampingRatio = 0.78f,
-                    stiffness = Spring.StiffnessMedium,
-                ),
-            ) + fadeOut(),
-        ) {
-            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                SimulatorContent(state = state, onUpdate = onUpdate)
-            }
+            SimulatorContent(state = state, onUpdate = onUpdate)
         }
     }
 }
@@ -1434,59 +1536,7 @@ private fun FaceToFace(
 }
 
 @Composable
-private fun ComingSoonCard(category: EquipmentCategory) {
-    SectionCard(
-        title = stringResource(category.labelRes),
-        subtitle = stringResource(R.string.calc_coming_subtitle),
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(14.dp),
-        ) {
-            Icon(
-                imageVector = Icons.Rounded.Construction,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.size(40.dp),
-            )
-            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                Text(text = stringResource(R.string.calc_coming_soon), style = MaterialTheme.typography.headlineSmall)
-                Text(
-                    text = stringResource(
-                        R.string.calc_coming_hint,
-                        stringResource(category.labelRes).lowercase(),
-                    ),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun CapsulesEntryCard(onOpen: () -> Unit) {
-    val haptics = rememberPixelHaptics()
-    SectionCard(
-        title = stringResource(R.string.common_capsules_title),
-        subtitle = stringResource(R.string.calc_capsules_subtitle),
-    ) {
-        OutlinedButton(
-            onClick = {
-                haptics.confirm()
-                onOpen()
-            },
-            modifier = Modifier.fillMaxWidth(),
-        ) {
-            Icon(imageVector = Icons.Rounded.Image, contentDescription = null)
-            Text(text = stringResource(R.string.calc_capsules_open), modifier = Modifier.padding(start = 8.dp))
-        }
-    }
-}
-
-@Composable
-private fun CapsulesSheet(onDismiss: () -> Unit) {
+fun CapsulesSheet(onDismiss: () -> Unit) {
     PixelModalBottomSheet(onDismissRequest = onDismiss) {
         Column(
             modifier = Modifier
@@ -1810,16 +1860,32 @@ private fun NumberField(
     value: String,
     onValueChange: (String) -> Unit,
     modifier: Modifier = Modifier,
+    placeholder: String = "",
+    imeAction: ImeAction = ImeAction.Next,
+    onImeAction: () -> Unit = {},
 ) {
     OutlinedTextField(
         value = value,
         onValueChange = { newValue -> if (newValue.length <= 12) onValueChange(newValue) },
         label = { Text(label) },
+        placeholder = if (placeholder.isBlank()) null else {
+            { Text(placeholder, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)) }
+        },
         singleLine = true,
-        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+        keyboardOptions = KeyboardOptions(
+            keyboardType = KeyboardType.Decimal,
+            imeAction = imeAction,
+        ),
+        keyboardActions = KeyboardActions(
+            onNext = { onImeAction() },
+            onDone = { onImeAction() },
+            onGo = { onImeAction() },
+        ),
         modifier = modifier,
     )
 }
+
+private const val CHART_ITEM_INDEX = 4
 
 private fun CalculateUiState.toReportData(context: Context): ReportData? {
     val spec = spec ?: return null

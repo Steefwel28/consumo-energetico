@@ -8,6 +8,7 @@ import com.steefwel28.consumoenergetico.core.signature.CraftedBy
 import com.steefwel28.consumoenergetico.core.updater.UpdateCheckResult
 import com.steefwel28.consumoenergetico.data.backup.BackupRestoreResult
 import com.steefwel28.consumoenergetico.domain.calculator.PanamaUtility
+import com.steefwel28.consumoenergetico.domain.settings.ThemeMode
 import com.steefwel28.consumoenergetico.domain.units.LengthUnit
 import com.steefwel28.consumoenergetico.domain.units.ShortLengthUnit
 import com.steefwel28.consumoenergetico.domain.units.TemperatureUnit
@@ -49,6 +50,8 @@ class SettingsViewModel(
                     hasPendingUpdate = pending,
                     pendingRelease = release,
                 )
+            }.combine(container.preferences.appearance) { fresh, appearance ->
+                fresh.copy(appearance = appearance)
             }.collect { fresh ->
                 _state.update { current ->
                     fresh.copy(
@@ -81,6 +84,18 @@ class SettingsViewModel(
             return
         }
         viewModelScope.launch { container.preferences.setBaseMonthlyKwh(kwh.coerceAtMost(100_000.0)) }
+    }
+
+    fun setThemeMode(mode: ThemeMode) {
+        viewModelScope.launch { container.preferences.setThemeMode(mode) }
+    }
+
+    fun setOledPure(enabled: Boolean) {
+        viewModelScope.launch { container.preferences.setOledPure(enabled) }
+    }
+
+    fun setLiquidGlass(enabled: Boolean) {
+        viewModelScope.launch { container.preferences.setLiquidGlass(enabled) }
     }
 
     fun checkForUpdate() {

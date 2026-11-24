@@ -2,6 +2,7 @@ package com.steefwel28.consumoenergetico.ui.screens.settings
 
 import com.steefwel28.consumoenergetico.domain.calculator.PanamaUtility
 import com.steefwel28.consumoenergetico.domain.model.GitHubRelease
+import com.steefwel28.consumoenergetico.domain.settings.AppearancePreferences
 import com.steefwel28.consumoenergetico.domain.units.UnitPreferences
 
 /**
@@ -15,6 +16,7 @@ data class SettingsUiState(
     val unitPreferences: UnitPreferences = UnitPreferences(),
     val utility: PanamaUtility = PanamaUtility.ENSA,
     val baseMonthlyKwh: Double = 0.0,
+    val appearance: AppearancePreferences = AppearancePreferences(),
     val hasPendingUpdate: Boolean = false,
     val pendingRelease: GitHubRelease? = null,
     val isChecking: Boolean = false,

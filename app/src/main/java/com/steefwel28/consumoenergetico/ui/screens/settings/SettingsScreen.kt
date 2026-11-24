@@ -12,11 +12,21 @@ import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatDelegate
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -30,12 +40,15 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.OpenInNew
 import androidx.compose.material.icons.rounded.CloudDownload
 import androidx.compose.material.icons.rounded.CloudUpload
+import androidx.compose.material.icons.rounded.ExpandMore
 import androidx.compose.material.icons.rounded.Language
 import androidx.compose.material.icons.rounded.LocalCafe
 import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material3.Badge
 import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.Button
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -44,6 +57,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -51,11 +65,14 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.stringResource
@@ -70,6 +87,7 @@ import com.steefwel28.consumoenergetico.BuildConfig
 import com.steefwel28.consumoenergetico.R
 import com.steefwel28.consumoenergetico.core.di.AppContainer
 import com.steefwel28.consumoenergetico.domain.calculator.PanamaUtility
+import com.steefwel28.consumoenergetico.domain.settings.ThemeMode
 import com.steefwel28.consumoenergetico.domain.units.LengthUnit
 import com.steefwel28.consumoenergetico.domain.units.LocaleNumber
 import com.steefwel28.consumoenergetico.domain.units.ShortLengthUnit
@@ -81,10 +99,12 @@ import com.steefwel28.consumoenergetico.ui.components.PixelDialog
 import com.steefwel28.consumoenergetico.ui.components.PixelEmblem
 import com.steefwel28.consumoenergetico.ui.components.PixelSpringExpressive
 import com.steefwel28.consumoenergetico.ui.components.SectionCard
+import com.steefwel28.consumoenergetico.ui.components.liquidGlassBorder
 import com.steefwel28.consumoenergetico.ui.components.pixelChargeHaptics
 import com.steefwel28.consumoenergetico.ui.components.rememberPixelChargeVibrator
 import com.steefwel28.consumoenergetico.ui.components.rememberPixelHaptics
 import com.steefwel28.consumoenergetico.ui.theme.ConsumoEnergeticoTheme
+import com.steefwel28.consumoenergetico.ui.theme.LocalLiquidGlass
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -154,6 +174,9 @@ fun SettingsRoute(
         onTemperature = viewModel::setTemperature,
         onUtility = viewModel::setUtility,
         onBaseKwh = viewModel::setBaseMonthlyKwh,
+        onThemeMode = viewModel::setThemeMode,
+        onOledPure = viewModel::setOledPure,
+        onLiquidGlass = viewModel::setLiquidGlass,
         onCheckUpdate = viewModel::checkForUpdate,
         onSkipVersion = viewModel::skipPendingVersion,
         onVersionTapped = viewModel::onVersionTapped,
@@ -179,6 +202,9 @@ fun SettingsScreen(
     onTemperature: (TemperatureUnit) -> Unit,
     onUtility: (PanamaUtility) -> Unit,
     onBaseKwh: (Double) -> Unit,
+    onThemeMode: (ThemeMode) -> Unit,
+    onOledPure: (Boolean) -> Unit,
+    onLiquidGlass: (Boolean) -> Unit,
     onCheckUpdate: () -> Unit,
     onSkipVersion: () -> Unit,
     onVersionTapped: () -> Unit,
@@ -207,12 +233,33 @@ fun SettingsScreen(
             }
         }
 
-        item { YappyCard() }
-
-        item { LanguageCard() }
+        item {
+            AccordionCard(
+                title = stringResource(R.string.set_appearance_title),
+                subtitle = stringResource(R.string.set_appearance_subtitle),
+            ) {
+                AppearanceContent(
+                    mode = state.appearance.mode,
+                    oledPure = state.appearance.oledPure,
+                    liquidGlass = state.appearance.liquidGlass,
+                    onThemeMode = onThemeMode,
+                    onOledPure = onOledPure,
+                    onLiquidGlass = onLiquidGlass,
+                )
+            }
+        }
 
         item {
-            SectionCard(
+            AccordionCard(
+                title = stringResource(R.string.lang_title),
+                subtitle = stringResource(R.string.lang_subtitle),
+            ) {
+                LanguageContent()
+            }
+        }
+
+        item {
+            AccordionCard(
                 title = stringResource(R.string.set_units_title),
                 subtitle = stringResource(R.string.set_units_subtitle),
             ) {
@@ -244,16 +291,21 @@ fun SettingsScreen(
         }
 
         item {
-            BillBaseCard(
-                utility = state.utility,
-                baseKwh = state.baseMonthlyKwh,
-                onUtility = onUtility,
-                onBaseKwh = onBaseKwh,
-            )
+            AccordionCard(
+                title = stringResource(R.string.set_bill_title),
+                subtitle = stringResource(R.string.set_bill_subtitle),
+            ) {
+                BillBaseContent(
+                    utility = state.utility,
+                    baseKwh = state.baseMonthlyKwh,
+                    onUtility = onUtility,
+                    onBaseKwh = onBaseKwh,
+                )
+            }
         }
 
         item {
-            SectionCard(
+            AccordionCard(
                 title = stringResource(R.string.set_backup_title),
                 subtitle = stringResource(R.string.set_backup_subtitle),
             ) {
@@ -297,6 +349,13 @@ fun SettingsScreen(
                 onOpenRelease = onOpenRelease,
             )
         }
+
+        item {
+            AboutCard(
+                onVersionTapped = onVersionTapped,
+                onOpenRepository = onOpenRepository,
+            )
+        }
     }
 
     if (state.signatureUnlocked) {
@@ -314,71 +373,175 @@ fun SettingsScreen(
     }
 }
 
-/** Tarjeta "Invítame un café": copia el número Yappy y abre la app si existe. */
+/**
+ * Tarjeta plegable estilo Pixel: cabecera táctil con flecha animada y
+ * micro-vibración; el contenido entra con resorte.
+ */
 @Composable
-private fun YappyCard() {
-    val context = LocalContext.current
+private fun AccordionCard(
+    title: String,
+    subtitle: String,
+    initiallyExpanded: Boolean = false,
+    content: @Composable ColumnScope.() -> Unit,
+) {
     val haptics = rememberPixelHaptics()
-    val yappyBlue = Color(0xFF00B4D8)
-    val yappyContainer = if (androidx.compose.foundation.isSystemInDarkTheme()) {
-        Color(0xFF062A33)
-    } else {
-        Color(0xFFDDF4FA)
+    val glass = LocalLiquidGlass.current
+    var expanded by rememberSaveable { mutableStateOf(initiallyExpanded) }
+    val rotation by animateFloatAsState(
+        targetValue = if (expanded) 180f else 0f,
+        animationSpec = PixelSpringExpressive,
+        label = "accordion-chevron",
+    )
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = MaterialTheme.shapes.large,
+        colors = CardDefaults.cardColors(
+            containerColor = if (glass) {
+                MaterialTheme.colorScheme.surface.copy(alpha = 0.55f)
+            } else {
+                MaterialTheme.colorScheme.surfaceContainerLow
+            },
+        ),
+        border = if (glass) liquidGlassBorder() else null,
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable {
+                    haptics.tap()
+                    expanded = !expanded
+                }
+                .padding(horizontal = 20.dp, vertical = 18.dp),
+            verticalArrangement = Arrangement.spacedBy(3.dp),
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Text(text = title, style = MaterialTheme.typography.titleLarge)
+                    Text(
+                        text = subtitle,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                Icon(
+                    imageVector = Icons.Rounded.ExpandMore,
+                    contentDescription = null,
+                    modifier = Modifier.graphicsLayer { rotationZ = rotation },
+                )
+            }
+        }
+        AnimatedVisibility(
+            visible = expanded,
+            enter = expandVertically(
+                animationSpec = spring(dampingRatio = 0.68f, stiffness = Spring.StiffnessMediumLow),
+            ) + fadeIn(),
+            exit = shrinkVertically(
+                animationSpec = spring(dampingRatio = 0.78f, stiffness = Spring.StiffnessMedium),
+            ) + fadeOut(),
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(start = 20.dp, end = 20.dp, bottom = 20.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+                content = content,
+            )
+        }
     }
-    val yappyInk = if (androidx.compose.foundation.isSystemInDarkTheme()) {
-        Color(0xFF7FE3F7)
-    } else {
-        Color(0xFF00566B)
-    }
+}
 
+/**
+ * Apariencia: tema persistido, Negro Puro OLED y la atmósfera Liquid Glass.
+ * Con Liquid Glass activo el tema y el OLED quedan bajo su control.
+ */
+@Composable
+private fun AppearanceContent(
+    mode: ThemeMode,
+    oledPure: Boolean,
+    liquidGlass: Boolean,
+    onThemeMode: (ThemeMode) -> Unit,
+    onOledPure: (Boolean) -> Unit,
+    onLiquidGlass: (Boolean) -> Unit,
+) {
+    val haptics = rememberPixelHaptics()
     Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(24.dp))
-            .background(yappyContainer)
-            .pixelChargeHaptics()
-            .clickable {
-                haptics.confirm()
-                val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                clipboard.setPrimaryClip(ClipData.newPlainText("Yappy", YAPPY_NUMBER_RAW))
-                val launch = context.packageManager.getLaunchIntentForPackage(YAPPY_PACKAGE)
-                    ?: context.packageManager.getLaunchIntentForPackage(BANCO_GENERAL_PACKAGE)
-                if (launch != null) {
-                    Toast.makeText(context, R.string.yappy_toast_opening, Toast.LENGTH_SHORT).show()
-                    runCatching { context.startActivity(launch) }
-                } else {
-                    Toast.makeText(context, R.string.yappy_toast_copied, Toast.LENGTH_SHORT).show()
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = stringResource(R.string.set_liquid_glass),
+                style = MaterialTheme.typography.titleMedium,
+            )
+            Text(
+                text = stringResource(R.string.set_liquid_glass_hint),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        Switch(
+            checked = liquidGlass,
+            onCheckedChange = { checked ->
+                haptics.tap()
+                onLiquidGlass(checked)
+            },
+        )
+    }
+    if (liquidGlass) {
+        Text(
+            text = stringResource(R.string.set_liquid_glass_notice),
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.primary,
+        )
+    }
+    Column(
+        modifier = Modifier.alpha(if (liquidGlass) 0.4f else 1f),
+        verticalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        Text(text = stringResource(R.string.set_theme_mode), style = MaterialTheme.typography.titleMedium)
+        SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+            ThemeMode.entries.forEachIndexed { index, option ->
+                SegmentedButton(
+                    selected = mode == option,
+                    onClick = {
+                        haptics.tap()
+                        onThemeMode(option)
+                    },
+                    enabled = !liquidGlass,
+                    shape = SegmentedButtonDefaults.itemShape(
+                        index = index,
+                        count = ThemeMode.entries.size,
+                    ),
+                ) {
+                    Text(
+                        when (option) {
+                            ThemeMode.DAY -> stringResource(R.string.set_theme_day)
+                            ThemeMode.NIGHT -> stringResource(R.string.set_theme_night)
+                            ThemeMode.SYSTEM -> stringResource(R.string.set_theme_system)
+                        },
+                    )
                 }
             }
-            .padding(18.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(14.dp),
-    ) {
-        Icon(
-            imageVector = Icons.Rounded.LocalCafe,
-            contentDescription = null,
-            tint = yappyInk,
-            modifier = Modifier
-                .size(48.dp)
-                .clip(CircleShape)
-                .background(yappyBlue.copy(alpha = 0.18f))
-                .padding(10.dp),
-        )
-        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-            Text(
-                text = stringResource(R.string.yappy_title),
-                style = MaterialTheme.typography.titleMedium,
-                color = yappyInk,
-            )
-            Text(
-                text = stringResource(R.string.yappy_subtitle),
-                style = MaterialTheme.typography.bodySmall,
-                color = yappyInk.copy(alpha = 0.8f),
-            )
-            Text(
-                text = stringResource(R.string.yappy_number),
-                style = MaterialTheme.typography.headlineSmall,
-                color = yappyBlue,
+        }
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(text = stringResource(R.string.set_oled), style = MaterialTheme.typography.titleMedium)
+                Text(
+                    text = stringResource(R.string.set_oled_hint),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            Switch(
+                checked = oledPure,
+                enabled = !liquidGlass,
+                onCheckedChange = { checked ->
+                    haptics.tap()
+                    onOledPure(checked)
+                },
             )
         }
     }
@@ -386,7 +549,7 @@ private fun YappyCard() {
 
 /** Selector de idioma conectado a AppCompatDelegate; cambia al instante. */
 @Composable
-private fun LanguageCard() {
+private fun LanguageContent() {
     val haptics = rememberPixelHaptics()
     val current = AppCompatDelegate.getApplicationLocales().toLanguageTags()
         .ifBlank { Locale.getDefault().language }
@@ -395,32 +558,142 @@ private fun LanguageCard() {
         "en" to stringResource(R.string.lang_en),
         "zh-CN" to stringResource(R.string.lang_zh),
     )
-    SectionCard(
-        title = stringResource(R.string.lang_title),
-        subtitle = stringResource(R.string.lang_subtitle),
+    FlowRow(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        options.forEach { (tag, label) ->
+            val selected = current == tag || current.startsWith("$tag-") ||
+                (tag == "zh-CN" && current.startsWith("zh"))
+            FilterChip(
+                selected = selected,
+                onClick = {
+                    haptics.tap()
+                    AppCompatDelegate.setApplicationLocales(LocaleListCompat.forLanguageTags(tag))
+                },
+                label = { Text(label) },
+                leadingIcon = if (selected) {
+                    { Icon(Icons.Rounded.Language, contentDescription = null, modifier = Modifier.size(18.dp)) }
+                } else {
+                    null
+                },
+            )
+        }
+    }
+}
+
+/** Tarjeta About: emblema, versión, firma y los accesos GitHub / Yappy. */
+@Composable
+private fun AboutCard(
+    onVersionTapped: () -> Unit,
+    onOpenRepository: () -> Unit,
+) {
+    val haptics = rememberPixelHaptics()
+    val dark = androidx.compose.foundation.isSystemInDarkTheme()
+    val glow = if (dark) Color(0xFF34D399) else Color(0xFF0F766E)
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = MaterialTheme.shapes.large,
+        colors = CardDefaults.cardColors(
+            containerColor = if (dark) Color(0xFF06211C) else Color(0xFFE5FBF3),
+        ),
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp, vertical = 24.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
-            options.forEach { (tag, label) ->
-                val selected = current == tag || current.startsWith("$tag-") ||
-                    (tag == "zh-CN" && current.startsWith("zh"))
+            Text(
+                text = stringResource(R.string.about_title),
+                style = MaterialTheme.typography.titleLarge,
+                color = if (dark) Color.White else Color(0xFF052E27),
+                modifier = Modifier.fillMaxWidth(),
+            )
+            PixelEmblem(
+                color = glow,
+                modifier = Modifier.size(64.dp),
+            )
+            Text(
+                text = stringResource(R.string.app_name),
+                style = MaterialTheme.typography.headlineSmall,
+                color = if (dark) Color.White else Color(0xFF052E27),
+            )
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 FilterChip(
-                    selected = selected,
+                    selected = true,
                     onClick = {
                         haptics.tap()
-                        AppCompatDelegate.setApplicationLocales(LocaleListCompat.forLanguageTags(tag))
+                        onVersionTapped()
                     },
-                    label = { Text(label) },
-                    leadingIcon = if (selected) {
-                        { Icon(Icons.Rounded.Language, contentDescription = null, modifier = Modifier.size(18.dp)) }
-                    } else {
-                        null
+                    label = { Text("v${BuildConfig.VERSION_NAME}") },
+                )
+                FilterChip(
+                    selected = false,
+                    onClick = {
+                        haptics.tap()
+                        onVersionTapped()
                     },
+                    label = { Text("#${BuildConfig.VERSION_CODE}") },
                 )
             }
+            Text(
+                text = stringResource(R.string.about_signature),
+                style = MaterialTheme.typography.bodyMedium,
+                color = glow,
+            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                OutlinedButton(
+                    onClick = {
+                        haptics.confirm()
+                        onOpenRepository()
+                    },
+                    modifier = Modifier.weight(1f),
+                ) {
+                    Icon(Icons.AutoMirrored.Rounded.OpenInNew, contentDescription = null)
+                    Text(
+                        text = stringResource(R.string.about_github),
+                        modifier = Modifier.padding(start = 6.dp),
+                    )
+                }
+                YappyPill(modifier = Modifier.weight(1f))
+            }
         }
+    }
+}
+
+/** Cápsula compacta de Yappy: copia el número y abre la app si existe. */
+@Composable
+private fun YappyPill(modifier: Modifier = Modifier) {
+    val context = LocalContext.current
+    val haptics = rememberPixelHaptics()
+    OutlinedButton(
+        onClick = {
+            haptics.confirm()
+            val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+            clipboard.setPrimaryClip(ClipData.newPlainText("Yappy", YAPPY_NUMBER_RAW))
+            val launch = context.packageManager.getLaunchIntentForPackage(YAPPY_PACKAGE)
+                ?: context.packageManager.getLaunchIntentForPackage(BANCO_GENERAL_PACKAGE)
+            if (launch != null) {
+                Toast.makeText(context, R.string.yappy_toast_opening, Toast.LENGTH_SHORT).show()
+                runCatching { context.startActivity(launch) }
+            } else {
+                Toast.makeText(context, R.string.yappy_toast_copied, Toast.LENGTH_SHORT).show()
+            }
+        },
+        modifier = modifier,
+    ) {
+        Icon(Icons.Rounded.LocalCafe, contentDescription = null)
+        Text(
+            text = stringResource(R.string.about_yappy, stringResource(R.string.yappy_number)),
+            modifier = Modifier.padding(start = 6.dp),
+            style = MaterialTheme.typography.labelMedium,
+        )
     }
 }
 
@@ -498,7 +771,7 @@ private fun <T> UnitRow(
 }
 
 @Composable
-private fun BillBaseCard(
+private fun BillBaseContent(
     utility: PanamaUtility,
     baseKwh: Double,
     onUtility: (PanamaUtility) -> Unit,
@@ -511,50 +784,45 @@ private fun BillBaseCard(
     val parsed = LocaleNumber.parse(input)
     val invalid = input.isNotBlank() && (parsed == null || parsed < 0.0)
 
-    SectionCard(
-        title = stringResource(R.string.set_bill_title),
-        subtitle = stringResource(R.string.set_bill_subtitle),
+    SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+        PanamaUtility.entries.forEachIndexed { index, option ->
+            SegmentedButton(
+                selected = utility == option,
+                onClick = {
+                    haptics.tap()
+                    onUtility(option)
+                },
+                shape = SegmentedButtonDefaults.itemShape(
+                    index = index,
+                    count = PanamaUtility.entries.size,
+                ),
+            ) { Text(option.displayName) }
+        }
+    }
+    OutlinedTextField(
+        value = input,
+        onValueChange = { input = it },
+        label = { Text(stringResource(R.string.common_base_kwh)) },
+        placeholder = { Text("180") },
+        singleLine = true,
+        isError = invalid,
+        supportingText = if (invalid) {
+            { Text(stringResource(R.string.set_base_invalid)) }
+        } else {
+            null
+        },
+        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+        modifier = Modifier.fillMaxWidth(),
+    )
+    Button(
+        onClick = {
+            haptics.confirm()
+            onBaseKwh(parsed ?: 0.0)
+        },
+        enabled = !invalid,
+        modifier = Modifier.fillMaxWidth(),
     ) {
-        SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
-            PanamaUtility.entries.forEachIndexed { index, option ->
-                SegmentedButton(
-                    selected = utility == option,
-                    onClick = {
-                        haptics.tap()
-                        onUtility(option)
-                    },
-                    shape = SegmentedButtonDefaults.itemShape(
-                        index = index,
-                        count = PanamaUtility.entries.size,
-                    ),
-                ) { Text(option.displayName) }
-            }
-        }
-        OutlinedTextField(
-            value = input,
-            onValueChange = { input = it },
-            label = { Text(stringResource(R.string.common_base_kwh)) },
-            placeholder = { Text("180") },
-            singleLine = true,
-            isError = invalid,
-            supportingText = if (invalid) {
-                { Text(stringResource(R.string.set_base_invalid)) }
-            } else {
-                null
-            },
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
-            modifier = Modifier.fillMaxWidth(),
-        )
-        Button(
-            onClick = {
-                haptics.confirm()
-                onBaseKwh(parsed ?: 0.0)
-            },
-            enabled = !invalid,
-            modifier = Modifier.fillMaxWidth(),
-        ) {
-            Text(stringResource(R.string.set_base_save))
-        }
+        Text(stringResource(R.string.set_base_save))
     }
 }
 
@@ -700,6 +968,9 @@ private fun SettingsScreenPreview() {
             onTemperature = {},
             onUtility = {},
             onBaseKwh = {},
+            onThemeMode = {},
+            onOledPure = {},
+            onLiquidGlass = {},
             onCheckUpdate = {},
             onSkipVersion = {},
             onVersionTapped = {},

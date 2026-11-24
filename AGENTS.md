@@ -56,3 +56,29 @@
 - **Periodo y Horas Estimadas de Uso:** Selector desplegable (`Día` | `Quincena` | `Mes` con `java.time.YearMonth.now()` contemplando días reales y bisiestos hasta 2030+) acompañado del control de **horas estimadas de uso diario (1h a 24h)** directamente en la tarjeta principal de cálculo.
 - **Háptica Crescendo + Pop (3s):** Vibración progresiva estilo Duolingo/reacción IG al mantener presionados botones o ítems del `NavigationBar`, culminando en una liberación "pop" a los 3 segundos.
 - **Internacionalización (i18n):** Soporte nativo completo en **Español Latinoamericano (`es`)**, **Inglés (`en`)** y **Chino Simplificado (`zh-CN`)** con selector de idioma en `Ajustes` (`AppCompatDelegate.setApplicationLocales`).
+
+## Mapa Compacto del Proyecto (max 25 líneas)
+- `app/build.gradle.kts` -> `android {}` -> `versionName/versionCode` y dependencias (Room, Compose, ML Kit)
+- `MainActivity.kt` -> `MainActivity` -> splash 2s, tema, edge-to-edge, chequeo de actualización
+- `ui/navigation/ConsumoApp.kt` -> `ConsumoApp` -> Scaffold, 3 pestañas y menú flotante ☰
+- `ui/navigation/AppDestination.kt` -> `AppDestination` -> rutas Calcular/Recomendar/MiCasa
+- `ui/screens/splash/ExpressiveSplashScreen.kt` -> `ExpressiveSplashScreen` -> morph óvalo→diamante→squircle→cookie + háptica
+- `ui/screens/calculate/*` -> `CalculateScreen/ViewModel/UiState` -> entrada de equipo, tarifa, gráfica
+- `ui/screens/recommend/*` -> `RecommendScreen/ViewModel/UiState` -> recomendación por m²
+- `ui/screens/myhome/*` -> `MyHomeScreen/ViewModel/UiState` -> grupos, equipos, facturas, gráfica mensual
+- `ui/screens/settings/*` -> `SettingsScreen/ViewModel/UiState` -> acordeones, apariencia, idioma, Acerca
+- `ui/theme/*` -> `Theme/Color/Shape/Type` -> Material 3, OLED, Liquid Glass
+- `ui/components/LiquidGlassBackground.kt` -> `LiquidGlassBackground` -> orbes + borde especular
+- `ui/components/SectionCard.kt` -> `SectionCard` -> tarjeta acordeón reutilizable
+- `ui/components/PixelEmblem.kt` + `PixelMotion.kt` -> emblema y springs/háptica (`PixelSpringExpressive`, `PixelChargeVibrator`)
+- `domain/calculator/*` -> `AcConsumptionCalculator`, `PanamaTariffEngine` -> kWh y tarifa
+- `domain/recommender/*` -> `AcSpaceRecommender`, `ElectricalSpecAdvisor` -> BTU/protección 220V
+- `domain/narrative/DiagnosticNarrativeBuilder.kt` -> `DiagnosticNarrativeBuilder` -> prosa en español (tests)
+- `domain/scanner/RtcaLabelParser.kt` -> `RtcaLabelParser` -> parseo OCR RTCA (≤60,000 BTU/h)
+- `domain/settings/Appearance.kt` -> `Appearance` -> Día/Noche/Sistema + flags OLED/Glass
+- `data/local/db/*` -> `ConsumoDatabase` v4 -> Room, migración 3→4, DAOs
+- `data/datastore/UserPreferencesRepository.kt` -> repositorio -> unidades, tarifa, apariencia persistida
+- `data/export/ReportExporter.kt` -> `ReportExporter` -> PDF vectorial y PNG
+- `data/backup/LocalBackupManager.kt` -> `LocalBackupManager` -> respaldo/restauración JSON
+- `core/updater/*` -> `GitHubReleaseChecker` -> única red permitida (API releases)
+- `app/src/test/java/...` -> pruebas unitarias -> calculadora, tarifa, parsers, ui state

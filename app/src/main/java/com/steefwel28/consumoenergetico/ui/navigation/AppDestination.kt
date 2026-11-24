@@ -9,7 +9,10 @@ import androidx.compose.material.icons.rounded.TipsAndUpdates
 import androidx.compose.ui.graphics.vector.ImageVector
 import com.steefwel28.consumoenergetico.R
 
-/** Los cuatro destinos de la barra inferior estilo Pixel. */
+/**
+ * Destinos de la app. La barra inferior muestra exactamente tres pestañas
+ * ([tabs]); Ajustes vive en el menú superior `☰`.
+ */
 enum class AppDestination(
     val route: String,
     @param:StringRes val labelRes: Int,
@@ -19,4 +22,9 @@ enum class AppDestination(
     RECOMMEND("recomendar", R.string.nav_recommend, Icons.Rounded.TipsAndUpdates),
     HOME("mi-casa", R.string.nav_home, Icons.Rounded.Home),
     SETTINGS("ajustes", R.string.nav_settings, Icons.Rounded.Settings),
+    ;
+
+    companion object {
+        val tabs: List<AppDestination> = listOf(CALCULATE, RECOMMEND, HOME)
+    }
 }

@@ -3,6 +3,7 @@ package com.steefwel28.consumoenergetico.data.datastore
 import android.content.Context
 import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.doublePreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.emptyPreferences
@@ -10,6 +11,8 @@ import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import com.steefwel28.consumoenergetico.core.signature.CraftedBy
 import com.steefwel28.consumoenergetico.domain.calculator.PanamaUtility
+import com.steefwel28.consumoenergetico.domain.settings.AppearancePreferences
+import com.steefwel28.consumoenergetico.domain.settings.ThemeMode
 import com.steefwel28.consumoenergetico.domain.units.LengthUnit
 import com.steefwel28.consumoenergetico.domain.units.ShortLengthUnit
 import com.steefwel28.consumoenergetico.domain.units.TemperatureUnit
@@ -49,6 +52,15 @@ class UserPreferencesRepository internal constructor(
 
     val baseMonthlyKwh: Flow<Double> = preferences.map { stored -> stored[BaseMonthlyKwhKey] ?: 0.0 }
 
+    /** Apariencia completa; el primer valor se lee al arrancar para evitar el flash blanco. */
+    val appearance: Flow<AppearancePreferences> = preferences.map { stored ->
+        AppearancePreferences(
+            mode = stored[ThemeModeKey].toEnumOrDefault(ThemeMode.SYSTEM),
+            oledPure = stored[OledPureKey] ?: false,
+            liquidGlass = stored[LiquidGlassKey] ?: false,
+        )
+    }
+
     suspend fun updateUnitPreferences(preferences: UnitPreferences) {
         dataStore.edit { stored ->
             stored[LengthKey] = preferences.length.name
@@ -67,6 +79,18 @@ class UserPreferencesRepository internal constructor(
         dataStore.edit { stored -> stored[BaseMonthlyKwhKey] = kwh }
     }
 
+    suspend fun setThemeMode(mode: ThemeMode) {
+        dataStore.edit { stored -> stored[ThemeModeKey] = mode.name }
+    }
+
+    suspend fun setOledPure(enabled: Boolean) {
+        dataStore.edit { stored -> stored[OledPureKey] = enabled }
+    }
+
+    suspend fun setLiquidGlass(enabled: Boolean) {
+        dataStore.edit { stored -> stored[LiquidGlassKey] = enabled }
+    }
+
     companion object {
         private val LengthKey = stringPreferencesKey("length_unit")
         private val ShortLengthKey = stringPreferencesKey("short_length_unit")
@@ -74,6 +98,9 @@ class UserPreferencesRepository internal constructor(
         private val TemperatureKey = stringPreferencesKey("temperature_unit")
         private val UtilityKey = stringPreferencesKey("utility")
         private val BaseMonthlyKwhKey = doublePreferencesKey("base_monthly_kwh")
+        private val ThemeModeKey = stringPreferencesKey("theme_mode")
+        private val OledPureKey = booleanPreferencesKey("oled_pure")
+        private val LiquidGlassKey = booleanPreferencesKey("liquid_glass")
 
         fun create(context: Context): UserPreferencesRepository =
             UserPreferencesRepository(context.applicationContext.userPreferencesDataStore)

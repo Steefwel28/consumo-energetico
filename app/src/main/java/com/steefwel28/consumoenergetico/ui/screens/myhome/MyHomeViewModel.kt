@@ -6,6 +6,7 @@ import com.steefwel28.consumoenergetico.R
 import com.steefwel28.consumoenergetico.core.di.AppContainer
 import com.steefwel28.consumoenergetico.core.signature.CraftedBy
 import com.steefwel28.consumoenergetico.data.local.db.AcUnitEntity
+import com.steefwel28.consumoenergetico.data.local.db.BillRecordEntity
 import com.steefwel28.consumoenergetico.data.local.db.CustomLocationEntity
 import com.steefwel28.consumoenergetico.data.local.db.MaintenanceLogEntity
 import com.steefwel28.consumoenergetico.data.local.db.PropertyGroupEntity
@@ -37,12 +38,14 @@ class MyHomeViewModel(
                 container.database.acUnitDao().observeUnits(),
                 container.database.customLocationDao().observeAll(),
                 container.database.maintenanceLogDao().observeAll(),
-            ) { groups, units, locations, logs ->
+                container.database.billRecordDao().observeAll(),
+            ) { groups, units, locations, logs, bills ->
                 MyHomeUiState(
                     groups = groups,
                     units = units,
                     locations = locations,
                     logs = logs,
+                    bills = bills,
                     nowMillis = System.currentTimeMillis(),
                 )
             }.collect { fresh ->
@@ -196,6 +199,47 @@ class MyHomeViewModel(
                     it.copy(
                         message = error.message
                             ?: container.appContext.getString(R.string.home_msg_maintenance_error),
+                    )
+                }
+            }
+        }
+    }
+
+    /** Guarda una factura real del grupo; misma llave mes/año se reemplaza. */
+    fun saveBill(draft: BillDraft) {
+        if (draft.realKwh <= 0.0) {
+            _state.update {
+                it.copy(message = container.appContext.getString(R.string.home_msg_bill_kwh_positive))
+            }
+            return
+        }
+        if (draft.paidBalboas < 0.0) {
+            _state.update {
+                it.copy(message = container.appContext.getString(R.string.home_msg_bill_paid_negative))
+            }
+            return
+        }
+        viewModelScope.launch {
+            runCatching {
+                container.database.billRecordDao().insert(
+                    BillRecordEntity(
+                        groupId = draft.groupId,
+                        year = draft.year,
+                        month = draft.month,
+                        realKwh = draft.realKwh,
+                        paidBalboas = draft.paidBalboas,
+                        utility = draft.utility,
+                    ),
+                )
+            }.onSuccess {
+                _state.update {
+                    it.copy(message = container.appContext.getString(R.string.home_msg_bill_saved))
+                }
+            }.onFailure { error ->
+                _state.update {
+                    it.copy(
+                        message = error.message
+                            ?: container.appContext.getString(R.string.home_msg_bill_error),
                     )
                 }
             }

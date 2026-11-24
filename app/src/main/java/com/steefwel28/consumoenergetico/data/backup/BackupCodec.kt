@@ -2,6 +2,7 @@ package com.steefwel28.consumoenergetico.data.backup
 
 import com.steefwel28.consumoenergetico.core.signature.CraftedBy
 import com.steefwel28.consumoenergetico.data.local.db.AcUnitEntity
+import com.steefwel28.consumoenergetico.data.local.db.BillRecordEntity
 import com.steefwel28.consumoenergetico.data.local.db.CustomLocationEntity
 import com.steefwel28.consumoenergetico.data.local.db.MaintenanceLogEntity
 import com.steefwel28.consumoenergetico.data.local.db.PropertyGroupEntity
@@ -27,6 +28,7 @@ data class BackupSnapshot(
     val logs: List<MaintenanceLogEntity>,
     val groups: List<PropertyGroupEntity> = emptyList(),
     val locations: List<CustomLocationEntity> = emptyList(),
+    val bills: List<BillRecordEntity> = emptyList(),
 )
 
 /**
@@ -37,13 +39,14 @@ data class BackupSnapshot(
  * archivo inválido lanza [BackupFormatException] antes de tocar Room.
  *
  * El esquema 2 añade grupos/propiedades y ubicaciones personalizadas; el 3
- * guarda las horas de uso diario. Los archivos anteriores se siguen importando
- * y caen en "Mi Casa"/"Sala"/8 h.
+ * guarda las horas de uso diario y el 4 el histórico de facturas reales. Los
+ * archivos anteriores se siguen importando y caen en "Mi Casa"/"Sala"/8 h/sin
+ * facturas.
  */
 @CraftedBy("steefwel28")
 object BackupCodec {
 
-    const val SCHEMA_VERSION = 3
+    const val SCHEMA_VERSION = 4
     const val CRAFTED_BY = "steefwel28"
 
     fun encode(snapshot: BackupSnapshot): String = buildString {
@@ -82,6 +85,12 @@ object BackupCodec {
         snapshot.logs.forEachIndexed { index, log ->
             append(log.toJson())
             append(if (index < snapshot.logs.lastIndex) ",\n" else "\n")
+        }
+        append("  ],\n")
+        append("  \"bill_records\": [\n")
+        snapshot.bills.forEachIndexed { index, bill ->
+            append(bill.toJson())
+            append(if (index < snapshot.bills.lastIndex) ",\n" else "\n")
         }
         append("  ]\n")
         append("}\n")
@@ -171,6 +180,25 @@ object BackupCodec {
             )
         }
 
+        // Los grupos se restauran con sus ids originales, así que el mapa
+        // groupsById es la identidad: sirve igual que para los equipos para
+        // descartar facturas de un grupo que ya no está en el respaldo.
+        val bills = if (version >= 4L) {
+            root.array("bill_records").mapIndexedNotNull { index, element ->
+                element.asObject("bill_records[$index]").toBill(groupsById.keys)
+            }
+        } else {
+            emptyList()
+        }
+        val billIds = bills.map { it.id }
+        if (billIds.size != billIds.toSet().size) {
+            throw BackupFormatException("Hay facturas con id repetido.")
+        }
+        val billSlots = bills.map { Triple(it.groupId, it.year, it.month) }
+        if (billSlots.size != billSlots.toSet().size) {
+            throw BackupFormatException("Hay dos facturas del mismo grupo y mes.")
+        }
+
         return BackupSnapshot(
             exportedAtMillis = exportedAtMillis,
             unitPreferences = unitPreferences,
@@ -180,6 +208,7 @@ object BackupCodec {
             logs = logs,
             groups = groups,
             locations = locations,
+            bills = bills,
         )
     }
 
@@ -204,6 +233,11 @@ object BackupCodec {
     private fun MaintenanceLogEntity.toJson(): String =
         "    {\"id\": $id, \"ac_unit_id\": $acUnitId, \"fecha_millis\": $fechaMillis, " +
             "\"nota\": \"${escape(nota)}\"}"
+
+    private fun BillRecordEntity.toJson(): String =
+        "    {\"id\": $id, \"group_id\": $groupId, \"year\": $year, \"month\": $month, " +
+            "\"real_kwh\": ${number(realKwh)}, \"paid_balboas\": ${number(paidBalboas)}, " +
+            "\"utility\": \"${utility.name}\", \"created_at_millis\": $createdAtMillis}"
 
     private fun Map<String, Json>.toGroup(): PropertyGroupEntity {
         val name = string("nombre_grupo").trim()
@@ -283,6 +317,32 @@ object BackupCodec {
             acUnitId = acUnitId,
             fechaMillis = date,
             nota = string("nota"),
+        )
+    }
+
+    /** Devuelve `null` si la factura apunta a un grupo ausente del respaldo. */
+    private fun Map<String, Json>.toBill(groupIds: Set<Long>): BillRecordEntity? {
+        val groupId = long("group_id")
+        if (groupId !in groupIds) return null
+        val year = long("year")
+        if (year !in 1L..9_999L) throw BackupFormatException("Una factura tiene un año inválido.")
+        val month = long("month")
+        if (month !in 1L..12L) throw BackupFormatException("Una factura tiene un mes inválido.")
+        val realKwh = double("real_kwh")
+        requireNonNegative(realKwh, "real_kwh de una factura")
+        val paid = double("paid_balboas")
+        requireNonNegative(paid, "paid_balboas de una factura")
+        val createdAt = long("created_at_millis")
+        if (createdAt < 0) throw BackupFormatException("Una factura tiene fecha negativa.")
+        return BillRecordEntity(
+            id = long("id"),
+            groupId = groupId,
+            year = year.toInt(),
+            month = month.toInt(),
+            realKwh = realKwh,
+            paidBalboas = paid,
+            utility = enumValue("utility"),
+            createdAtMillis = createdAt,
         )
     }
 
