@@ -2,6 +2,7 @@ package com.steefwel28.consumoenergetico.ui.components
 
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.BottomSheetDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -10,6 +11,7 @@ import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Stable
@@ -21,6 +23,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.shape.RoundedCornerShape
+import com.steefwel28.consumoenergetico.ui.theme.LocalLiquidGlass
 
 /**
  * Controla el desenfoque del contenido de fondo mientras hay una hoja modal o
@@ -72,16 +75,30 @@ fun PixelModalBottomSheet(
 ) {
     BlurBackgroundWhileVisible()
     val haptics = rememberPixelHaptics()
+    val glass = LocalLiquidGlass.current
     LaunchedEffect(Unit) { haptics.tap() }
     ModalBottomSheet(
         onDismissRequest = onDismissRequest,
-        containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+        containerColor = if (glass) Color.Transparent else MaterialTheme.colorScheme.surfaceContainerLow,
         contentColor = MaterialTheme.colorScheme.onSurface,
-        scrimColor = Color.Black.copy(alpha = 0.32f),
+        scrimColor = Color.Black.copy(alpha = if (glass) 0.42f else 0.32f),
         shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
         dragHandle = { BottomSheetDefaults.DragHandle() },
-        content = content,
-    )
+    ) {
+        if (glass) {
+            // Sin HazeState dentro de la ventana del diálogo: tinte + canto de cristal.
+            CompositionLocalProvider(LocalHazeState provides null) {
+                LiquidGlassSurface(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
+                ) {
+                    Column(content = content)
+                }
+            }
+        } else {
+            Column(content = content)
+        }
+    }
 }
 
 /** Diálogo de decisión con superficies tonales y el mismo desenfoque de fondo. */

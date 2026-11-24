@@ -8,16 +8,16 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.steefwel28.consumoenergetico.data.datastore.AppearanceCache
 import com.steefwel28.consumoenergetico.data.worker.MaintenanceReminderScheduler
 import com.steefwel28.consumoenergetico.domain.settings.AppearancePreferences
 import com.steefwel28.consumoenergetico.domain.settings.ThemeMode
 import com.steefwel28.consumoenergetico.ui.navigation.ConsumoApp
 import com.steefwel28.consumoenergetico.ui.theme.ConsumoEnergeticoTheme
 import com.steefwel28.consumoenergetico.ui.theme.LocalLiquidGlass
-import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.runBlocking
 
 class MainActivity : AppCompatActivity() {
 
@@ -27,12 +27,9 @@ class MainActivity : AppCompatActivity() {
         MaintenanceReminderScheduler.enqueue(this)
 
         val container = (application as ConsumoEnergeticoApp).container
-        // Lectura única y corta en el arranque: fija el fondo de ventana antes
-        // del primer frame para que no aparezca el destello blanco.
-        val storedAppearance = runBlocking {
-            runCatching { container.preferences.appearance.first() }
-                .getOrDefault(AppearancePreferences())
-        }
+        // Lectura directa de SharedPreferences: sin corrutinas ni bloqueo, solo
+        // para fijar el fondo de ventana antes del primer frame.
+        val storedAppearance = AppearanceCache.read(this)
         window.setBackgroundDrawable(
             ColorDrawable(windowBackgroundColor(storedAppearance)),
         )
@@ -43,9 +40,13 @@ class MainActivity : AppCompatActivity() {
             )
             val darkTheme = appearance.mode.isDark()
 
+            // Guarda el espejo ligero para el próximo arranque.
+            LaunchedEffect(appearance) { AppearanceCache.write(this@MainActivity, appearance) }
+
             ConsumoEnergeticoTheme(
                 darkTheme = darkTheme,
                 oledPure = appearance.oledPure,
+                liquidGlass = appearance.liquidGlass,
             ) {
                 CompositionLocalProvider(LocalLiquidGlass provides appearance.liquidGlass) {
                     ConsumoApp(container = container, appearance = appearance)

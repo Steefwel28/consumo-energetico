@@ -24,6 +24,8 @@ import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.FlowRow
@@ -37,6 +39,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.automirrored.rounded.OpenInNew
 import androidx.compose.material.icons.rounded.CloudDownload
 import androidx.compose.material.icons.rounded.CloudUpload
@@ -51,6 +54,7 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -100,6 +104,7 @@ import com.steefwel28.consumoenergetico.ui.components.PixelEmblem
 import com.steefwel28.consumoenergetico.ui.components.PixelSpringExpressive
 import com.steefwel28.consumoenergetico.ui.components.SectionCard
 import com.steefwel28.consumoenergetico.ui.components.liquidGlassBorder
+import com.steefwel28.consumoenergetico.ui.components.liquidGlassEffect
 import com.steefwel28.consumoenergetico.ui.components.pixelChargeHaptics
 import com.steefwel28.consumoenergetico.ui.components.rememberPixelChargeVibrator
 import com.steefwel28.consumoenergetico.ui.components.rememberPixelHaptics
@@ -118,6 +123,7 @@ private const val YAPPY_NUMBER_RAW = "63285079"
 @Composable
 fun SettingsRoute(
     container: AppContainer,
+    onBack: () -> Unit,
     viewModel: SettingsViewModel = viewModel(factory = AppViewModelProvider.settings(container)),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -190,6 +196,7 @@ fun SettingsRoute(
         onOpenRelease = { url ->
             runCatching { uriHandler.openUri(url) }
         },
+        onBack = onBack,
     )
 }
 
@@ -214,8 +221,17 @@ fun SettingsScreen(
     onImport: () -> Unit,
     onOpenRepository: () -> Unit,
     onOpenRelease: (String) -> Unit,
+    onBack: () -> Unit,
 ) {
     val haptics = rememberPixelHaptics()
+
+    val backInteraction = remember { MutableInteractionSource() }
+    val backPressed by backInteraction.collectIsPressedAsState()
+    val backScale by animateFloatAsState(
+        targetValue = if (backPressed) 0.86f else 1f,
+        animationSpec = PixelSpringExpressive,
+        label = "settings-back-scale",
+    )
 
     LazyColumn(
         modifier = Modifier.fillMaxWidth(),
@@ -223,13 +239,37 @@ fun SettingsScreen(
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
         item {
-            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                Text(text = stringResource(R.string.set_title), style = MaterialTheme.typography.headlineMedium)
-                Text(
-                    text = stringResource(R.string.set_subtitle),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                IconButton(
+                    onClick = {
+                        haptics.tap()
+                        onBack()
+                    },
+                    interactionSource = backInteraction,
+                    modifier = Modifier
+                        .size(40.dp)
+                        .pixelChargeHaptics(),
+                ) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
+                        contentDescription = stringResource(R.string.settings_back_cd),
+                        modifier = Modifier.graphicsLayer {
+                            scaleX = backScale
+                            scaleY = backScale
+                        },
+                    )
+                }
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text(text = stringResource(R.string.set_title), style = MaterialTheme.typography.headlineMedium)
+                    Text(
+                        text = stringResource(R.string.set_subtitle),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
             }
         }
 
@@ -393,11 +433,13 @@ private fun AccordionCard(
         label = "accordion-chevron",
     )
     Card(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .liquidGlassEffect(),
         shape = MaterialTheme.shapes.large,
         colors = CardDefaults.cardColors(
             containerColor = if (glass) {
-                MaterialTheme.colorScheme.surface.copy(alpha = 0.55f)
+                MaterialTheme.colorScheme.surface.copy(alpha = 0.16f)
             } else {
                 MaterialTheme.colorScheme.surfaceContainerLow
             },
@@ -980,6 +1022,7 @@ private fun SettingsScreenPreview() {
             onImport = {},
             onOpenRepository = {},
             onOpenRelease = {},
+            onBack = {},
         )
     }
 }

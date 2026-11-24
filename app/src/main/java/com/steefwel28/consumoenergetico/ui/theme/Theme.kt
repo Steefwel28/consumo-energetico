@@ -96,19 +96,23 @@ fun ConsumoEnergeticoTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
     dynamicColor: Boolean = true,
     oledPure: Boolean = false,
+    liquidGlass: Boolean = false,
     content: @Composable () -> Unit,
 ) {
+    // El vidrio es siempre oscuro: aunque el modo sea Día, el esquema se oscurece
+    // para que el texto claro tenga contraste real.
+    val wantsDark = darkTheme || liquidGlass
     val baseScheme = when {
         dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
             val context = LocalContext.current
-            if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
+            if (wantsDark) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
         }
 
-        darkTheme -> DarkColors
+        wantsDark -> DarkColors
         else -> LightColors
     }
     // Negro Puro OLED: #000000 real en fondo y superficies base del modo oscuro.
-    val colorScheme = if (darkTheme && oledPure) {
+    val themed = if (wantsDark && oledPure) {
         baseScheme.copy(
             background = Color.Black,
             surface = Color.Black,
@@ -117,6 +121,16 @@ fun ConsumoEnergeticoTheme(
         )
     } else {
         baseScheme
+    }
+    // Contraste blindado del vidrio: blanco hielo sobre la atmósfera oscura.
+    val colorScheme = if (liquidGlass) {
+        themed.copy(
+            onBackground = Color(0xFFF3FBF8),
+            onSurface = Color(0xFFF3FBF8),
+            onSurfaceVariant = Color(0xFFB6D8D0),
+        )
+    } else {
+        themed
     }
 
     MaterialTheme(

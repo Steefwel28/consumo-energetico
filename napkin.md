@@ -15,13 +15,17 @@
    Do instead: run `.\gradlew.bat testDebugUnitTest assembleDebug --console=plain` until `BUILD SUCCESSFUL` with 0 failures; never report success from a partial run.
 4. **[2026-11-23] Room schema bump requires exported JSON**
    Do instead: after changing `@Database(version = N)`, keep `app/schemas/com.steefwel28.consumoenergetico.data.local.db.ConsumoDatabase/N.json` and a `Migration(N-1, N)` in `ConsumoDatabase.kt`.
+5. **[2026-11-23] Haze version must match the project Kotlin**
+   Do instead: keep `haze = "1.7.3"` (built with Kotlin 2.3.20 stdlib) while `kotlin = "2.3.21"`; Haze 2.x/stdlib 2.4 breaks the 2.3 compiler. Verify with the artifact POM before upgrading.
 
 ## Shell & Command Reliability
 1. **[2026-11-23] `strings.xml` files are long; full reads burn context**
    Do instead: read only the last 25–30 lines of each `values*/strings.xml` when adding/verifying keys.
 2. **[2026-11-23] Main thread limited to 5 direct file reads**
    Do instead: delegate file inspection and line search to a subagent; keep the main thread for edits and build runs.
-3. **[2026-11-23] Git diff warnings about LF→CRLF are noise**
+3. **[2026-11-23] `12 %%` renders literally outside `String.format`**
+   Do instead: use a single `%` in non-formatted strings (`calc_sim_filters_hint`); keep `%%` only where the string is passed through `String.format`.
+4. **[2026-11-23] Git diff warnings about LF→CRLF are noise**
    Do instead: ignore `LF will be replaced by CRLF` lines in `git diff` output.
 
 ## Domain Behavior Guardrails
@@ -35,13 +39,17 @@
    Do instead: stage 1 `tick(0.25f)`, stage 2 `tick(0.45f)`+`tick(0.52f)`, stage 3 ramp `tick(0.58f..1.0f)` then `pop()` at 2000 ms with `1.0f → 1.12f` bounce.
 
 ## Compose UI Guardrails
-1. **[2026-11-23] `Float * Dp` does not compile**
+1. **[2026-11-23] Liquid Glass only blurs inside the main window**
+   Do instead: use `LiquidGlassSurface` / `Modifier.liquidGlassEffect()` for cards and bars; inside `ModalBottomSheet`, `Dialog` or `DropdownMenu` wrap with `CompositionLocalProvider(LocalHazeState provides null)` so Haze never samples another window.
+2. **[2026-11-23] Glass mode forces a dark scheme**
+   Do instead: `ConsumoEnergeticoTheme(liquidGlass = true)` darkens `background/surface` and pins `onBackground/onSurface = #F3FBF8`, `onSurfaceVariant = #B6D8D0`; never let the Día scheme paint black titles over orbs.
+3. **[2026-11-23] `Float * Dp` does not compile**
    Do instead: write `dp * float` (e.g. `8.dp * (1f - eased)`), never `(1f - eased) * 8.dp`.
-2. **[2026-11-23] `CHART_ITEM_INDEX` must match the LazyColumn item order in `CalculateScreen`**
-   Do instead: when reordering cards (Datos del equipo = 1, Comparativa = 4), re-check the scroll target constant at the bottom of the file.
-3. **[2026-11-23] Splash chips need their data class**
+4. **[2026-11-23] `CHART_ITEM_INDEX` must match the LazyColumn item order in `CalculateScreen`**
+   Do instead: keep Comparativa at index 3 and Datos del equipo at 4 (both category branches); re-check the constant at the bottom of the file after any reorder.
+5. **[2026-11-23] Splash chips need their data class**
    Do instead: keep `SplashChip(alignment, x, y, width, height, color, maxAlpha, revealAtMs)` private in `ExpressiveSplashScreen.kt`; morph keyframes 0→1→2→3 at 0/600/1200/2000 ms.
-4. **[2026-11-23] Liquid Glass orbes follow scroll via root `nestedScroll`**
+6. **[2026-11-23] Liquid Glass orbes follow scroll via root `nestedScroll`**
    Do instead: keep `LiquidGlassScrollConnection` in `LiquidGlassBackground.kt` + `.nestedScroll(...)` on `ConsumoApp` content Box; no scroll wiring needed in screens.
 
 ## User Directives

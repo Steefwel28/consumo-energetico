@@ -4,6 +4,9 @@ import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.WindowInsets
@@ -15,6 +18,7 @@ import androidx.compose.foundation.layout.only
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.AutoStories
 import androidx.compose.material.icons.rounded.Menu
@@ -68,6 +72,8 @@ import com.steefwel28.consumoenergetico.ui.AppViewModelProvider
 import com.steefwel28.consumoenergetico.ui.components.AppFormat
 import com.steefwel28.consumoenergetico.ui.components.LiquidGlassBackground
 import com.steefwel28.consumoenergetico.ui.components.LiquidGlassScrollConnection
+import com.steefwel28.consumoenergetico.ui.components.LiquidGlassSurface
+import com.steefwel28.consumoenergetico.ui.components.LocalHazeState
 import com.steefwel28.consumoenergetico.ui.components.LocalPixelOverlayState
 import com.steefwel28.consumoenergetico.ui.components.PixelDialog
 import com.steefwel28.consumoenergetico.ui.components.PixelOverlayState
@@ -84,6 +90,8 @@ import com.steefwel28.consumoenergetico.ui.screens.recommend.RecommendRoute
 import com.steefwel28.consumoenergetico.ui.screens.settings.SettingsRoute
 import com.steefwel28.consumoenergetico.ui.screens.splash.ExpressiveSplashScreen
 import com.steefwel28.consumoenergetico.ui.theme.LocalLiquidGlass
+import dev.chrisbanes.haze.hazeSource
+import dev.chrisbanes.haze.rememberHazeState
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -167,79 +175,109 @@ private fun MainScaffold(
     val calculateState by calculateViewModel.state.collectAsStateWithLifecycle()
     var showSimulator by rememberSaveable { mutableStateOf(false) }
     var showCapsules by rememberSaveable { mutableStateOf(false) }
+    var menuOpen by rememberSaveable { mutableStateOf(false) }
+    val hazeState = rememberHazeState()
     val glassScroll = remember { mutableFloatStateOf(0f) }
     val glassScrollConnection = remember { LiquidGlassScrollConnection(glassScroll) }
+    val currentRoute by navController.currentBackStackEntryAsState()
+    val route = currentRoute?.destination?.route
 
-    Box(modifier = Modifier.fillMaxSize()) {
-        if (glass) {
-            LiquidGlassBackground(scrollFraction = glassScroll.floatValue)
-        }
-        Scaffold(
-            containerColor = if (glass) Color.Transparent else MaterialTheme.colorScheme.background,
-            contentWindowInsets = WindowInsets.safeDrawing.only(
-                WindowInsetsSides.Horizontal + WindowInsetsSides.Top,
-            ),
-            topBar = {
-                TopMenuBar(
-                    pendingUpdate = pendingUpdate,
-                    simulatorSubtitle = calculateState.simulatorSubtitle(),
-                    onSimulator = { showSimulator = true },
-                    onCapsules = { showCapsules = true },
-                    onSettings = {
-                        navController.navigate(AppDestination.SETTINGS.route) {
-                            launchSingleTop = true
-                        }
-                    },
+    CompositionLocalProvider(LocalHazeState provides hazeState) {
+        Box(modifier = Modifier.fillMaxSize()) {
+            if (glass) {
+                LiquidGlassBackground(
+                    modifier = Modifier.hazeSource(hazeState),
+                    scrollFraction = glassScroll.floatValue,
                 )
-            },
-            bottomBar = {
-                PixelNavigationBar(
-                    currentRoute = navController.currentBackStackEntryAsState().value
-                        ?.destination?.route,
-                    onNavigate = { destination ->
-                        navController.navigate(destination.route) {
-                            popUpTo(navController.graph.findStartDestination().id) {
-                                saveState = true
+            }
+            Scaffold(
+                modifier = if (menuOpen) Modifier.blur(16.dp) else Modifier,
+                containerColor = if (glass) Color.Transparent else MaterialTheme.colorScheme.background,
+                contentWindowInsets = WindowInsets.safeDrawing.only(
+                    WindowInsetsSides.Horizontal + WindowInsetsSides.Top,
+                ),
+                topBar = {
+                    TopMenuBar(
+                        pendingUpdate = pendingUpdate,
+                        expanded = menuOpen,
+                        onExpandedChange = { menuOpen = it },
+                        simulatorSubtitle = calculateState.simulatorSubtitle(),
+                        onSimulator = { showSimulator = true },
+                        onCapsules = { showCapsules = true },
+                        onSettings = {
+                            navController.navigate(AppDestination.SETTINGS.route) {
+                                launchSingleTop = true
                             }
-                            launchSingleTop = true
-                            restoreState = true
-                        }
-                    },
-                )
-            },
-        ) { innerPadding ->
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .nestedScroll(glassScrollConnection)
-                    .padding(innerPadding)
-                    .then(
-                        if (overlay.blurRadius > 0.dp) {
-                            Modifier.blur(overlay.blurRadius)
-                        } else {
-                            Modifier
                         },
-                    ),
-            ) {
-                NavHost(
-                    navController = navController,
-                    startDestination = AppDestination.CALCULATE.route,
-                    enterTransition = { androidx.compose.animation.fadeIn(tween(220)) },
-                    exitTransition = { androidx.compose.animation.fadeOut(tween(160)) },
+                    )
+                },
+                bottomBar = {
+                    // Ajustes es pantalla de detalle: sin barra de pestañas.
+                    if (route != AppDestination.SETTINGS.route) {
+                        PixelNavigationBar(
+                            currentRoute = route,
+                            onNavigate = { destination ->
+                                navController.navigate(destination.route) {
+                                    popUpTo(navController.graph.findStartDestination().id) {
+                                        saveState = true
+                                    }
+                                    launchSingleTop = true
+                                    restoreState = true
+                                }
+                            },
+                        )
+                    }
+                },
+            ) { innerPadding ->
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .nestedScroll(glassScrollConnection)
+                        .padding(innerPadding)
+                        .then(
+                            if (overlay.blurRadius > 0.dp) {
+                                Modifier.blur(overlay.blurRadius)
+                            } else {
+                                Modifier
+                            },
+                        ),
                 ) {
-                    composable(AppDestination.CALCULATE.route) {
-                        CalculateRoute(container, viewModel = calculateViewModel)
-                    }
-                    composable(AppDestination.RECOMMEND.route) {
-                        RecommendRoute(container)
-                    }
-                    composable(AppDestination.HOME.route) {
-                        MyHomeRoute(container)
-                    }
-                    composable(AppDestination.SETTINGS.route) {
-                        SettingsRoute(container)
+                    NavHost(
+                        navController = navController,
+                        startDestination = AppDestination.CALCULATE.route,
+                        enterTransition = { androidx.compose.animation.fadeIn(tween(220)) },
+                        exitTransition = { androidx.compose.animation.fadeOut(tween(160)) },
+                    ) {
+                        composable(AppDestination.CALCULATE.route) {
+                            CalculateRoute(container, viewModel = calculateViewModel)
+                        }
+                        composable(AppDestination.RECOMMEND.route) {
+                            RecommendRoute(container)
+                        }
+                        composable(AppDestination.HOME.route) {
+                            MyHomeRoute(container)
+                        }
+                        composable(AppDestination.SETTINGS.route) {
+                            SettingsRoute(
+                                container = container,
+                                onBack = { navController.popBackStack() },
+                            )
+                        }
                     }
                 }
+            }
+            // Velo del menú `☰`: oscurece todo el fondo para que el vidrio flotante
+            // se lea nítido. Tocar fuera cierra el menú.
+            if (menuOpen) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(Color.Black.copy(alpha = 0.34f))
+                        .clickable(
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = null,
+                        ) { menuOpen = false },
+                )
             }
         }
     }
@@ -271,6 +309,8 @@ private fun CalculateUiState.simulatorSubtitle(): String {
 @Composable
 private fun TopMenuBar(
     pendingUpdate: Boolean,
+    expanded: Boolean,
+    onExpandedChange: (Boolean) -> Unit,
     simulatorSubtitle: String,
     onSimulator: () -> Unit,
     onCapsules: () -> Unit,
@@ -278,7 +318,6 @@ private fun TopMenuBar(
 ) {
     val haptics = rememberPixelHaptics()
     val glass = LocalLiquidGlass.current
-    var expanded by rememberSaveable { mutableStateOf(false) }
     val scale by animateFloatAsState(
         targetValue = if (expanded) 1f else 0.88f,
         animationSpec = PixelSpringExpressive,
@@ -317,7 +356,7 @@ private fun TopMenuBar(
                     IconButton(
                         onClick = {
                             haptics.tap()
-                            expanded = true
+                            onExpandedChange(true)
                         },
                         modifier = Modifier.pixelChargeHaptics(),
                     ) { menuIcon() }
@@ -326,7 +365,7 @@ private fun TopMenuBar(
                 IconButton(
                     onClick = {
                         haptics.tap()
-                        expanded = true
+                        onExpandedChange(true)
                     },
                     modifier = Modifier.pixelChargeHaptics(),
                 ) { menuIcon() }
@@ -334,7 +373,7 @@ private fun TopMenuBar(
 
             DropdownMenu(
                 expanded = expanded,
-                onDismissRequest = { expanded = false },
+                onDismissRequest = { onExpandedChange(false) },
                 modifier = Modifier
                     .graphicsLayer {
                         scaleX = scale
@@ -384,7 +423,7 @@ private fun TopMenuBar(
                     },
                     onClick = {
                         haptics.tap()
-                        expanded = false
+                        onExpandedChange(false)
                         onSimulator()
                     },
                 )
@@ -407,7 +446,7 @@ private fun TopMenuBar(
                     },
                     onClick = {
                         haptics.tap()
-                        expanded = false
+                        onExpandedChange(false)
                         onCapsules()
                     },
                 )
@@ -430,7 +469,7 @@ private fun TopMenuBar(
                     },
                     onClick = {
                         haptics.tap()
-                        expanded = false
+                        onExpandedChange(false)
                         onSettings()
                     },
                 )
@@ -445,12 +484,13 @@ private fun PixelNavigationBar(
     onNavigate: (AppDestination) -> Unit,
 ) {
     val haptics = rememberPixelHaptics()
+    LiquidGlassSurface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
+        containerColor = MaterialTheme.colorScheme.surfaceContainer,
+    ) {
     NavigationBar(
-        containerColor = if (LocalLiquidGlass.current) {
-            MaterialTheme.colorScheme.surface.copy(alpha = 0.16f)
-        } else {
-            MaterialTheme.colorScheme.surfaceContainer
-        },
+        containerColor = Color.Transparent,
         tonalElevation = 0.dp,
     ) {
         AppDestination.tabs.forEach { destination ->
@@ -484,5 +524,6 @@ private fun PixelNavigationBar(
                     .semantics { contentDescription = label },
             )
         }
+    }
     }
 }

@@ -29,7 +29,7 @@
     <string name="common_brand_placeholder">Hisense ATR362MA</string>
     <string name="common_base_kwh">电费单基础用电量（kWh/月）</string>
     <string name="common_btu">BTU/h</string>
-    <string name="common_watts">功率 W</string>
+    <string name="common_watts">功率 (W)</string>
     <string name="common_seer">SEER</string>
     <string name="common_capsules_title">工坊知识卡</string>
     <string name="inverter">变频</string>
@@ -114,7 +114,12 @@
     <string name="calc_sim_consumption">模拟用电量</string>
     <string name="calc_sim_bill">电费增加</string>
     <string name="calc_sim_filters">滤网清洁</string>
-    <string name="calc_sim_filters_hint">滤网脏污会使用电量增加约 12 %%。</string>
+    <string name="calc_sim_filters_hint">滤网脏污会使用电量增加约 12 %。</string>
+    <string name="settings_back_cd">返回</string>
+    <string name="calc_guide_cd">查看阅读指南</string>
+    <string name="calc_guide_label_title">RTCA 标签：读什么</string>
+    <string name="calc_guide_plate_title">铭牌：读什么</string>
+    <string name="calc_guide_close">知道了</string>
     <string name="calc_sim_schedule">使用时间段</string>
     <string name="calc_sim_note">此模拟独立运行：上方图表保持其基础用电量。</string>
     <string name="calc_sim_missing">填写标签后即可查看实时用电量。</string>

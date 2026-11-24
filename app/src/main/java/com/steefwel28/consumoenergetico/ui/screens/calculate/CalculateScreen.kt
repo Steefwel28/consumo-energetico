@@ -45,6 +45,7 @@ import androidx.compose.material.icons.rounded.CameraAlt
 import androidx.compose.material.icons.rounded.Construction
 import androidx.compose.material.icons.rounded.ExpandMore
 import androidx.compose.material.icons.rounded.Image
+import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material.icons.rounded.PictureAsPdf
 import androidx.compose.material.icons.rounded.Remove
 import androidx.compose.material.icons.rounded.Save
@@ -94,6 +95,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -112,10 +114,12 @@ import com.steefwel28.consumoenergetico.domain.scanner.RtcaLabelReading
 import com.steefwel28.consumoenergetico.domain.units.LocaleNumber
 import com.steefwel28.consumoenergetico.ui.AppViewModelProvider
 import com.steefwel28.consumoenergetico.ui.components.AppFormat
+import com.steefwel28.consumoenergetico.ui.components.NameplateGuideDialog
 import com.steefwel28.consumoenergetico.ui.components.PixelDialog
 import com.steefwel28.consumoenergetico.ui.components.PixelModalBottomSheet
 import com.steefwel28.consumoenergetico.ui.components.PixelSpringExpressive
 import com.steefwel28.consumoenergetico.ui.components.PixelSpringSnappy
+import com.steefwel28.consumoenergetico.ui.components.RtcaLabelGuideDialog
 import com.steefwel28.consumoenergetico.ui.components.RtcaScannerSheet
 import com.steefwel28.consumoenergetico.ui.components.SectionCard
 import com.steefwel28.consumoenergetico.ui.components.labelRes
@@ -203,8 +207,8 @@ fun CalculateScreen(
     LazyColumn(
         modifier = Modifier.fillMaxWidth(),
         state = listState,
-        contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 20.dp, bottom = 32.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp),
+        contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 16.dp, bottom = 32.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         item {
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -232,19 +236,21 @@ fun CalculateScreen(
 
         if (state.category == EquipmentCategory.AIR_CONDITIONER) {
             item {
+                // Comparativa arriba: la onda de tarifa responde en vivo mientras
+                // se ajustan empresa, periodo y horas.
+                ComparisonCard(
+                    state = state,
+                    onUpdate = onUpdate,
+                    onOpenBillGuide = { showBillGuide = true },
+                )
+            }
+            item {
                 RtcaConverterCard(
                     state = state,
                     onUpdate = onUpdate,
                     onSeerDone = {
                         scope.launch { listState.animateScrollToItem(CHART_ITEM_INDEX) }
                     },
-                )
-            }
-            item {
-                ComparisonCard(
-                    state = state,
-                    onUpdate = onUpdate,
-                    onOpenBillGuide = { showBillGuide = true },
                 )
             }
             item {
@@ -258,19 +264,19 @@ fun CalculateScreen(
             }
         } else {
             item {
+                ComparisonCard(
+                    state = state,
+                    onUpdate = onUpdate,
+                    onOpenBillGuide = { showBillGuide = true },
+                )
+            }
+            item {
                 RtcaConverterCard(
                     state = state,
                     onUpdate = onUpdate,
                     onSeerDone = {
                         scope.launch { listState.animateScrollToItem(CHART_ITEM_INDEX) }
                     },
-                )
-            }
-            item {
-                ComparisonCard(
-                    state = state,
-                    onUpdate = onUpdate,
-                    onOpenBillGuide = { showBillGuide = true },
                 )
             }
             item {
@@ -888,6 +894,7 @@ private fun RtcaConverterCard(
     onSeerDone: () -> Unit,
 ) {
     var selectedTab by remember { mutableStateOf(0) }
+    var showGuide by remember { mutableStateOf(false) }
     val haptics = rememberPixelHaptics()
     val isAc = state.category == EquipmentCategory.AIR_CONDITIONER
 
@@ -896,7 +903,11 @@ private fun RtcaConverterCard(
         subtitle = stringResource(R.string.calc_equipment_subtitle),
     ) {
         if (isAc) {
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
                 listOf(
                     stringResource(R.string.calc_tab_label),
                     stringResource(R.string.calc_tab_converter),
@@ -919,6 +930,26 @@ private fun RtcaConverterCard(
                             scaleY = scale
                         },
                     )
+                }
+                Spacer(modifier = Modifier.weight(1f))
+                IconButton(
+                    onClick = {
+                        haptics.tap()
+                        showGuide = true
+                    },
+                    modifier = Modifier.pixelChargeHaptics(),
+                ) {
+                    Icon(
+                        imageVector = Icons.Rounded.Info,
+                        contentDescription = stringResource(R.string.calc_guide_cd),
+                    )
+                }
+            }
+            if (showGuide) {
+                if (selectedTab == 1) {
+                    NameplateGuideDialog(onDismiss = { showGuide = false })
+                } else {
+                    RtcaLabelGuideDialog(onDismiss = { showGuide = false })
                 }
             }
         }
@@ -1867,7 +1898,7 @@ private fun NumberField(
     OutlinedTextField(
         value = value,
         onValueChange = { newValue -> if (newValue.length <= 12) onValueChange(newValue) },
-        label = { Text(label) },
+        label = { Text(label, maxLines = 1, overflow = TextOverflow.Ellipsis) },
         placeholder = if (placeholder.isBlank()) null else {
             { Text(placeholder, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)) }
         },
@@ -1885,7 +1916,7 @@ private fun NumberField(
     )
 }
 
-private const val CHART_ITEM_INDEX = 4
+private const val CHART_ITEM_INDEX = 3
 
 private fun CalculateUiState.toReportData(context: Context): ReportData? {
     val spec = spec ?: return null

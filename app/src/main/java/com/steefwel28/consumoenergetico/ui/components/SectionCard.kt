@@ -47,18 +47,7 @@ fun SectionCard(
     content: @Composable ColumnScope.() -> Unit,
 ) {
     val glass = LocalLiquidGlass.current
-    Card(
-        modifier = modifier.fillMaxWidth(),
-        shape = MaterialTheme.shapes.large,
-        colors = CardDefaults.cardColors(
-            containerColor = if (glass) {
-                MaterialTheme.colorScheme.surface.copy(alpha = 0.16f)
-            } else {
-                MaterialTheme.colorScheme.surfaceContainerLow
-            },
-        ),
-        border = if (glass) liquidGlassBorder() else null,
-    ) {
+    val body: @Composable () -> Unit = {
         Column(
             modifier = Modifier.padding(20.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
@@ -76,4 +65,19 @@ fun SectionCard(
             content()
         }
     }
+    if (glass) {
+        LiquidGlassSurface(
+            modifier = modifier.fillMaxWidth(),
+            shape = MaterialTheme.shapes.large,
+        ) { body() }
+        return
+    }
+    Card(
+        modifier = modifier.fillMaxWidth(),
+        shape = MaterialTheme.shapes.large,
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
+        ),
+        border = null,
+    ) { body() }
 }

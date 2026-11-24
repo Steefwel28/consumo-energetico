@@ -29,7 +29,7 @@
     <string name="common_brand_placeholder">Hisense ATR362MA</string>
     <string name="common_base_kwh">Consumo base del recibo (kWh/mes)</string>
     <string name="common_btu">BTU/h</string>
-    <string name="common_watts">Potencia W</string>
+    <string name="common_watts">Potencia (W)</string>
     <string name="common_seer">SEER</string>
     <string name="common_capsules_title">Cápsulas de taller</string>
     <string name="inverter">Inverter</string>
@@ -114,7 +114,12 @@
     <string name="calc_sim_consumption">Consumo simulado</string>
     <string name="calc_sim_bill">En tu factura</string>
     <string name="calc_sim_filters">Filtros limpios</string>
-    <string name="calc_sim_filters_hint">Un filtro sucio sube el consumo cerca de 12 %%.</string>
+    <string name="calc_sim_filters_hint">Un filtro sucio sube el consumo cerca de 12 %.</string>
+    <string name="settings_back_cd">Volver</string>
+    <string name="calc_guide_cd">Ver guía de lectura</string>
+    <string name="calc_guide_label_title">Etiqueta RTCA: qué leer</string>
+    <string name="calc_guide_plate_title">Placa metálica: qué leer</string>
+    <string name="calc_guide_close">Entendido</string>
     <string name="calc_sim_schedule">Franja horaria</string>
     <string name="calc_sim_note">Esta simulación vive aparte: la gráfica superior conserva su consumo base.</string>
     <string name="calc_sim_missing">Completa la etiqueta para ver el consumo en vivo.</string>

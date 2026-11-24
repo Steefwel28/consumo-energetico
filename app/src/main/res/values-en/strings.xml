@@ -29,7 +29,7 @@
     <string name="common_brand_placeholder">Hisense ATR362MA</string>
     <string name="common_base_kwh">Base bill consumption (kWh/month)</string>
     <string name="common_btu">BTU/h</string>
-    <string name="common_watts">Power W</string>
+    <string name="common_watts">Power (W)</string>
     <string name="common_seer">SEER</string>
     <string name="common_capsules_title">Workshop capsules</string>
     <string name="inverter">Inverter</string>
@@ -114,7 +114,12 @@
     <string name="calc_sim_consumption">Simulated consumption</string>
     <string name="calc_sim_bill">On your bill</string>
     <string name="calc_sim_filters">Clean filters</string>
-    <string name="calc_sim_filters_hint">A dirty filter raises consumption by about 12 %%.</string>
+    <string name="calc_sim_filters_hint">A dirty filter raises consumption by about 12 %.</string>
+    <string name="settings_back_cd">Back</string>
+    <string name="calc_guide_cd">View reading guide</string>
+    <string name="calc_guide_label_title">RTCA label: what to read</string>
+    <string name="calc_guide_plate_title">Nameplate: what to read</string>
+    <string name="calc_guide_close">Got it</string>
     <string name="calc_sim_schedule">Time of day</string>
     <string name="calc_sim_note">This simulation lives apart: the chart above keeps its base consumption.</string>
     <string name="calc_sim_missing">Fill in the label to see live consumption.</string>

@@ -10,19 +10,23 @@ import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
-import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.MutableFloatState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
 import androidx.compose.ui.input.nestedscroll.NestedScrollSource
 import androidx.compose.ui.draw.BlurredEdgeTreatment
@@ -34,6 +38,10 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.steefwel28.consumoenergetico.ui.theme.LocalLiquidGlass
+import dev.chrisbanes.haze.HazeState
+import dev.chrisbanes.haze.HazeStyle
+import dev.chrisbanes.haze.HazeTint
+import dev.chrisbanes.haze.hazeEffect
 import kotlin.math.abs
 
 /**
@@ -73,12 +81,7 @@ fun LiquidGlassBackground(
     modifier: Modifier = Modifier,
     scrollFraction: Float = 0f,
 ) {
-    val dark = isSystemInDarkTheme()
-    val context = LocalContext.current
-    // Se consulta al componer; si el usuario cambia el ahorro, se reevalúa al volver.
-    val powerSave = remember(context) {
-        (context.getSystemService(Context.POWER_SERVICE) as? PowerManager)?.isPowerSaveMode == true
-    }
+    val powerSave = rememberPowerSaveMode()
     val blurAllowed = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && !powerSave
     val scroll = scrollFraction.coerceIn(0f, 1f)
     val transition = rememberInfiniteTransition(label = "liquid-glass")
@@ -92,21 +95,21 @@ fun LiquidGlassBackground(
         label = "liquid-drift",
     )
 
-    val cyan = if (dark) Color(0xFF22D3EE) else Color(0xFF7FE3F7)
-    val emerald = if (dark) Color(0xFF34D399) else Color(0xFF6EE7B7)
-    val teal = if (dark) Color(0xFF2DD4BF) else Color(0xFF99F6E4)
+    val cyan = Color(0xFF22D3EE)
+    val emerald = Color(0xFF34D399)
+    val teal = Color(0xFF2DD4BF)
 
     Box(
         modifier = modifier
             .fillMaxSize()
-            .background(if (dark) Color(0xFF04110F) else Color(0xFFF2FBF8)),
+            .background(Color(0xFF04110F)),
     ) {
         Orb(
             color = cyan,
             diameter = 320.dp,
             x = (-90 + 140 * drift - 40 * scroll).dp,
             y = (-60 + 90 * drift - 120 * scroll).dp,
-            alpha = if (dark) 0.30f else 0.42f,
+            alpha = 0.30f,
             blurRadius = 96.dp,
             blurAllowed = blurAllowed,
         )
@@ -115,7 +118,7 @@ fun LiquidGlassBackground(
             diameter = 360.dp,
             x = (180 - 120 * drift + 60 * scroll).dp,
             y = (360 + 150 * drift - 70 * scroll).dp,
-            alpha = if (dark) 0.26f else 0.34f,
+            alpha = 0.26f,
             blurRadius = 110.dp,
             blurAllowed = blurAllowed,
         )
@@ -124,10 +127,102 @@ fun LiquidGlassBackground(
             diameter = 220.dp,
             x = (60 + 180 * drift - 80 * scroll).dp,
             y = (620 - 120 * drift - 160 * scroll).dp,
-            alpha = if (dark) 0.20f else 0.28f,
+            alpha = 0.20f,
             blurRadius = 80.dp,
             blurAllowed = blurAllowed,
         )
+    }
+}
+
+/**
+ * Estado Haze compartido: el fondo lo publica con `hazeSource` y cada tarjeta,
+ * barra o menú lo consume con `hazeEffect` para desenfocar lo que hay detrás.
+ */
+val LocalHazeState = staticCompositionLocalOf<HazeState?> { null }
+
+/** El ahorro de energía apaga el blur real y sube el alfa del tinte. */
+@Composable
+fun rememberPowerSaveMode(): Boolean {
+    val context = LocalContext.current
+    return remember(context) {
+        (context.getSystemService(Context.POWER_SERVICE) as? PowerManager)?.isPowerSaveMode == true
+    }
+}
+
+/**
+ * Desenfoque real del fondo para cualquier superficie de cristal. Devuelve el
+ * modifier intacto si Liquid Glass está apagado o no hay `HazeState` (hojas y
+ * diálogos viven en otra ventana de Android).
+ */
+@Composable
+fun Modifier.liquidGlassEffect(): Modifier {
+    if (!LocalLiquidGlass.current) return this
+    val hazeState = LocalHazeState.current ?: return this
+    val powerSave = rememberPowerSaveMode()
+    return hazeEffect(
+        state = hazeState,
+        style = HazeStyle(
+            backgroundColor = Color(0xFF0A1F1C),
+            tint = HazeTint(Color(0xFF0A1F1C).copy(alpha = if (powerSave) 0.86f else 0.52f)),
+            blurRadius = if (powerSave) 0.dp else 26.dp,
+            noiseFactor = 0.03f,
+        ),
+    )
+}
+
+/**
+ * Superficie de vidrio esmerilado estilo iOS 27: blur real del fondo (`haze`),
+ * tinte translúcido, brillo interno superior y canto especular de 1 dp.
+ *
+ * Con Liquid Glass apagado se comporta como una tarjeta tonal normal.
+ * `containerColor = Color.Transparent` deja el vidrio solo con su tinte, para
+ * envolver hojas modales cuyo contenedor ya es transparente.
+ *
+ * shortcut: dentro de `ModalBottomSheet`/`DropdownMenu` (ventana propia de
+ * Android) no hay `HazeState` accesible; ahí se pinta tinte + canto y el blur
+ * real del fondo lo hace [com.steefwel28.consumoenergetico.ui.components.PixelOverlayState].
+ */
+@Composable
+fun LiquidGlassSurface(
+    modifier: Modifier = Modifier,
+    shape: Shape = RoundedCornerShape(24.dp),
+    containerColor: Color = Color.Transparent,
+    content: @Composable BoxScope.() -> Unit,
+) {
+    val glass = LocalLiquidGlass.current
+    val hazeState = LocalHazeState.current
+    val powerSave = rememberPowerSaveMode()
+    val tint = Color(0xFF0A1F1C).copy(alpha = if (powerSave) 0.86f else 0.52f)
+
+    Box(
+        modifier = modifier
+            .clip(shape)
+            .then(Modifier.liquidGlassEffect())
+            .then(
+                when {
+                    !glass -> Modifier.background(containerColor, shape)
+                    hazeState == null -> Modifier.background(tint, shape)
+                    else -> Modifier
+                },
+            )
+            .then(if (glass) Modifier.border(liquidGlassBorder(), shape) else Modifier),
+    ) {
+        if (glass) {
+            // Brillo interno en el 22 % superior: simula el grosor del cristal.
+            Box(
+                modifier = Modifier
+                    .matchParentSize()
+                    .background(
+                        Brush.verticalGradient(
+                            colorStops = arrayOf(
+                                0f to Color.White.copy(alpha = 0.14f),
+                                0.22f to Color.Transparent,
+                            ),
+                        ),
+                    ),
+            )
+        }
+        content()
     }
 }
 
