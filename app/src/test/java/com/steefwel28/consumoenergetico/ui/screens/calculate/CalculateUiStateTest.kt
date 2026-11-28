@@ -214,7 +214,7 @@ class CalculateUiStateTest {
         val state = CalculateUiState(btuInput = "12000", seerInput = "21")
 
         assertTrue(state.wattsEstimatedBySeer)
-        assertEquals(12_000.0 / (21.0 * 0.293), state.nominalWatts!!, 0.01)
+        assertEquals(12_000.0 / (21.0 * 0.875), state.nominalWatts!!, 0.01)
         assertNotNull(state.spec)
         assertTrue(state.monthlyKwh!! > 0.0)
     }

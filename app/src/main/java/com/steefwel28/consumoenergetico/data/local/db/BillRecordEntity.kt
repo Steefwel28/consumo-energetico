@@ -1,6 +1,7 @@
 package com.steefwel28.consumoenergetico.data.local.db
 
 import androidx.room.Entity
+import androidx.room.ForeignKey
 import androidx.room.Index
 import androidx.room.PrimaryKey
 import com.steefwel28.consumoenergetico.core.signature.CraftedBy
@@ -11,11 +12,19 @@ import com.steefwel28.consumoenergetico.domain.calculator.PanamaUtility
  *
  * Guarda el consumo del recibo ([realKwh]) y lo pagado ([paidBalboas]) para
  * comparar el histórico contra la estimación de la app y calcular la tarifa
- * efectiva mes a mes.
+ * efectiva mes a mes. Se borra junto con su grupo (`ON DELETE CASCADE`).
  */
 @CraftedBy("steefwel28")
 @Entity(
     tableName = "bill_records",
+    foreignKeys = [
+        ForeignKey(
+            entity = PropertyGroupEntity::class,
+            parentColumns = ["id"],
+            childColumns = ["groupId"],
+            onDelete = ForeignKey.CASCADE,
+        ),
+    ],
     indices = [Index(value = ["groupId", "year", "month"], unique = true)],
 )
 data class BillRecordEntity(

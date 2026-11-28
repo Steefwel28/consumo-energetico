@@ -16,6 +16,7 @@ class LocaleNumberTest {
     fun `coma con uno o dos digitos es decimal`() {
         assertEquals(12.5, LocaleNumber.parse("12,5")!!, 0.001)
         assertEquals(0.18, LocaleNumber.parse("0,18")!!, 0.001)
+        assertEquals(0.18, LocaleNumber.parse("0.180")!!, 0.001)
     }
 
     @Test

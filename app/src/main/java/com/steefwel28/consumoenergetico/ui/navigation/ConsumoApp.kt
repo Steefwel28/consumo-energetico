@@ -3,7 +3,6 @@ package com.steefwel28.consumoenergetico.ui.navigation
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
-import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -39,7 +38,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -49,8 +47,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.blur
-import androidx.compose.ui.input.nestedscroll.nestedScroll
-import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalUriHandler
@@ -70,15 +66,12 @@ import com.steefwel28.consumoenergetico.core.di.AppContainer
 import com.steefwel28.consumoenergetico.domain.settings.AppearancePreferences
 import com.steefwel28.consumoenergetico.ui.AppViewModelProvider
 import com.steefwel28.consumoenergetico.ui.components.AppFormat
-import com.steefwel28.consumoenergetico.ui.components.LiquidGlassBackground
-import com.steefwel28.consumoenergetico.ui.components.LiquidGlassScrollConnection
 import com.steefwel28.consumoenergetico.ui.components.LiquidGlassSurface
 import com.steefwel28.consumoenergetico.ui.components.LocalHazeState
 import com.steefwel28.consumoenergetico.ui.components.LocalPixelOverlayState
 import com.steefwel28.consumoenergetico.ui.components.PixelDialog
 import com.steefwel28.consumoenergetico.ui.components.PixelOverlayState
 import com.steefwel28.consumoenergetico.ui.components.PixelSpringExpressive
-import com.steefwel28.consumoenergetico.ui.components.liquidGlassLens
 import com.steefwel28.consumoenergetico.ui.components.pixelChargeHaptics
 import com.steefwel28.consumoenergetico.ui.components.rememberPixelHaptics
 import com.steefwel28.consumoenergetico.ui.screens.calculate.CalculateRoute
@@ -90,7 +83,6 @@ import com.steefwel28.consumoenergetico.ui.screens.myhome.MyHomeRoute
 import com.steefwel28.consumoenergetico.ui.screens.recommend.RecommendRoute
 import com.steefwel28.consumoenergetico.ui.screens.settings.SettingsRoute
 import com.steefwel28.consumoenergetico.ui.screens.splash.ExpressiveSplashScreen
-import com.steefwel28.consumoenergetico.ui.theme.LocalLiquidGlass
 import dev.chrisbanes.haze.hazeSource
 import dev.chrisbanes.haze.rememberHazeState
 import kotlinx.coroutines.Dispatchers
@@ -172,34 +164,28 @@ private fun MainScaffold(
     pendingUpdate: Boolean,
     calculateViewModel: CalculateViewModel,
 ) {
-    val glass = LocalLiquidGlass.current
     val calculateState by calculateViewModel.state.collectAsStateWithLifecycle()
     var showSimulator by rememberSaveable { mutableStateOf(false) }
     var showCapsules by rememberSaveable { mutableStateOf(false) }
     var menuOpen by rememberSaveable { mutableStateOf(false) }
     val hazeState = rememberHazeState()
-    val glassScroll = remember { mutableFloatStateOf(0f) }
-    val glassScrollConnection = remember { LiquidGlassScrollConnection(glassScroll) }
     val currentRoute by navController.currentBackStackEntryAsState()
     val route = currentRoute?.destination?.route
 
     CompositionLocalProvider(LocalHazeState provides hazeState) {
-        // Fondo explícito del modo activo: al apagar Liquid Glass los orbes
-        // desaparecen y el esquema Día/Noche/OLED queda limpio en el mismo frame.
+        // Fondo sólido del esquema Día/Noche/OLED; el desenfoque Haze vive en
+        // la barra inferior, el menú y las hojas modales.
         Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(if (glass) Color.Transparent else MaterialTheme.colorScheme.background),
+                .background(MaterialTheme.colorScheme.background)
+                // Fuente del desenfoque: todo lo que pase por detrás de la
+                // barra inferior y del menú.
+                .hazeSource(hazeState),
         ) {
-            if (glass) {
-                LiquidGlassBackground(
-                    modifier = Modifier.hazeSource(hazeState),
-                    scrollFraction = glassScroll.floatValue,
-                )
-            }
             Scaffold(
                 modifier = if (menuOpen) Modifier.blur(24.dp) else Modifier,
-                containerColor = if (glass) Color.Transparent else MaterialTheme.colorScheme.background,
+                containerColor = MaterialTheme.colorScheme.background,
                 contentWindowInsets = WindowInsets.safeDrawing.only(
                     WindowInsetsSides.Horizontal + WindowInsetsSides.Top,
                 ),
@@ -239,7 +225,6 @@ private fun MainScaffold(
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
-                        .nestedScroll(glassScrollConnection)
                         .padding(innerPadding)
                         .then(
                             if (overlay.blurRadius > 0.dp) {
@@ -324,7 +309,6 @@ private fun TopMenuBar(
     onSettings: () -> Unit,
 ) {
     val haptics = rememberPixelHaptics()
-    val glass = LocalLiquidGlass.current
     val scale by animateFloatAsState(
         targetValue = if (expanded) 1f else 0.88f,
         animationSpec = PixelSpringExpressive,
@@ -387,30 +371,12 @@ private fun TopMenuBar(
                         scaleY = scale
                         this.alpha = alpha
                     }
-                    .alpha(if (expanded) 1f else 0.6f)
-                    .liquidGlassLens(cornerRadius = 24.dp),
+                    .alpha(if (expanded) 1f else 0.6f),
                 shape = MaterialTheme.shapes.large,
-                containerColor = if (glass) {
-                    MaterialTheme.colorScheme.surface.copy(alpha = 0.16f)
-                } else {
-                    MaterialTheme.colorScheme.surfaceContainerHigh
-                },
+                containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
                 tonalElevation = 0.dp,
-                shadowElevation = if (glass) 0.dp else 3.dp,
-                border = if (glass) {
-                    BorderStroke(
-                        width = 1.dp,
-                        brush = Brush.linearGradient(
-                            listOf(
-                                Color.White.copy(alpha = 0.5f),
-                                Color.White.copy(alpha = 0.06f),
-                                Color.White.copy(alpha = 0.26f),
-                            ),
-                        ),
-                    )
-                } else {
-                    null
-                },
+                shadowElevation = 3.dp,
+                border = null,
             ) {
                 DropdownMenuItem(
                     text = {
@@ -496,7 +462,6 @@ private fun PixelNavigationBar(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
         containerColor = MaterialTheme.colorScheme.surfaceContainer,
-        lens = true,
     ) {
     NavigationBar(
         containerColor = Color.Transparent,

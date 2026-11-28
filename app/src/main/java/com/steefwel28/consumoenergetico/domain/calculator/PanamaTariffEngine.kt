@@ -3,9 +3,10 @@ package com.steefwel28.consumoenergetico.domain.calculator
 import com.steefwel28.consumoenergetico.core.signature.CraftedBy
 
 /** Distribuidora eléctrica de Panamá con pliego residencial precargado. */
-enum class PanamaUtility(val displayName: String) {
-    ENSA("ENSA"),
-    NATURGY("Naturgy"),
+enum class PanamaUtility(val displayName: String, val shortName: String) {
+    ENSA("ENSA", "ENSA"),
+    NATURGY("Naturgy EDEMET", "EDEMET"),
+    NATURGY_EDECHI("Naturgy EDECHI", "EDECHI"),
 }
 
 /** Vista elegida en la gráfica comparativa y en la ficha exportada. */
@@ -17,7 +18,7 @@ enum class TariffComparison(val label: String) {
 
 fun PanamaUtility.tariffComparison(): TariffComparison = when (this) {
     PanamaUtility.ENSA -> TariffComparison.ENSA
-    PanamaUtility.NATURGY -> TariffComparison.NATURGY
+    PanamaUtility.NATURGY, PanamaUtility.NATURGY_EDECHI -> TariffComparison.NATURGY
 }
 
 fun TariffComparison.utilityOrNull(): PanamaUtility? = when (this) {
@@ -46,6 +47,10 @@ data class TariffSchedule(
     val utility: PanamaUtility,
     val fixedChargeBalboas: Double,
     val tiers: List<TariffTier>,
+    /** Inicio de vigencia del pliego ASEP, en formato ISO. */
+    val validFrom: String,
+    /** Fin de vigencia del pliego ASEP, en formato ISO. */
+    val validTo: String,
 )
 
 /**
@@ -96,7 +101,8 @@ data class TariffEstimate(
  * [TariffEstimate.addedCostBalboas] cobra cada kWh a su tarifa real y no a un
  * promedio.
  *
- * Los precios son valores de referencia del pliego residencial vigente.
+ * Los precios son los del pliego residencial oficial de ASEP vigente del
+ * 1 de septiembre al 31 de diciembre de 2026 (periodo tarifario 2026–2030).
  * shortcut: pliego fijo en código, revisar contra ASEP en cada release.
  */
 @CraftedBy("steefwel28")
@@ -104,29 +110,50 @@ object PanamaTariffEngine {
 
     const val FIRST_BLOCK_LIMIT_KWH = 10.0
 
+    /** Vigencia del pliego ASEP aplicado a los tres cuadros. */
+    const val VALID_FROM = "2026-09-01"
+    const val VALID_TO = "2026-12-31"
+
     private val ENSA_SCHEDULE = TariffSchedule(
         utility = PanamaUtility.ENSA,
-        fixedChargeBalboas = 1.20,
+        fixedChargeBalboas = 2.76,
         tiers = listOf(
-            TariffTier(10.0, 300.0, 0.1685),
-            TariffTier(300.0, 750.0, 0.2145),
-            TariffTier(750.0, null, 0.2390),
+            TariffTier(10.0, 300.0, 0.17737),
+            TariffTier(300.0, 750.0, 0.24666),
+            TariffTier(750.0, null, 0.27005),
         ),
+        validFrom = VALID_FROM,
+        validTo = VALID_TO,
     )
 
     private val NATURGY_SCHEDULE = TariffSchedule(
         utility = PanamaUtility.NATURGY,
-        fixedChargeBalboas = 1.15,
+        fixedChargeBalboas = 3.17,
         tiers = listOf(
-            TariffTier(10.0, 300.0, 0.1792),
-            TariffTier(300.0, 750.0, 0.2285),
-            TariffTier(750.0, null, 0.2540),
+            TariffTier(10.0, 300.0, 0.17624),
+            TariffTier(300.0, 750.0, 0.23177),
+            TariffTier(750.0, null, 0.25027),
         ),
+        validFrom = VALID_FROM,
+        validTo = VALID_TO,
+    )
+
+    private val NATURGY_EDECHI_SCHEDULE = TariffSchedule(
+        utility = PanamaUtility.NATURGY_EDECHI,
+        fixedChargeBalboas = 3.04,
+        tiers = listOf(
+            TariffTier(10.0, 300.0, 0.19175),
+            TariffTier(300.0, 750.0, 0.25341),
+            TariffTier(750.0, null, 0.27486),
+        ),
+        validFrom = VALID_FROM,
+        validTo = VALID_TO,
     )
 
     fun schedule(utility: PanamaUtility): TariffSchedule = when (utility) {
         PanamaUtility.ENSA -> ENSA_SCHEDULE
         PanamaUtility.NATURGY -> NATURGY_SCHEDULE
+        PanamaUtility.NATURGY_EDECHI -> NATURGY_EDECHI_SCHEDULE
     }
 
     /** Factura mensual completa (cargo fijo + energía) para [kwh]. */

@@ -21,6 +21,7 @@ import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
@@ -33,9 +34,11 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Add
+import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.History
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
@@ -46,13 +49,18 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -73,7 +81,12 @@ import com.steefwel28.consumoenergetico.data.local.db.AcUnitEntity
 import com.steefwel28.consumoenergetico.data.local.db.BillRecordEntity
 import com.steefwel28.consumoenergetico.data.local.db.MaintenanceLogEntity
 import com.steefwel28.consumoenergetico.data.local.db.PropertyGroupEntity
+import com.steefwel28.consumoenergetico.domain.calculator.AcConsumptionCalculator
+import com.steefwel28.consumoenergetico.domain.calculator.AcUnitSpec
+import com.steefwel28.consumoenergetico.domain.calculator.AcUsage
+import com.steefwel28.consumoenergetico.domain.calculator.MAX_BTU_PER_HOUR
 import com.steefwel28.consumoenergetico.domain.calculator.PanamaUtility
+import com.steefwel28.consumoenergetico.domain.calculator.PowerEstimator
 import com.steefwel28.consumoenergetico.domain.calculator.TariffEstimate
 import com.steefwel28.consumoenergetico.domain.units.LocaleNumber
 import com.steefwel28.consumoenergetico.ui.AppViewModelProvider
@@ -92,6 +105,7 @@ import java.util.Date
 import java.util.Locale
 import kotlin.math.abs
 import kotlin.math.roundToInt
+import kotlinx.coroutines.launch
 
 @Composable
 fun MyHomeRoute(
@@ -105,6 +119,10 @@ fun MyHomeRoute(
         onSaveGroup = viewModel::saveGroup,
         onSaveUnit = viewModel::saveUnit,
         onSaveBill = viewModel::saveBill,
+        onDeleteUnit = viewModel::deleteUnit,
+        onRestoreUnit = viewModel::restoreUnit,
+        onDeleteBill = viewModel::deleteBill,
+        onRestoreBill = viewModel::restoreBill,
         onRegisterMaintenance = viewModel::registerMaintenance,
         onDismissMessage = viewModel::dismissMessage,
     )
@@ -117,6 +135,10 @@ fun MyHomeScreen(
     onSaveGroup: (GroupDraft) -> Unit,
     onSaveUnit: (UnitDraft) -> Unit,
     onSaveBill: (BillDraft) -> Unit,
+    onDeleteUnit: (AcUnitEntity) -> Unit,
+    onRestoreUnit: (AcUnitEntity, List<MaintenanceLogEntity>) -> Unit,
+    onDeleteBill: (BillRecordEntity) -> Unit,
+    onRestoreBill: (BillRecordEntity) -> Unit,
     onRegisterMaintenance: (Long) -> Unit,
     onDismissMessage: () -> Unit,
 ) {
@@ -128,7 +150,13 @@ fun MyHomeScreen(
     var showBillDialog by remember { mutableStateOf(false) }
     val haptics = rememberPixelHaptics()
     val group = state.selectedGroup
+    val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
+    val deletedUnitMessage = stringResource(R.string.home_msg_unit_deleted)
+    val deletedBillMessage = stringResource(R.string.home_msg_bill_deleted)
+    val undoLabel = stringResource(R.string.home_undo)
 
+    Box(modifier = Modifier.fillMaxSize()) {
     LazyColumn(
         modifier = Modifier.fillMaxWidth(),
         contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 20.dp, bottom = 32.dp),
@@ -187,6 +215,17 @@ fun MyHomeScreen(
                     onRegisterBill = {
                         haptics.tap()
                         showBillDialog = true
+                    },
+                    onDeleteBill = { bill ->
+                        haptics.tap()
+                        onDeleteBill(bill)
+                        scope.launch {
+                            val result = snackbarHostState.showSnackbar(
+                                message = deletedBillMessage,
+                                actionLabel = undoLabel,
+                            )
+                            if (result == SnackbarResult.ActionPerformed) onRestoreBill(bill)
+                        }
                     },
                 )
             }
@@ -264,6 +303,14 @@ fun MyHomeScreen(
         }
     }
 
+        SnackbarHost(
+            hostState = snackbarHostState,
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .padding(16.dp),
+        )
+    }
+
     if (showNewGroup || editingGroup != null) {
         GroupDialog(
             group = editingGroup,
@@ -293,6 +340,21 @@ fun MyHomeScreen(
                 onSaveUnit(draft)
                 showNewUnit = false
                 editingUnit = null
+            },
+            onDelete = { unitToDelete ->
+                val logs = state.historyFor(unitToDelete.id)
+                onDeleteUnit(unitToDelete)
+                showNewUnit = false
+                editingUnit = null
+                scope.launch {
+                    val result = snackbarHostState.showSnackbar(
+                        message = deletedUnitMessage,
+                        actionLabel = undoLabel,
+                    )
+                    if (result == SnackbarResult.ActionPerformed) {
+                        onRestoreUnit(unitToDelete, logs)
+                    }
+                }
             },
         )
     }
@@ -383,6 +445,7 @@ private fun GroupSummaryCard(
     estimate: TariffEstimate?,
     onEdit: () -> Unit,
     onRegisterBill: () -> Unit,
+    onDeleteBill: (BillRecordEntity) -> Unit,
 ) {
     SectionCard(
         title = stringResource(R.string.home_summary_title, group.nombreGrupo),
@@ -440,7 +503,7 @@ private fun GroupSummaryCard(
         }
 
         if (state.recentBills.isNotEmpty()) {
-            BillMonthBars(state = state)
+            BillMonthBars(state = state, onDeleteBill = onDeleteBill)
         }
 
         FilledTonalButton(
@@ -499,7 +562,10 @@ private fun ClimatizationBar(climatization: Double, rest: Double) {
 
 /** Barras Pixel deslizables con el histórico real; toca un mes para el detalle. */
 @Composable
-private fun BillMonthBars(state: MyHomeUiState) {
+private fun BillMonthBars(
+    state: MyHomeUiState,
+    onDeleteBill: (BillRecordEntity) -> Unit,
+) {
     val haptics = rememberPixelHaptics()
     var showKwh by remember { mutableStateOf(true) }
     var selected by remember { mutableStateOf<BillRecordEntity?>(null) }
@@ -628,6 +694,24 @@ private fun BillMonthBars(state: MyHomeUiState) {
                     ),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            TextButton(
+                onClick = {
+                    haptics.confirm()
+                    selected = null
+                    onDeleteBill(bill)
+                },
+            ) {
+                Icon(
+                    imageVector = Icons.Rounded.Delete,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.error,
+                )
+                Text(
+                    text = stringResource(R.string.home_delete_bill),
+                    color = MaterialTheme.colorScheme.error,
+                    modifier = Modifier.padding(start = 6.dp),
                 )
             }
         }
@@ -823,7 +907,7 @@ private fun GroupDialog(
                                 index = index,
                                 count = PanamaUtility.entries.size,
                             ),
-                        ) { Text(option.displayName) }
+                        ) { Text(option.shortName) }
                     }
                 }
                 OutlinedTextField(
@@ -847,6 +931,7 @@ private fun UnitDialog(
     initialGroupId: Long,
     onDismiss: () -> Unit,
     onSave: (UnitDraft) -> Unit,
+    onDelete: (AcUnitEntity) -> Unit,
 ) {
     val haptics = rememberPixelHaptics()
     var groupId by remember { mutableStateOf(unit?.groupId ?: initialGroupId) }
@@ -856,7 +941,7 @@ private fun UnitDialog(
     var spaceName by remember { mutableStateOf(unit?.nombreEspacio.orEmpty()) }
     var brandModel by remember { mutableStateOf(unit?.marcaModelo?.takeUnless { it == "Sin marca/modelo" }.orEmpty()) }
     var btuInput by remember { mutableStateOf((unit?.btu ?: 12_000).toString()) }
-    var wattsInput by remember { mutableStateOf("") }
+    var wattsInput by remember { mutableStateOf(unit?.nominalWatts?.toString().orEmpty()) }
     var seerInput by remember { mutableStateOf(unit?.seer?.let { AppFormat.decimal(it) }.orEmpty()) }
     var inverter by remember { mutableStateOf(unit?.esInverter ?: true) }
     var consumoInput by remember {
@@ -865,11 +950,41 @@ private fun UnitDialog(
     var hoursInput by remember {
         mutableStateOf(AppFormat.kwhNumber(unit?.horasUsoDiario ?: 8.0))
     }
+    // Si el consumo guardado se aparta >5 % de la estimación, el usuario lo
+    // escribió a mano y no debe sobrescribirse al cambiar BTU u horas.
+    var consumoEdited by remember(unit?.id) {
+        mutableStateOf(
+            unit != null && unit.consumoEstimadoKwhMes > 0.0 && run {
+                val estimate = estimatedMonthlyKwh(
+                    unit.btu,
+                    unit.nominalWatts?.toDouble(),
+                    unit.seer,
+                    unit.esInverter,
+                    unit.horasUsoDiario,
+                ) ?: return@run false
+                abs(unit.consumoEstimadoKwhMes - estimate) / unit.consumoEstimadoKwhMes > 0.05
+            },
+        )
+    }
 
-    val btu = btuInput.toIntOrNull()
+    val btuValue = LocaleNumber.parse(btuInput)?.takeIf { it in 1.0..MAX_BTU_PER_HOUR }
+    val btu = btuValue?.roundToInt()
+    val btuError = btuInput.isNotBlank() && btuValue == null
     val chosenLocation = if (useOther) otherLocation.trim() else location
-    val valid = btu != null && btu > 0 && chosenLocation.isNotBlank() &&
+    val valid = btu != null && chosenLocation.isNotBlank() &&
         groups.any { it.id == groupId }
+
+    LaunchedEffect(btuInput, wattsInput, seerInput, inverter, hoursInput) {
+        if (consumoEdited || btu == null) return@LaunchedEffect
+        val estimate = estimatedMonthlyKwh(
+            btu = btu,
+            watts = LocaleNumber.parse(wattsInput),
+            seer = LocaleNumber.parse(seerInput),
+            inverter = inverter,
+            hours = (LocaleNumber.parse(hoursInput) ?: 8.0).coerceIn(1.0, 24.0),
+        )
+        if (estimate != null) consumoInput = AppFormat.kwhNumber(estimate)
+    }
 
     PixelDialog(
         title = stringResource(if (unit == null) R.string.home_new_unit else R.string.home_edit_unit),
@@ -972,6 +1087,12 @@ private fun UnitDialog(
                         onValueChange = { btuInput = it },
                         label = { Text(stringResource(R.string.common_btu)) },
                         singleLine = true,
+                        isError = btuError,
+                        supportingText = if (btuError) {
+                            { Text(stringResource(R.string.home_msg_btu_positive)) }
+                        } else {
+                            null
+                        },
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                         modifier = Modifier.weight(1f),
                     )
@@ -997,7 +1118,10 @@ private fun UnitDialog(
                     )
                     OutlinedTextField(
                         value = consumoInput,
-                        onValueChange = { consumoInput = it },
+                        onValueChange = { value ->
+                            consumoInput = value
+                            consumoEdited = value.isNotBlank()
+                        },
                         label = { Text(stringResource(R.string.home_kwh_month)) },
                         placeholder = { Text(stringResource(R.string.home_kwh_estimate_placeholder)) },
                         singleLine = true,
@@ -1033,6 +1157,26 @@ private fun UnitDialog(
                             inverter = checked
                         },
                     )
+                }
+
+                if (unit != null) {
+                    Button(
+                        onClick = {
+                            haptics.confirm()
+                            onDelete(unit)
+                        },
+                        colors = ButtonDefaults.buttonColors(
+                            containerColor = MaterialTheme.colorScheme.error,
+                            contentColor = MaterialTheme.colorScheme.onError,
+                        ),
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Icon(imageVector = Icons.Rounded.Delete, contentDescription = null)
+                        Text(
+                            text = stringResource(R.string.home_delete_unit),
+                            modifier = Modifier.padding(start = 8.dp),
+                        )
+                    }
                 }
             }
         },
@@ -1179,6 +1323,29 @@ private fun maintenanceText(days: Long): String = when {
 private fun formatDate(millis: Long): String =
     SimpleDateFormat("d MMM yyyy", Locale.getDefault()).format(Date(millis))
 
+/** Consumo mensual estimado con la potencia real o `W = BTU/h ÷ EER`. */
+private fun estimatedMonthlyKwh(
+    btu: Int,
+    watts: Double?,
+    seer: Double?,
+    inverter: Boolean,
+    hours: Double,
+): Double? = runCatching {
+    AcConsumptionCalculator.monthlyKwh(
+        AcUnitSpec(
+            btuPerHour = btu.toDouble(),
+            nominalWatts = watts ?: PowerEstimator.fromBtu(
+                btuPerHour = btu.toDouble(),
+                seer = seer,
+                isInverter = inverter,
+            ),
+            seer = seer,
+            inverter = inverter,
+        ),
+        AcUsage(hoursPerDay = hours.coerceIn(1.0, 24.0)),
+    )
+}.getOrNull()
+
 @Preview(name = "Mi Casa claro", showBackground = true, heightDp = 900)
 @Preview(
     name = "Mi Casa oscuro",
@@ -1195,6 +1362,10 @@ private fun MyHomeScreenPreview() {
             onSaveGroup = {},
             onSaveUnit = {},
             onSaveBill = {},
+            onDeleteUnit = {},
+            onRestoreUnit = { _, _ -> },
+            onDeleteBill = {},
+            onRestoreBill = {},
             onRegisterMaintenance = {},
             onDismissMessage = {},
         )

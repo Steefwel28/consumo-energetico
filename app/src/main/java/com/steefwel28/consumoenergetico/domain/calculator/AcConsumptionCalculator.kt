@@ -30,8 +30,8 @@ data class AcUnitSpec(
 }
 
 /**
- * Conversor de placa cuando el técnico solo tiene `Ton`, `kW` térmicos o
- * amperios. Las tres salidas están en BTU/h, la unidad de la etiqueta RTCA.
+ * Conversor de placa cuando el técnico solo tiene `Ton` o `kW` térmicos.
+ * Ambas salidas están en BTU/h, la unidad de la etiqueta RTCA.
  */
 @CraftedBy("steefwel28")
 object AcPlateConverter {
@@ -47,19 +47,6 @@ object AcPlateConverter {
     fun thermalKilowattsToBtuPerHour(kilowatts: Double): Double {
         require(kilowatts > 0.0) { "Los kW térmicos deben ser mayores que cero." }
         return kilowatts * BTUS_PER_THERMAL_KW
-    }
-
-    /**
-     * Estima la capacidad térmica desde la corriente de placa.
-     *
-     * shortcut: asume factor de potencia y eficiencia 1.0, ajustar cuando se
-     * lean las tres corrientes del compresor.
-     */
-    fun amperesToBtuPerHour(amperes: Double, volts: Double, powerFactor: Double = 1.0): Double {
-        require(amperes > 0.0) { "Los amperios deben ser mayores que cero." }
-        require(volts > 0.0) { "El voltaje debe ser mayor que cero." }
-        require(powerFactor in 0.0..1.0) { "El factor de potencia debe estar entre 0 y 1." }
-        return amperes * volts * powerFactor * BTUS_PER_THERMAL_KW / 1000.0
     }
 }
 

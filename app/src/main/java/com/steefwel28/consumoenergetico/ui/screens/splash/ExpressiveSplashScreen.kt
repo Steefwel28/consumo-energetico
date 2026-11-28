@@ -34,7 +34,8 @@ import androidx.compose.ui.unit.dp
 import com.steefwel28.consumoenergetico.BuildConfig
 import com.steefwel28.consumoenergetico.R
 import com.steefwel28.consumoenergetico.ui.components.PixelEmblem
-import com.steefwel28.consumoenergetico.ui.components.rememberPixelChargeVibrator
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import kotlin.math.abs
 import kotlin.math.cos
 import kotlin.math.floor
@@ -55,7 +56,7 @@ fun ExpressiveSplashScreen(onFinished: () -> Unit) {
     val dark = isSystemInDarkTheme()
     val paper = if (dark) Color.Black else Color.White
     val ink = if (dark) Color.White else Color.Black
-    val haptics = rememberPixelChargeVibrator()
+    val haptics = LocalHapticFeedback.current
 
     val morph = remember { Animatable(0f) }
     val emblemAppear = remember { Animatable(0f) }
@@ -75,18 +76,18 @@ fun ExpressiveSplashScreen(onFinished: () -> Unit) {
     // Coreografía háptica absoluta en 3 etapas sobre los 2.0 s del splash:
     // 0–600 ms un tick, 600–1,200 ms dos pulsos, 1,200–2,000 ms rampa + "pop".
     LaunchedEffect(Unit) {
-        haptics.tick(0.25f)
+        haptics.performHapticFeedback(HapticFeedbackType.SegmentTick)
         delay(600)
-        haptics.tick(0.45f)
+        haptics.performHapticFeedback(HapticFeedbackType.SegmentTick)
         delay(65)
-        haptics.tick(0.52f)
+        haptics.performHapticFeedback(HapticFeedbackType.SegmentTick)
         delay(535) // cierra la etapa 2 en 1,200 ms
         for (step in 0..15) {
-            haptics.tick(0.58f + 0.42f * step / 15f)
+            haptics.performHapticFeedback(HapticFeedbackType.SegmentTick)
             delay(50) // la última iteración aterriza en 2,000 ms
         }
         // El "pop" suena antes de ceder el control a la pantalla principal.
-        haptics.pop()
+        haptics.performHapticFeedback(HapticFeedbackType.Confirm)
         onFinished()
     }
     // Rebote del emblema: sobrepasa a 1.16 y aterriza en 1.12 exactos a los 2,000 ms.

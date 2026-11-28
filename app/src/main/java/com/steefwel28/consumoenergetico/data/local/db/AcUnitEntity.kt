@@ -2,6 +2,7 @@ package com.steefwel28.consumoenergetico.data.local.db
 
 import androidx.room.ColumnInfo
 import androidx.room.Entity
+import androidx.room.ForeignKey
 import androidx.room.Index
 import androidx.room.PrimaryKey
 import com.steefwel28.consumoenergetico.core.signature.CraftedBy
@@ -10,6 +11,14 @@ import com.steefwel28.consumoenergetico.core.signature.CraftedBy
 @CraftedBy("steefwel28")
 @Entity(
     tableName = "ac_units",
+    foreignKeys = [
+        ForeignKey(
+            entity = PropertyGroupEntity::class,
+            parentColumns = ["id"],
+            childColumns = ["groupId"],
+            onDelete = ForeignKey.CASCADE,
+        ),
+    ],
     indices = [Index("groupId")],
 )
 data class AcUnitEntity(
@@ -18,6 +27,8 @@ data class AcUnitEntity(
     val nombreEspacio: String,
     val marcaModelo: String,
     val btu: Int,
+    /** Potencia real de placa; nula cuando solo hay estimación por SEER. */
+    val nominalWatts: Int? = null,
     val seer: Double?,
     val esInverter: Boolean,
     val voltaje: Int,

@@ -11,6 +11,7 @@ import com.steefwel28.consumoenergetico.domain.calculator.AcUnitSpec
 import com.steefwel28.consumoenergetico.domain.calculator.AcUsage
 import com.steefwel28.consumoenergetico.domain.calculator.PanamaTariffEngine
 import com.steefwel28.consumoenergetico.domain.calculator.PanamaUtility
+import com.steefwel28.consumoenergetico.domain.calculator.PowerEstimator
 import com.steefwel28.consumoenergetico.domain.calculator.TariffComparison
 import com.steefwel28.consumoenergetico.domain.calculator.TariffEstimate
 import com.steefwel28.consumoenergetico.domain.calculator.TariffMode
@@ -56,7 +57,6 @@ enum class UsagePeriod {
 enum class PlateConverterMode(val label: String, val unit: String) {
     TONS("Toneladas", "Ton"),
     KILOWATTS("kW térmicos", "kW"),
-    AMPERES("Amperios", "A"),
 }
 
 /** Ubicaciones base; "Otros" se guarda en Room para reutilizarse. */
@@ -111,7 +111,6 @@ data class CalculateUiState(
     val simulatedHoursPerDay: Int = 8,
     val converterMode: PlateConverterMode = PlateConverterMode.TONS,
     val converterInput: String = "1",
-    val converterVoltage: Int = 220,
     val currentBtuInput: String = "12000",
     val currentWattsInput: String = "1600",
     val currentSeerInput: String = "",
@@ -129,14 +128,14 @@ data class CalculateUiState(
     val btu: Double? get() = btuInput.toDecimal(1.0..60_000.0)
     val seer: Double? get() = seerInput.toDecimal(1.0..40.0)
 
-    /** Sin potencia en placa se estima con BTU/h y SEER: W = BTU / (SEER × 0.293). */
+    /** Sin potencia en placa se estima con `W = BTU/h ÷ EER` (ver [PowerEstimator]). */
     val wattsEstimatedBySeer: Boolean
         get() = wattsInput.isBlank() && btu != null && seer != null
 
     val nominalWatts: Double?
         get() = wattsInput.toDecimal(1.0..20_000.0)
             ?: if (wattsEstimatedBySeer) {
-                (btu!! / (seer!! * 0.293)).takeIf { it in 1.0..20_000.0 }
+                PowerEstimator.fromBtu(btu!!, seer, inverter).takeIf { it in 1.0..20_000.0 }
             } else {
                 null
             }
@@ -238,22 +237,35 @@ data class CalculateUiState(
     val ensaEstimate: TariffEstimate?
         get() = estimateFor(TariffMode.Tiered(PanamaUtility.ENSA))
 
-    /** Pliego Naturgy, independiente del modo manual, para el duelo VS. */
+    /** Pliego Naturgy EDEMET, independiente del modo manual, para el duelo VS. */
     val naturgyEstimate: TariffEstimate?
         get() = estimateFor(TariffMode.Tiered(PanamaUtility.NATURGY))
+
+    /** Pliego Naturgy EDECHI (Chiriquí) cuando el grupo lo elige. */
+    val edechiEstimate: TariffEstimate?
+        get() = estimateFor(TariffMode.Tiered(PanamaUtility.NATURGY_EDECHI))
+
+    /** Pliego Naturgy de la vista: EDECHI si el grupo lo eligió, si no EDEMET. */
+    val naturgySideEstimate: TariffEstimate?
+        get() = if (utility == PanamaUtility.NATURGY_EDECHI) edechiEstimate else naturgyEstimate
 
     /** Estimación de la vista activa; en VS se dibujan las dos por separado. */
     val chartEstimate: TariffEstimate?
         get() = when (chartMode) {
             TariffComparison.ENSA -> if (manualCost) tariffEstimate else ensaEstimate
-            TariffComparison.NATURGY -> if (manualCost) tariffEstimate else naturgyEstimate
+            TariffComparison.NATURGY -> if (manualCost) tariffEstimate else naturgySideEstimate
             TariffComparison.VS -> null
         }
+
+    /** Vigencia ASEP del pliego visible en la tarjeta de tarifa. */
+    val tariffValidFrom: String get() = PanamaTariffEngine.VALID_FROM
+
+    val tariffValidTo: String get() = PanamaTariffEngine.VALID_TO
 
     val comparisonDifference: Double?
         get() {
             val ensa = ensaEstimate?.addedCostBalboas ?: return null
-            val naturgy = naturgyEstimate?.addedCostBalboas ?: return null
+            val naturgy = naturgySideEstimate?.addedCostBalboas ?: return null
             return abs(ensa - naturgy)
         }
 
@@ -263,7 +275,7 @@ data class CalculateUiState(
             TariffComparison.ENSA, TariffComparison.NATURGY -> chartEstimate?.addedCostBalboas
             TariffComparison.VS -> listOfNotNull(
                 ensaEstimate?.addedCostBalboas,
-                naturgyEstimate?.addedCostBalboas,
+                naturgySideEstimate?.addedCostBalboas,
             ).minOrNull()
         }
 
@@ -326,10 +338,6 @@ data class CalculateUiState(
                 when (converterMode) {
                     PlateConverterMode.TONS -> AcPlateConverter.tonsToBtuPerHour(value)
                     PlateConverterMode.KILOWATTS -> AcPlateConverter.thermalKilowattsToBtuPerHour(value)
-                    PlateConverterMode.AMPERES -> AcPlateConverter.amperesToBtuPerHour(
-                        amperes = value,
-                        volts = converterVoltage.toDouble(),
-                    )
                 }
             }.getOrNull()
         }
@@ -386,6 +394,7 @@ data class CalculateUiState(
             nombreEspacio = spaceName.trim().ifBlank { ubicacion.ifBlank { "Mi espacio" } },
             marcaModelo = brandModel.trim().ifBlank { "Sin marca/modelo" },
             btu = spec.btuPerHour.roundToInt(),
+            nominalWatts = nominalWatts?.roundToInt(),
             seer = spec.seer,
             esInverter = spec.inverter,
             voltaje = electrical.voltage,

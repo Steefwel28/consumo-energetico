@@ -41,7 +41,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.HelpOutline
 import androidx.compose.material.icons.rounded.Add
-import androidx.compose.material.icons.rounded.CameraAlt
 import androidx.compose.material.icons.rounded.Construction
 import androidx.compose.material.icons.rounded.ExpandMore
 import androidx.compose.material.icons.rounded.Image
@@ -113,7 +112,6 @@ import com.steefwel28.consumoenergetico.domain.calculator.TariffComparison
 import com.steefwel28.consumoenergetico.domain.calculator.TariffEstimate
 import com.steefwel28.consumoenergetico.domain.calculator.utilityOrNull
 import com.steefwel28.consumoenergetico.domain.narrative.CoherenceWarning
-import com.steefwel28.consumoenergetico.domain.scanner.RtcaLabelReading
 import com.steefwel28.consumoenergetico.domain.units.LocaleNumber
 import com.steefwel28.consumoenergetico.ui.AppViewModelProvider
 import com.steefwel28.consumoenergetico.ui.components.AppFormat
@@ -123,7 +121,6 @@ import com.steefwel28.consumoenergetico.ui.components.PixelModalBottomSheet
 import com.steefwel28.consumoenergetico.ui.components.PixelSpringExpressive
 import com.steefwel28.consumoenergetico.ui.components.PixelSpringSnappy
 import com.steefwel28.consumoenergetico.ui.components.RtcaLabelGuideDialog
-import com.steefwel28.consumoenergetico.ui.components.RtcaScannerSheet
 import com.steefwel28.consumoenergetico.ui.components.SectionCard
 import com.steefwel28.consumoenergetico.ui.components.labelRes
 import com.steefwel28.consumoenergetico.ui.components.pixelChargeHaptics
@@ -153,7 +150,6 @@ fun CalculateRoute(
         onUpdate = viewModel::update,
         onSave = viewModel::save,
         onDismissSaveResult = viewModel::dismissSaveResult,
-        onScanApplied = viewModel::applyScan,
     )
 }
 
@@ -163,9 +159,7 @@ fun CalculateScreen(
     onUpdate: ((CalculateUiState) -> CalculateUiState) -> Unit,
     onSave: (SaveRequest) -> Unit,
     onDismissSaveResult: () -> Unit,
-    onScanApplied: (RtcaLabelReading) -> Unit,
 ) {
-    var showScanner by remember { mutableStateOf(false) }
     var showBillGuide by remember { mutableStateOf(false) }
     var showSaveDialog by remember { mutableStateOf(false) }
     var showShareSheet by remember { mutableStateOf(false) }
@@ -230,10 +224,6 @@ fun CalculateScreen(
                     onUpdate { it.copy(category = category) }
                 },
             )
-        }
-
-        item {
-            ScanLabelButton(onOpenScanner = { showScanner = true })
         }
 
         if (state.category == EquipmentCategory.AIR_CONDITIONER) {
@@ -305,12 +295,6 @@ fun CalculateScreen(
         }
     }
 
-    if (showScanner) {
-        RtcaScannerSheet(
-            onDismiss = { showScanner = false },
-            onApply = onScanApplied,
-        )
-    }
     if (showBillGuide) {
         BillGuideSheet(onDismiss = { showBillGuide = false })
     }
@@ -449,6 +433,16 @@ private fun ComparisonCard(
                 )
             }
         }
+
+        Text(
+            text = stringResource(
+                R.string.calc_tariff_validity,
+                state.tariffValidFrom,
+                state.tariffValidTo,
+            ),
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
 
         when (state.chartMode) {
             TariffComparison.VS -> VsChart(state = state)
@@ -699,7 +693,7 @@ private fun VsChart(state: CalculateUiState) {
         RestingWaveChart()
         return
     }
-    val naturgy = state.naturgyEstimate ?: run {
+    val naturgy = state.naturgySideEstimate ?: run {
         RestingWaveChart()
         return
     }
@@ -937,22 +931,6 @@ private fun PixelWaveBar(
                 }
             }
         }
-    }
-}
-
-@Composable
-private fun ScanLabelButton(onOpenScanner: () -> Unit) {
-    val haptics = rememberPixelHaptics()
-
-    FilledTonalButton(
-        onClick = {
-            haptics.tap()
-            onOpenScanner()
-        },
-        modifier = Modifier.fillMaxWidth(),
-    ) {
-        Icon(imageVector = Icons.Rounded.CameraAlt, contentDescription = null)
-        Text(text = stringResource(R.string.scanner_title), modifier = Modifier.padding(start = 8.dp))
     }
 }
 
@@ -1249,26 +1227,6 @@ private fun ConverterFields(
             onValueChange = { value -> onUpdate { it.copy(converterInput = value) } },
             modifier = Modifier.weight(1f),
         )
-        if (state.converterMode == PlateConverterMode.AMPERES) {
-            Column {
-                FilterChip(
-                    selected = state.converterVoltage == 110,
-                    onClick = {
-                        haptics.tap()
-                        onUpdate { it.copy(converterVoltage = 110) }
-                    },
-                    label = { Text("110 V") },
-                )
-                FilterChip(
-                    selected = state.converterVoltage == 220,
-                    onClick = {
-                        haptics.tap()
-                        onUpdate { it.copy(converterVoltage = 220) }
-                    },
-                    label = { Text("220 V") },
-                )
-            }
-        }
     }
     state.converterBtu?.let { btu ->
         Text(
@@ -1874,7 +1832,7 @@ private fun SaveToProfileDialog(
                                     count = PanamaUtility.entries.size,
                                 ),
                             ) {
-                                Text(utility.displayName)
+                                Text(utility.shortName)
                             }
                         }
                     }
@@ -2070,7 +2028,7 @@ private fun CalculateUiState.toReportData(context: Context): ReportData? {
     val kwh = periodKwh ?: return null
     val electrical = electrical ?: return null
     val ensa = ensaEstimate ?: return null
-    val naturgy = naturgyEstimate ?: return null
+    val naturgy = naturgySideEstimate ?: return null
     val ensaCost = ensa.addedCostBalboas
     val naturgyCost = naturgy.addedCostBalboas
     val displayCost = primaryMonthlyCost ?: minOf(ensaCost, naturgyCost)
@@ -2124,7 +2082,6 @@ private fun CalculateScreenPreview() {
             onUpdate = {},
             onSave = { _ -> },
             onDismissSaveResult = {},
-            onScanApplied = {},
         )
     }
 }

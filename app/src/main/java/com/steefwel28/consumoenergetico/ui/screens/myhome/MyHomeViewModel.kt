@@ -13,8 +13,11 @@ import com.steefwel28.consumoenergetico.data.local.db.PropertyGroupEntity
 import com.steefwel28.consumoenergetico.domain.calculator.AcConsumptionCalculator
 import com.steefwel28.consumoenergetico.domain.calculator.AcUnitSpec
 import com.steefwel28.consumoenergetico.domain.calculator.AcUsage
+import com.steefwel28.consumoenergetico.domain.calculator.MAX_BTU_PER_HOUR
 import com.steefwel28.consumoenergetico.domain.calculator.PanamaUtility
+import com.steefwel28.consumoenergetico.domain.calculator.PowerEstimator
 import com.steefwel28.consumoenergetico.domain.recommender.ElectricalSpecAdvisor
+import kotlin.math.roundToInt
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -109,7 +112,7 @@ class MyHomeViewModel(
     }
 
     fun saveUnit(draft: UnitDraft) {
-        if (draft.btu <= 0) {
+        if (draft.btu <= 0 || draft.btu > MAX_BTU_PER_HOUR) {
             _state.update {
                 it.copy(message = container.appContext.getString(R.string.home_msg_btu_positive))
             }
@@ -141,6 +144,7 @@ class MyHomeViewModel(
                     nombreEspacio = draft.nombreEspacio.trim().ifBlank { location },
                     marcaModelo = draft.marcaModelo.trim().ifBlank { "Sin marca/modelo" },
                     btu = draft.btu,
+                    nominalWatts = watts?.roundToInt(),
                     seer = draft.seer,
                     esInverter = draft.inverter,
                     voltaje = ElectricalSpecAdvisor.advise(
@@ -250,10 +254,73 @@ class MyHomeViewModel(
         _state.update { it.copy(message = null) }
     }
 
+    /** Borra el equipo; el Snackbar puede reinsertarlo junto con su historial. */
+    fun deleteUnit(unit: AcUnitEntity) {
+        viewModelScope.launch {
+            runCatching { container.database.acUnitDao().deleteById(unit.id) }
+                .onFailure { error ->
+                    _state.update {
+                        it.copy(
+                            message = error.message
+                                ?: container.appContext.getString(R.string.home_msg_unit_error),
+                        )
+                    }
+                }
+        }
+    }
+
+    fun restoreUnit(unit: AcUnitEntity, logs: List<MaintenanceLogEntity>) {
+        viewModelScope.launch {
+            runCatching {
+                container.database.acUnitDao().insert(unit)
+                if (logs.isNotEmpty()) container.database.maintenanceLogDao().insertAll(logs)
+            }.onFailure { error ->
+                _state.update {
+                    it.copy(
+                        message = error.message
+                            ?: container.appContext.getString(R.string.home_msg_unit_error),
+                    )
+                }
+            }
+        }
+    }
+
+    fun deleteBill(bill: BillRecordEntity) {
+        viewModelScope.launch {
+            runCatching { container.database.billRecordDao().delete(bill.id) }
+                .onFailure { error ->
+                    _state.update {
+                        it.copy(
+                            message = error.message
+                                ?: container.appContext.getString(R.string.home_msg_bill_error),
+                        )
+                    }
+                }
+        }
+    }
+
+    fun restoreBill(bill: BillRecordEntity) {
+        viewModelScope.launch {
+            runCatching { container.database.billRecordDao().insert(bill) }
+                .onFailure { error ->
+                    _state.update {
+                        it.copy(
+                            message = error.message
+                                ?: container.appContext.getString(R.string.home_msg_bill_error),
+                        )
+                    }
+                }
+        }
+    }
+
     private fun estimateMonthlyKwh(draft: UnitDraft, watts: Double?): Double {
         val spec = AcUnitSpec(
             btuPerHour = draft.btu.toDouble(),
-            nominalWatts = watts ?: (draft.btu / 3.4),
+            nominalWatts = watts ?: PowerEstimator.fromBtu(
+                btuPerHour = draft.btu.toDouble(),
+                seer = draft.seer,
+                isInverter = draft.inverter,
+            ),
             seer = draft.seer,
             inverter = draft.inverter,
         )

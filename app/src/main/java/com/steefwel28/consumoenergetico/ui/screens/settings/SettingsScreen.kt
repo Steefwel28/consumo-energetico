@@ -103,13 +103,11 @@ import com.steefwel28.consumoenergetico.ui.components.PixelDialog
 import com.steefwel28.consumoenergetico.ui.components.PixelEmblem
 import com.steefwel28.consumoenergetico.ui.components.PixelSpringExpressive
 import com.steefwel28.consumoenergetico.ui.components.SectionCard
-import com.steefwel28.consumoenergetico.ui.components.liquidGlassBorder
-import com.steefwel28.consumoenergetico.ui.components.liquidGlassEffect
 import com.steefwel28.consumoenergetico.ui.components.pixelChargeHaptics
-import com.steefwel28.consumoenergetico.ui.components.rememberPixelChargeVibrator
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalHapticFeedback
 import com.steefwel28.consumoenergetico.ui.components.rememberPixelHaptics
 import com.steefwel28.consumoenergetico.ui.theme.ConsumoEnergeticoTheme
-import com.steefwel28.consumoenergetico.ui.theme.LocalLiquidGlass
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -425,7 +423,6 @@ private fun AccordionCard(
     content: @Composable ColumnScope.() -> Unit,
 ) {
     val haptics = rememberPixelHaptics()
-    val glass = LocalLiquidGlass.current
     var expanded by rememberSaveable { mutableStateOf(initiallyExpanded) }
     val rotation by animateFloatAsState(
         targetValue = if (expanded) 180f else 0f,
@@ -433,18 +430,12 @@ private fun AccordionCard(
         label = "accordion-chevron",
     )
     Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .liquidGlassEffect(),
+        modifier = Modifier.fillMaxWidth(),
         shape = MaterialTheme.shapes.large,
         colors = CardDefaults.cardColors(
-            containerColor = if (glass) {
-                MaterialTheme.colorScheme.surface.copy(alpha = 0.16f)
-            } else {
-                MaterialTheme.colorScheme.surfaceContainerLow
-            },
+            containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
         ),
-        border = if (glass) liquidGlassBorder() else null,
+        border = null,
     ) {
         Column(
             modifier = Modifier
@@ -742,10 +733,10 @@ private fun YappyPill(modifier: Modifier = Modifier) {
 /** Easter egg: emblema animado + la frase meme y la firma de autor. */
 @Composable
 private fun SignatureDialog(onDismiss: () -> Unit) {
-    val vibrator = rememberPixelChargeVibrator()
+    val haptics = LocalHapticFeedback.current
     val appear = remember { Animatable(0f) }
     LaunchedEffect(Unit) {
-        vibrator.pop()
+        haptics.performHapticFeedback(HapticFeedbackType.Confirm)
         appear.animateTo(1f, PixelSpringExpressive)
     }
     PixelDialog(
@@ -838,7 +829,7 @@ private fun BillBaseContent(
                     index = index,
                     count = PanamaUtility.entries.size,
                 ),
-            ) { Text(option.displayName) }
+            ) { Text(option.shortName) }
         }
     }
     OutlinedTextField(

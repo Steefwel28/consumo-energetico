@@ -9,7 +9,6 @@ import com.steefwel28.consumoenergetico.data.local.db.CustomLocationEntity
 import com.steefwel28.consumoenergetico.data.local.db.PropertyGroupEntity
 import com.steefwel28.consumoenergetico.domain.calculator.PanamaUtility
 import com.steefwel28.consumoenergetico.domain.calculator.tariffComparison
-import com.steefwel28.consumoenergetico.domain.scanner.RtcaLabelReading
 import java.util.Locale
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -67,17 +66,6 @@ class CalculateViewModel(
 
     fun update(transform: (CalculateUiState) -> CalculateUiState) {
         _state.update(transform)
-    }
-
-    /** Aplica solo los campos que el OCR logró leer; el resto queda como estaba. */
-    fun applyScan(reading: RtcaLabelReading) {
-        _state.update { current ->
-            current.copy(
-                btuInput = reading.btuPerHour?.let { whole(it) } ?: current.btuInput,
-                wattsInput = reading.nominalWatts?.let { whole(it) } ?: current.wattsInput,
-                seerInput = reading.seer?.let { decimal(it) } ?: current.seerInput,
-            )
-        }
     }
 
     /**

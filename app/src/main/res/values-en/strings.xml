@@ -66,6 +66,7 @@
     <string name="calc_footer">Values are educational estimates; a certified technician must validate the electrical installation.</string>
     <string name="calc_comparison_title">Tariff comparison</string>
     <string name="calc_comparison_subtitle">ENSA, Naturgy, or the VS duel with the exact monthly difference.</string>
+    <string name="calc_tariff_validity">Current ASEP schedule: %1$s to %2$s.</string>
     <string name="calc_manual_hint">Use the real rate from your bill instead of the preloaded tariff.</string>
     <string name="calc_manual_chip">Manual rate</string>
     <string name="calc_identify_equipment">Identify unit (optional)</string>
@@ -427,6 +428,11 @@
     <string name="home_msg_bill_paid_negative">Total paid cannot be negative.</string>
     <string name="home_msg_bill_saved">Bill added to the history.</string>
     <string name="home_msg_bill_error">The bill could not be saved.</string>
+    <string name="home_delete_unit">Delete equipment</string>
+    <string name="home_delete_bill">Delete bill</string>
+    <string name="home_msg_unit_deleted">Equipment deleted.</string>
+    <string name="home_msg_bill_deleted">Bill deleted.</string>
+    <string name="home_undo">Undo</string>
 
     <!-- Settings · v0.6 -->
     <string name="set_appearance_title">Appearance</string>

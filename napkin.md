@@ -13,54 +13,62 @@
    Do instead: always append `--console=plain` and never run two Gradle invocations at once.
 3. **[2026-11-23] Full-suite loop before claiming done**
    Do instead: run `.\gradlew.bat testDebugUnitTest assembleDebug --console=plain` until `BUILD SUCCESSFUL` with 0 failures; never report success from a partial run.
-4. **[2026-11-23] Room schema bump requires exported JSON**
-   Do instead: after changing `@Database(version = N)`, keep `app/schemas/com.steefwel28.consumoenergetico.data.local.db.ConsumoDatabase/N.json` and a `Migration(N-1, N)` in `ConsumoDatabase.kt`.
+4. **[2026-11-28] Room FK migrations cannot use ALTER TABLE**
+   Do instead: recreate the table (`*_new`), copy rows with explicit columns, drop, rename and recreate indices; bump `@Database(version)` and commit the exported `N.json`.
 5. **[2026-11-23] Haze version must match the project Kotlin**
    Do instead: keep `haze = "1.7.3"` (built with Kotlin 2.3.20 stdlib) while `kotlin = "2.3.21"`; Haze 2.x/stdlib 2.4 breaks the 2.3 compiler. Verify with the artifact POM before upgrading.
+6. **[2026-11-28] Backtick test names cannot contain a dot**
+   Do instead: JVM method names reject `.`; write `inverter aplica el factor estacional` instead of `87.5 por ciento`, or Gradle fails with "Name contains illegal characters: .".
 
 ## Shell & Command Reliability
 1. **[2026-11-23] `strings.xml` files are long; full reads burn context**
    Do instead: read only the last 25–30 lines of each `values*/strings.xml` when adding/verifying keys.
 2. **[2026-11-23] Main thread limited to 5 direct file reads**
    Do instead: delegate file inspection and line search to a subagent; keep the main thread for edits and build runs.
-3. **[2026-11-23] `12 %%` renders literally outside `String.format`**
+3. **[2026-11-28] PowerShell `Set-Content -Encoding UTF8` adds a BOM to `strings.xml`**
+   Do instead: write translations with `[System.IO.File]::WriteAllText(path, text, UTF8Encoding($false))`.
+4. **[2026-11-23] `12 %%` renders literally outside `String.format`**
    Do instead: use a single `%` in non-formatted strings (`calc_sim_filters_hint`); keep `%%` only where the string is passed through `String.format`.
-4. **[2026-11-23] Git diff warnings about LF→CRLF are noise**
+5. **[2026-11-23] Git diff warnings about LF→CRLF are noise**
    Do instead: ignore `LF will be replaced by CRLF` lines in `git diff` output.
 
 ## Domain Behavior Guardrails
-1. **[2026-11-23] Long-form prose in narrative engines is asserted verbatim by unit tests**
+1. **[2026-11-28] Potencia se estima en un solo lugar**
+   Do instead: use `PowerEstimator.fromBtu(btu, seer, isInverter)` (`W = BTU/h ÷ EER`, Inverter `EER = 0.875 × SEER`); never reintroduce `BTU/(SEER*0.293)` or `btu/3.4`.
+2. **[2026-11-28] Pliego ASEP vigente 1 sep–31 dic 2026**
+   Do instead: ENSA fijo 2.76 / 0.17737 / 0.24666 / 0.27005; Naturgy EDEMET fijo 3.17 / 0.17624 / 0.23177 / 0.25027; EDECHI fijo 3.04 / 0.19175 / 0.25341 / 0.27486; show `validFrom`/`validTo` in UI.
+3. **[2026-11-28] `LocaleNumber` must treat a leading zero as decimal**
+   Do instead: `"0.180"` → `0.18`, while `"12.000"` stays `12_000`; only group thousands when the integer part is non-zero.
+4. **[2026-11-23] Long-form prose in narrative engines is asserted verbatim by unit tests**
    Do instead: keep Spanish wording in `DiagnosticNarrativeBuilder`, `ElectricalSpecAdvisor`, `AcSpaceRecommender` intact unless the test is updated in the same commit.
-2. **[2026-11-23] BTU validation upper bound is 60,000 BTU/h**
-   Do instead: keep `canSave` / `RtcaLabelParser` limits at 60,000 to accept real equipment like 36,679 BTU/h.
-3. **[2026-11-23] Offline-first constraint**
+5. **[2026-11-28] BTU validation upper bound is 60,000 BTU/h**
+   Do instead: keep `canSave`, `MyHomeViewModel.saveUnit` and the edit dialog at `MAX_BTU_PER_HOUR` to accept real equipment like 36,679 BTU/h.
+6. **[2026-11-23] Offline-first constraint**
    Do instead: no Retrofit/OkHttp/Firebase/PDF libs; the only network call allowed is `HttpURLConnection` (4s timeout) to the GitHub releases API.
-4. **[2026-11-23] Splash haptics must match the 2 s timeline**
-   Do instead: stage 1 `tick(0.25f)`, stage 2 `tick(0.45f)`+`tick(0.52f)`, stage 3 ramp `tick(0.58f..1.0f)` then `pop()` at 2000 ms with `1.0f → 1.12f` bounce.
-5. **[2026-11-23] Physical coherence advisories must never touch kWh/B/.**
-   Do instead: audit BTU/W/SEER only via `DiagnosticNarrativeBuilder.coherenceWarnings` (pure, returns `CoherenceWarning` enum) and map it to strings in the UI; never feed the enum into `AcUnitSpec`, tariff or export code.
+7. **[2026-11-23] Physical coherence advisories must never touch kWh/B/.**
+   Do instead: audit BTU/W/SEER only via `DiagnosticNarrativeBuilder.coherenceWarnings` and map the enum to strings in the UI.
+8. **[2026-11-28] Backup JSON must carry `nominal_watts`**
+   Do instead: write `"nominal_watts": null` when absent and read it with `optionalDouble` so v1–v4 backups still restore; never require the key.
 
 ## Compose UI Guardrails
-1. **[2026-11-23] Liquid Glass only blurs inside the main window**
-   Do instead: use `LiquidGlassSurface` / `Modifier.liquidGlassEffect()` for cards and bars; inside `ModalBottomSheet`, `Dialog` or `DropdownMenu` wrap with `CompositionLocalProvider(LocalHazeState provides null)` so Haze never samples another window.
-2. **[2026-11-23] Glass mode forces a dark scheme**
-   Do instead: `ConsumoEnergeticoTheme(liquidGlass = true)` darkens `background/surface` and pins `onBackground/onSurface = #F3FBF8`, `onSurfaceVariant = #B6D8D0`; never let the Día scheme paint black titles over orbs.
-3. **[2026-11-23] `Float * Dp` does not compile**
+1. **[2026-11-28] Haze only on floating layers, never on content cards**
+   Do instead: `hazeSource` on the scrolling content Box and `LiquidGlassSurface`/`liquidGlassEffect` only on nav bar, menu and sheets; cards use solid `surfaceContainerLow`.
+2. **[2026-11-28] No AGSL shaders or infinite orb animations**
+   Do instead: keep `HazeSurface.kt`; `LiquidGlassLens.kt` and `LiquidGlassBackground.kt` were removed for battery/120 FPS.
+3. **[2026-11-28] Haptics use the system engine**
+   Do instead: `LocalHapticFeedback.current` with `Confirm`, `Reject`, `SegmentTick`, `ToggleOn`/`ToggleOff`; no direct `Vibrator` and no `VIBRATE` permission.
+4. **[2026-11-28] Splash haptics still follow the 2 s timeline**
+   Do instead: stage 1 `SegmentTick`, stage 2 two `SegmentTick`, stage 3 ramp ticks, `Confirm` at 2000 ms with `1.0 → 1.12` bounce.
+5. **[2026-11-23] `Float * Dp` does not compile**
    Do instead: write `dp * float` (e.g. `8.dp * (1f - eased)`), never `(1f - eased) * 8.dp`.
-4. **[2026-11-23] `CHART_ITEM_INDEX` must match the LazyColumn item order in `CalculateScreen`**
-   Do instead: keep Comparativa at index 3 and Datos del equipo at 4 (both category branches); re-check the constant at the bottom of the file after any reorder.
-5. **[2026-11-23] Splash chips need their data class**
-   Do instead: keep `SplashChip(alignment, x, y, width, height, color, maxAlpha, revealAtMs)` private in `ExpressiveSplashScreen.kt`; morph keyframes 0→1→2→3 at 0/600/1200/2000 ms.
-6. **[2026-11-23] Liquid Glass orbes follow scroll via root `nestedScroll`**
-   Do instead: keep `LiquidGlassScrollConnection` in `LiquidGlassBackground.kt` + `.nestedScroll(...)` on `ConsumoApp` content Box; no scroll wiring needed in screens.
-7. **[2026-11-23] Lens/refraction only on floating layers, never on content cards**
-   Do instead: use `Modifier.liquidGlassLens()` (AGSL `RuntimeShader`, API 33+) via `LiquidGlassSurface(lens = true)` for nav bar / sheets / ☰ menu; inside `ModalBottomSheet`/`Dialog` haze cannot sample other windows, so the lens tint is the only glass there.
-8. **[2026-11-23] Turning Liquid Glass off leaves an emerald window + orbs**
-   Do instead: keep all three shields — `LiquidGlassBackground` early `return` when `!LocalLiquidGlass.current`, `ConsumoApp` Box `.background(colorScheme.background)` when not glass, and `MainActivity` re-writing `window.setBackgroundDrawable(...)` in `LaunchedEffect(appearance)`.
-9. **[2026-11-23] Dialogs/sheets in their own window have no HazeState**
-   Do instead: `LiquidGlassSurface` fallback tint is `0.93f` when `LocalHazeState.current == null`; `SketchGuides.GuideDialog` uses its own `#111917` `0.95f` card + `liquidGlassBorder()` instead of glass, so sketches never blend with the screen behind.
-10. **[2026-11-23] Fase 1 hides unsupported categories**
-    Do instead: render chips from `EquipmentCategory.available` (only `AIR_CONDITIONER`); keep the full enum intact so Refrigeradora/Freezer return by flipping that one list in v0.7.0.
+6. **[2026-11-23] `CHART_ITEM_INDEX` must match the LazyColumn item order in `CalculateScreen`**
+   Do instead: keep Comparativa at index 3 and Datos del equipo at 4; re-check the constant after any reorder.
+7. **[2026-11-23] Splash chips need their data class**
+   Do instead: keep `SplashChip(...)` private in `ExpressiveSplashScreen.kt`; morph keyframes 0→1→2→3 at 0/600/1200/2000 ms.
+8. **[2026-11-23] Fase 1 hides unsupported categories**
+   Do instead: render chips from `EquipmentCategory.available` (only `AIR_CONDITIONER`); keep the full enum intact for v0.7.0.
+9. **[2026-11-28] `LocalLiquidGlass` gates the Haze blur**
+   Do instead: `LiquidGlassSurface` and `liquidGlassEffect()` return the solid M3 surface when `LocalLiquidGlass.current` is false or power save is on; never remove the toggle from Ajustes.
 
 ## User Directives
 1. **[2026-11-23] Signature and donation identity**

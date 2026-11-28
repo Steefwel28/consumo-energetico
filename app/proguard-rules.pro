@@ -8,7 +8,3 @@
 # Room genera implementaciones por reflexión en tiempo de compilación.
 -keep class * extends androidx.room.RoomDatabase { *; }
 -keep @androidx.room.Entity class * { *; }
-
-# ML Kit Text Recognition (modelo on-device).
--keep class com.google.mlkit.** { *; }
--dontwarn com.google.mlkit.**

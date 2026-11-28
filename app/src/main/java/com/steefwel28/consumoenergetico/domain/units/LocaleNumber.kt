@@ -38,7 +38,11 @@ object LocaleNumber {
 
     private fun String.groupOrDecimal(separator: Char): String {
         val parts = split(separator)
-        val looksLikeThousands = parts.last().length == 3 && parts.first().length in 1..3
+        val integerPart = parts.first()
+        // "0.180" y ".5" son decimales: un cero inicial nunca agrupa miles.
+        val looksLikeThousands = parts.last().length == 3 &&
+            integerPart.length in 1..3 &&
+            !integerPart.startsWith("0")
         return if (looksLikeThousands) parts.joinToString("") else replace(separator, '.')
     }
 }

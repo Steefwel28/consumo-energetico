@@ -223,6 +223,7 @@ object BackupCodec {
     private fun AcUnitEntity.toJson(): String =
         "    {\"id\": $id, \"nombre_espacio\": \"${escape(nombreEspacio)}\", " +
             "\"marca_modelo\": \"${escape(marcaModelo)}\", \"btu\": $btu, " +
+            "\"nominal_watts\": ${nominalWatts ?: "null"}, " +
             "\"seer\": ${seer?.let { number(it) } ?: "null"}, \"es_inverter\": $esInverter, " +
             "\"voltaje\": $voltaje, \"fecha_instalacion_millis\": $fechaInstalacionMillis, " +
             "\"fecha_ultimo_mantenimiento_millis\": $fechaUltimoMantenimientoMillis, " +
@@ -270,6 +271,10 @@ object BackupCodec {
         if (seer != null && seer <= 0.0) {
             throw BackupFormatException("El SEER de '$name' debe ser mayor que cero.")
         }
+        val watts = optionalDouble("nominal_watts")
+        if (watts != null && watts <= 0.0) {
+            throw BackupFormatException("La potencia de '$name' debe ser mayor que cero.")
+        }
         val voltage = long("voltaje").toInt()
         if (voltage <= 0) throw BackupFormatException("El voltaje de '$name' debe ser mayor que cero.")
         val installedOn = long("fecha_instalacion_millis")
@@ -295,6 +300,7 @@ object BackupCodec {
             nombreEspacio = name,
             marcaModelo = string("marca_modelo"),
             btu = btu,
+            nominalWatts = watts?.toInt(),
             seer = seer,
             esInverter = boolean("es_inverter"),
             voltaje = voltage,

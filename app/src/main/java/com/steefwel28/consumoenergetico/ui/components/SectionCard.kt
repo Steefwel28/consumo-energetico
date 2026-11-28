@@ -15,7 +15,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
-import com.steefwel28.consumoenergetico.ui.theme.LocalLiquidGlass
 
 /**
  * Borde especular compartido por las superficies Liquid Glass (1 dp, blanco
@@ -46,7 +45,6 @@ fun SectionCard(
     subtitle: String? = null,
     content: @Composable ColumnScope.() -> Unit,
 ) {
-    val glass = LocalLiquidGlass.current
     val body: @Composable () -> Unit = {
         Column(
             modifier = Modifier.padding(20.dp),
@@ -64,13 +62,6 @@ fun SectionCard(
             }
             content()
         }
-    }
-    if (glass) {
-        LiquidGlassSurface(
-            modifier = modifier.fillMaxWidth(),
-            shape = MaterialTheme.shapes.large,
-        ) { body() }
-        return
     }
     Card(
         modifier = modifier.fillMaxWidth(),

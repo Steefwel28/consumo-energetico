@@ -61,7 +61,6 @@ class AcConsumptionCalculatorTest {
     fun `convierte placa a BTU por hora`() {
         assertEquals(18_000.0, AcPlateConverter.tonsToBtuPerHour(1.5), 1e-9)
         assertEquals(3_412.142, AcPlateConverter.thermalKilowattsToBtuPerHour(1.0), 1e-9)
-        assertEquals(7_506.7124, AcPlateConverter.amperesToBtuPerHour(10.0, 220.0), 1e-9)
     }
 
     @Test

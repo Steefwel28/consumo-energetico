@@ -1,9 +1,8 @@
 package com.steefwel28.consumoenergetico.data.local.db
 
 import androidx.room.Dao
-import androidx.room.Insert
-import androidx.room.OnConflictStrategy
 import androidx.room.Query
+import androidx.room.Upsert
 import com.steefwel28.consumoenergetico.core.signature.CraftedBy
 import kotlinx.coroutines.flow.Flow
 
@@ -27,10 +26,10 @@ interface PropertyGroupDao {
     @Query("SELECT COUNT(*) FROM property_groups")
     suspend fun count(): Int
 
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    @Upsert
     suspend fun insert(group: PropertyGroupEntity): Long
 
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    @Upsert
     suspend fun insertAll(groups: List<PropertyGroupEntity>)
 
     @Query("DELETE FROM property_groups")

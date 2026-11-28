@@ -36,7 +36,6 @@ val PlateConverterMode.labelRes: Int
     get() = when (this) {
         PlateConverterMode.TONS -> R.string.converter_tons
         PlateConverterMode.KILOWATTS -> R.string.converter_kw
-        PlateConverterMode.AMPERES -> R.string.converter_amp
     }
 
 @get:StringRes

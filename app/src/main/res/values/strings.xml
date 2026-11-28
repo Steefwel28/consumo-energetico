@@ -66,6 +66,7 @@
     <string name="calc_footer">Los valores son estimaciones educativas; la instalación eléctrica debe validarla un técnico certificado.</string>
     <string name="calc_comparison_title">Comparativa de tarifa</string>
     <string name="calc_comparison_subtitle">ENSA, Naturgy o el duelo VS con la diferencia exacta al mes.</string>
+    <string name="calc_tariff_validity">Pliego ASEP vigente: %1$s a %2$s.</string>
     <string name="calc_manual_hint">Usa la tarifa real de tu factura en vez del pliego precargado.</string>
     <string name="calc_manual_chip">Tarifa manual</string>
     <string name="calc_identify_equipment">Identificar equipo (opcional)</string>
@@ -427,6 +428,11 @@
     <string name="home_msg_bill_paid_negative">El total pagado no puede ser negativo.</string>
     <string name="home_msg_bill_saved">Factura registrada en el historial.</string>
     <string name="home_msg_bill_error">No se pudo registrar la factura.</string>
+    <string name="home_delete_unit">Eliminar equipo</string>
+    <string name="home_delete_bill">Eliminar factura</string>
+    <string name="home_msg_unit_deleted">Equipo eliminado.</string>
+    <string name="home_msg_bill_deleted">Factura eliminada.</string>
+    <string name="home_undo">Deshacer</string>
 
     <!-- Ajustes · v0.6 -->
     <string name="set_appearance_title">Apariencia</string>
