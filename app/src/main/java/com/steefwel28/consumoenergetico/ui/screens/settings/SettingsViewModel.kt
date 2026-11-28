@@ -9,11 +9,8 @@ import com.steefwel28.consumoenergetico.core.updater.UpdateCheckResult
 import com.steefwel28.consumoenergetico.data.backup.BackupRestoreResult
 import com.steefwel28.consumoenergetico.domain.calculator.PanamaUtility
 import com.steefwel28.consumoenergetico.domain.settings.ThemeMode
-import com.steefwel28.consumoenergetico.domain.units.LengthUnit
-import com.steefwel28.consumoenergetico.domain.units.ShortLengthUnit
 import com.steefwel28.consumoenergetico.domain.units.TemperatureUnit
 import com.steefwel28.consumoenergetico.domain.units.UnitPreferences
-import com.steefwel28.consumoenergetico.domain.units.VolumeUnit
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -64,12 +61,6 @@ class SettingsViewModel(
         }
     }
 
-    fun setLength(unit: LengthUnit) = updatePreferences { it.copy(length = unit) }
-
-    fun setShortLength(unit: ShortLengthUnit) = updatePreferences { it.copy(shortLength = unit) }
-
-    fun setVolume(unit: VolumeUnit) = updatePreferences { it.copy(volume = unit) }
-
     fun setTemperature(unit: TemperatureUnit) = updatePreferences { it.copy(temperature = unit) }
 
     fun setUtility(utility: PanamaUtility) {
@@ -92,10 +83,6 @@ class SettingsViewModel(
 
     fun setOledPure(enabled: Boolean) {
         viewModelScope.launch { container.preferences.setOledPure(enabled) }
-    }
-
-    fun setLiquidGlass(enabled: Boolean) {
-        viewModelScope.launch { container.preferences.setLiquidGlass(enabled) }
     }
 
     fun checkForUpdate() {

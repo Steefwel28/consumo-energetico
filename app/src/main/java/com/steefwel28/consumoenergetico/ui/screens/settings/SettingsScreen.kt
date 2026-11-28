@@ -73,7 +73,6 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
@@ -91,18 +90,14 @@ import com.steefwel28.consumoenergetico.R
 import com.steefwel28.consumoenergetico.core.di.AppContainer
 import com.steefwel28.consumoenergetico.domain.calculator.PanamaUtility
 import com.steefwel28.consumoenergetico.domain.settings.ThemeMode
-import com.steefwel28.consumoenergetico.domain.units.LengthUnit
 import com.steefwel28.consumoenergetico.domain.units.LocaleNumber
-import com.steefwel28.consumoenergetico.domain.units.ShortLengthUnit
 import com.steefwel28.consumoenergetico.domain.units.TemperatureUnit
-import com.steefwel28.consumoenergetico.domain.units.VolumeUnit
 import com.steefwel28.consumoenergetico.ui.AppViewModelProvider
 import com.steefwel28.consumoenergetico.ui.components.AppFormat
 import com.steefwel28.consumoenergetico.ui.components.PixelDialog
 import com.steefwel28.consumoenergetico.ui.components.PixelEmblem
 import com.steefwel28.consumoenergetico.ui.components.PixelSpringExpressive
 import com.steefwel28.consumoenergetico.ui.components.SectionCard
-import com.steefwel28.consumoenergetico.ui.components.pixelChargeHaptics
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
 import com.steefwel28.consumoenergetico.ui.components.rememberPixelHaptics
@@ -171,15 +166,11 @@ fun SettingsRoute(
 
     SettingsScreen(
         state = state,
-        onLength = viewModel::setLength,
-        onShortLength = viewModel::setShortLength,
-        onVolume = viewModel::setVolume,
         onTemperature = viewModel::setTemperature,
         onUtility = viewModel::setUtility,
         onBaseKwh = viewModel::setBaseMonthlyKwh,
         onThemeMode = viewModel::setThemeMode,
         onOledPure = viewModel::setOledPure,
-        onLiquidGlass = viewModel::setLiquidGlass,
         onCheckUpdate = viewModel::checkForUpdate,
         onSkipVersion = viewModel::skipPendingVersion,
         onVersionTapped = viewModel::onVersionTapped,
@@ -200,15 +191,11 @@ fun SettingsRoute(
 @Composable
 fun SettingsScreen(
     state: SettingsUiState,
-    onLength: (LengthUnit) -> Unit,
-    onShortLength: (ShortLengthUnit) -> Unit,
-    onVolume: (VolumeUnit) -> Unit,
     onTemperature: (TemperatureUnit) -> Unit,
     onUtility: (PanamaUtility) -> Unit,
     onBaseKwh: (Double) -> Unit,
     onThemeMode: (ThemeMode) -> Unit,
     onOledPure: (Boolean) -> Unit,
-    onLiquidGlass: (Boolean) -> Unit,
     onCheckUpdate: () -> Unit,
     onSkipVersion: () -> Unit,
     onVersionTapped: () -> Unit,
@@ -247,8 +234,7 @@ fun SettingsScreen(
                     },
                     interactionSource = backInteraction,
                     modifier = Modifier
-                        .size(40.dp)
-                        .pixelChargeHaptics(),
+                        .size(40.dp),
                 ) {
                     Icon(
                         imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
@@ -278,10 +264,8 @@ fun SettingsScreen(
                 AppearanceContent(
                     mode = state.appearance.mode,
                     oledPure = state.appearance.oledPure,
-                    liquidGlass = state.appearance.liquidGlass,
                     onThemeMode = onThemeMode,
                     onOledPure = onOledPure,
-                    onLiquidGlass = onLiquidGlass,
                 )
             }
         }
@@ -300,24 +284,6 @@ fun SettingsScreen(
                 title = stringResource(R.string.set_units_title),
                 subtitle = stringResource(R.string.set_units_subtitle),
             ) {
-                UnitRow(
-                    title = stringResource(R.string.set_length),
-                    options = LengthUnit.entries.map { it to it.symbol },
-                    selected = state.unitPreferences.length,
-                    onSelect = onLength,
-                )
-                UnitRow(
-                    title = stringResource(R.string.set_short_length),
-                    options = ShortLengthUnit.entries.map { it to it.symbol },
-                    selected = state.unitPreferences.shortLength,
-                    onSelect = onShortLength,
-                )
-                UnitRow(
-                    title = stringResource(R.string.set_volume),
-                    options = VolumeUnit.entries.map { it to it.symbol },
-                    selected = state.unitPreferences.volume,
-                    onSelect = onVolume,
-                )
                 UnitRow(
                     title = stringResource(R.string.set_temperature),
                     options = TemperatureUnit.entries.map { it to it.symbol },
@@ -483,53 +449,17 @@ private fun AccordionCard(
 }
 
 /**
- * Apariencia: tema persistido, Negro Puro OLED y la atmósfera Liquid Glass.
- * Con Liquid Glass activo el tema y el OLED quedan bajo su control.
+ * Apariencia: tema persistido y Negro Puro OLED.
  */
 @Composable
 private fun AppearanceContent(
     mode: ThemeMode,
     oledPure: Boolean,
-    liquidGlass: Boolean,
     onThemeMode: (ThemeMode) -> Unit,
     onOledPure: (Boolean) -> Unit,
-    onLiquidGlass: (Boolean) -> Unit,
 ) {
     val haptics = rememberPixelHaptics()
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
-    ) {
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = stringResource(R.string.set_liquid_glass),
-                style = MaterialTheme.typography.titleMedium,
-            )
-            Text(
-                text = stringResource(R.string.set_liquid_glass_hint),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
-        Switch(
-            checked = liquidGlass,
-            onCheckedChange = { checked ->
-                haptics.tap()
-                onLiquidGlass(checked)
-            },
-        )
-    }
-    if (liquidGlass) {
-        Text(
-            text = stringResource(R.string.set_liquid_glass_notice),
-            style = MaterialTheme.typography.labelMedium,
-            color = MaterialTheme.colorScheme.primary,
-        )
-    }
-    Column(
-        modifier = Modifier.alpha(if (liquidGlass) 0.4f else 1f),
-        verticalArrangement = Arrangement.spacedBy(10.dp),
-    ) {
+    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Text(text = stringResource(R.string.set_theme_mode), style = MaterialTheme.typography.titleMedium)
         SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
             ThemeMode.entries.forEachIndexed { index, option ->
@@ -539,7 +469,6 @@ private fun AppearanceContent(
                         haptics.tap()
                         onThemeMode(option)
                     },
-                    enabled = !liquidGlass,
                     shape = SegmentedButtonDefaults.itemShape(
                         index = index,
                         count = ThemeMode.entries.size,
@@ -569,7 +498,6 @@ private fun AppearanceContent(
             }
             Switch(
                 checked = oledPure,
-                enabled = !liquidGlass,
                 onCheckedChange = { checked ->
                     haptics.tap()
                     onOledPure(checked)
@@ -992,15 +920,11 @@ private fun SettingsScreenPreview() {
     ConsumoEnergeticoTheme {
         SettingsScreen(
             state = SettingsUiState(),
-            onLength = {},
-            onShortLength = {},
-            onVolume = {},
             onTemperature = {},
             onUtility = {},
             onBaseKwh = {},
             onThemeMode = {},
             onOledPure = {},
-            onLiquidGlass = {},
             onCheckUpdate = {},
             onSkipVersion = {},
             onVersionTapped = {},

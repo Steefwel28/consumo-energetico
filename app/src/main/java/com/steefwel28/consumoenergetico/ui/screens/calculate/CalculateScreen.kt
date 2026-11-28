@@ -36,7 +36,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.CompareArrows
 import androidx.compose.material.icons.automirrored.rounded.HelpOutline
 import androidx.compose.material.icons.rounded.Add
-import androidx.compose.material.icons.rounded.Construction
 import androidx.compose.material.icons.rounded.ExpandMore
 import androidx.compose.material.icons.rounded.Image
 import androidx.compose.material.icons.rounded.Info
@@ -104,7 +103,6 @@ import com.steefwel28.consumoenergetico.ui.components.PixelSpringSnappy
 import com.steefwel28.consumoenergetico.ui.components.RtcaLabelGuideDialog
 import com.steefwel28.consumoenergetico.ui.components.SectionCard
 import com.steefwel28.consumoenergetico.ui.components.labelRes
-import com.steefwel28.consumoenergetico.ui.components.pixelChargeHaptics
 import com.steefwel28.consumoenergetico.ui.components.rememberPixelHaptics
 import com.steefwel28.consumoenergetico.ui.illustrations.EducationalSketchCarousel
 import com.steefwel28.consumoenergetico.ui.theme.ConsumoEnergeticoTheme
@@ -151,6 +149,8 @@ fun CalculateScreen(
     val scope = rememberCoroutineScope()
     val haptics = rememberPixelHaptics()
     val listState = rememberLazyListState()
+    val wattsFocus = remember { FocusRequester() }
+    val seerFocus = remember { FocusRequester() }
 
     val share: (Boolean) -> Unit = { asPng ->
         val report = state.toReportData(context)
@@ -214,33 +214,46 @@ fun CalculateScreen(
             )
         }
 
+        // Flujo principal en pasos numerados: 1 BTU, 2 Watts, 3 SEER, 4 horas.
         item {
-            // Comparativa de las tres distribuidoras para el periodo activo.
-            DistributorCompareCard(state = state)
-        }
-        item {
-            BaseConsumptionCard(
+            StepCapacityCard(
                 state = state,
                 onUpdate = onUpdate,
-                onSetBaseKwh = onSetBaseKwh,
+                wattsFocus = wattsFocus,
             )
         }
         item {
-            ResultExtras(
+            StepWattsCard(
                 state = state,
                 onUpdate = onUpdate,
+                seerFocus = seerFocus,
+            )
+        }
+        item {
+            StepSeerCard(
+                state = state,
+                onUpdate = onUpdate,
+                seerFocus = seerFocus,
+                onSeerDone = {
+                    scope.launch { listState.animateScrollToItem(HOURS_STEP_INDEX) }
+                },
+            )
+        }
+        item {
+            StepHoursCard(state = state, onUpdate = onUpdate)
+        }
+        item {
+            // Ajustes opcionales plegados al final: no estorban el flujo 0 → 4.
+            OptionalInputsCard(
+                state = state,
+                onUpdate = onUpdate,
+                onSetBaseKwh = onSetBaseKwh,
                 onOpenSave = { showSaveDialog = true },
                 onOpenBillGuide = { showBillGuide = true },
             )
         }
         item {
-            RtcaConverterCard(
-                state = state,
-                onUpdate = onUpdate,
-                onSeerDone = {
-                    scope.launch { listState.animateScrollToItem(CHART_ITEM_INDEX) }
-                },
-            )
+            PlateConverterCard(state = state, onUpdate = onUpdate)
         }
         item {
             SaveAndShareCard(
@@ -350,9 +363,10 @@ private fun CategorySelector(
 }
 
 /**
- * Cabecera anclada y compacta: distribuidora (ENSA / EDEMET / EDECHI, pliego
- * ASEP vigente), monto del periodo activo y selector segmentado Día /
- * Quincena / Mes. El consumo base y los ajustes viven en la lista.
+ * Paso 0 · Cabecera anclada y compacta: distribuidora (ENSA / EDEMET /
+ * EDECHI, pliego ASEP vigente), monto estimado del periodo, selector
+ * Día / Quincena / Mes y botón "Comparación" con la tabla simultánea
+ * de las tres distribuidoras pegada a la cabecera.
  */
 @Composable
 private fun ResultCard(
@@ -361,6 +375,12 @@ private fun ResultCard(
 ) {
     val haptics = rememberPixelHaptics()
     val extended = LocalExtendedColors.current
+    var compareOpen by rememberSaveable { mutableStateOf(false) }
+    val compareChevron by animateFloatAsState(
+        targetValue = if (compareOpen) 180f else 0f,
+        animationSpec = PixelSpringSnappy,
+        label = "compare-chevron",
+    )
     val cost = state.monthlyCost
     val brandColor = when (state.utility) {
         PanamaUtility.ENSA -> extended.ensa
@@ -454,6 +474,33 @@ private fun ResultCard(
         }
 
         PeriodSegmented(state = state, onUpdate = onUpdate)
+
+        // Botón compacto pegado a la cabecera: despliega la comparativa
+        // simultánea de ENSA, EDEMET y EDECHI para el periodo activo.
+        FilledTonalButton(
+            onClick = {
+                haptics.tap()
+                compareOpen = !compareOpen
+            },
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Icon(imageVector = Icons.AutoMirrored.Rounded.CompareArrows, contentDescription = null)
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(
+                text = stringResource(R.string.calc_comparison),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f),
+            )
+            Icon(
+                imageVector = Icons.Rounded.ExpandMore,
+                contentDescription = null,
+                modifier = Modifier.graphicsLayer { rotationZ = compareChevron },
+            )
+        }
+        AnimatedVisibility(visible = compareOpen) {
+            DistributorComparisonBody(state = state)
+        }
     }
 }
 
@@ -500,7 +547,7 @@ private fun PeriodSegmented(
 
 /** Consumo base del recibo: chips rápidos + campo con ayuda (i). */
 @Composable
-private fun BaseConsumptionCard(
+private fun BaseConsumptionFields(
     state: CalculateUiState,
     onUpdate: ((CalculateUiState) -> CalculateUiState) -> Unit,
     onSetBaseKwh: (Double) -> Unit,
@@ -509,7 +556,11 @@ private fun BaseConsumptionCard(
     val baseInput = state.baseKwhInput.ifBlank {
         if (state.baseMonthlyKwh > 0.0) AppFormat.kwhNumber(state.baseMonthlyKwh) else ""
     }
-    SectionCard(title = stringResource(R.string.calc_base_section_title)) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text(
+            text = stringResource(R.string.calc_base_section_title),
+            style = MaterialTheme.typography.titleMedium,
+        )
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -552,41 +603,275 @@ private fun BaseConsumptionCard(
     }
 }
 
-/** Ajustes opcionales: consumo eléctrico (W), temperatura, horas y costo manual. */
+/** Paso 1 · Capacidad (BTU/h): chips rápidos + campo numérico. */
 @Composable
-private fun ResultExtras(
+private fun StepCapacityCard(
     state: CalculateUiState,
     onUpdate: ((CalculateUiState) -> CalculateUiState) -> Unit,
-    onOpenSave: () -> Unit,
-    onOpenBillGuide: () -> Unit,
+    wattsFocus: FocusRequester,
 ) {
     val haptics = rememberPixelHaptics()
-    SectionCard(title = stringResource(R.string.calc_extras_title)) {
+    var showGuide by remember { mutableStateOf(false) }
+    val hints = placeholdersFor(state.category)
+
+    SectionCard(title = stringResource(R.string.calc_step_capacity)) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Spacer(modifier = Modifier.weight(1f))
+            IconButton(
+                onClick = {
+                    haptics.tap()
+                    showGuide = true
+                },
+            ) {
+                Icon(
+                    imageVector = Icons.Rounded.Info,
+                    contentDescription = stringResource(R.string.calc_guide_cd),
+                )
+            }
+        }
+        if (showGuide) {
+            RtcaLabelGuideDialog(onDismiss = { showGuide = false })
+        }
+        if (state.category == EquipmentCategory.AIR_CONDITIONER) {
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier.horizontalScroll(rememberScrollState()),
+            ) {
+                CalculateUiState.BTU_QUICK_VALUES.forEach { btu ->
+                    FilterChip(
+                        selected = state.btu?.roundToInt() == btu,
+                        onClick = {
+                            haptics.tap()
+                            onUpdate { it.copy(btuInput = btu.toString()) }
+                        },
+                        label = {
+                            Text(if (btu % 1_000 == 0) "${btu / 1_000}k" else btu.toString())
+                        },
+                    )
+                }
+            }
+        }
+        NumberField(
+            label = stringResource(R.string.common_btu),
+            value = state.btuInput,
+            onValueChange = { value -> onUpdate { it.copy(btuInput = value) } },
+            placeholder = hints.btu,
+            imeAction = ImeAction.Next,
+            onImeAction = { wattsFocus.requestFocus() },
+            modifier = Modifier.fillMaxWidth(),
+        )
+    }
+}
+
+/** Paso 2 · Consumo eléctrico (Watts / W): campo numérico + ayuda (i). */
+@Composable
+private fun StepWattsCard(
+    state: CalculateUiState,
+    onUpdate: ((CalculateUiState) -> CalculateUiState) -> Unit,
+    seerFocus: FocusRequester,
+) {
+    val hints = placeholdersFor(state.category)
+
+    SectionCard(title = stringResource(R.string.calc_step_watts)) {
         NumberField(
             label = stringResource(R.string.calc_watts_label),
             value = state.wattsInput,
             onValueChange = { text -> onUpdate { it.copy(wattsInput = text) } },
-            placeholder = "1150",
+            placeholder = hints.watts,
             info = stringResource(R.string.calc_watts_info),
+            imeAction = ImeAction.Next,
+            onImeAction = { seerFocus.requestFocus() },
+            modifier = Modifier.fillMaxWidth(),
         )
-        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+        if (state.wattsEstimatedBySeer) {
             Text(
-                text = stringResource(R.string.calc_setpoint, state.setpointCelsius),
-                style = MaterialTheme.typography.titleSmall,
-            )
-            Slider(
-                value = state.setpointCelsius.toFloat(),
-                onValueChange = { value ->
-                    val setpoint = value.roundToInt()
-                    if (setpoint != state.setpointCelsius) haptics.tap()
-                    onUpdate { it.copy(setpointCelsius = setpoint) }
-                },
-                valueRange = 16f..30f,
-                steps = 13,
-                modifier = Modifier.fillMaxWidth(),
+                text = stringResource(R.string.calc_watts_estimated),
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.primary,
             )
         }
-        HoursControl(state = state, onUpdate = onUpdate)
+    }
+}
+
+/** Paso 3 · Eficiencia SEER: campo numérico + switch Inverter / Convencional. */
+@Composable
+private fun StepSeerCard(
+    state: CalculateUiState,
+    onUpdate: ((CalculateUiState) -> CalculateUiState) -> Unit,
+    seerFocus: FocusRequester,
+    onSeerDone: () -> Unit,
+) {
+    val haptics = rememberPixelHaptics()
+    val keyboard = LocalSoftwareKeyboardController.current
+    val hints = placeholdersFor(state.category)
+
+    SectionCard(title = stringResource(R.string.calc_step_seer)) {
+        NumberField(
+            label = stringResource(R.string.common_seer),
+            value = state.seerInput,
+            onValueChange = { value -> onUpdate { it.copy(seerInput = value) } },
+            placeholder = hints.seer,
+            imeAction = ImeAction.Done,
+            onImeAction = {
+                keyboard?.hide()
+                onSeerDone()
+            },
+            modifier = Modifier
+                .fillMaxWidth()
+                .focusRequester(seerFocus),
+        )
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(text = stringResource(R.string.inverter), style = MaterialTheme.typography.titleMedium)
+                Text(
+                    text = stringResource(R.string.calc_inverter_hint),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            Switch(
+                checked = state.inverter,
+                onCheckedChange = { checked ->
+                    haptics.tap()
+                    onUpdate { it.copy(inverter = checked) }
+                },
+            )
+        }
+        if (state.spec == null) {
+            Text(
+                text = stringResource(R.string.calc_missing_spec),
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.error,
+            )
+        }
+    }
+}
+
+/** Paso 4 · Horas de uso al día: barra deslizable 1-24 sin vibración al arrastrar. */
+@Composable
+private fun StepHoursCard(
+    state: CalculateUiState,
+    onUpdate: ((CalculateUiState) -> CalculateUiState) -> Unit,
+) {
+    SectionCard(title = stringResource(R.string.calc_step_hours)) {
+        Text(
+            text = stringResource(R.string.calculate_hours, state.hoursPerDay),
+            style = MaterialTheme.typography.titleSmall,
+        )
+        Slider(
+            value = state.hoursPerDay.toFloat(),
+            onValueChange = { value ->
+                onUpdate { it.copy(hoursPerDay = value.roundToInt()) }
+            },
+            valueRange = 1f..24f,
+            steps = 22,
+            modifier = Modifier.fillMaxWidth(),
+        )
+    }
+}
+
+/** Sección opcional colapsada: recibo, temperatura, equipo y guardado. */
+@Composable
+private fun OptionalInputsCard(
+    state: CalculateUiState,
+    onUpdate: ((CalculateUiState) -> CalculateUiState) -> Unit,
+    onSetBaseKwh: (Double) -> Unit,
+    onOpenSave: () -> Unit,
+    onOpenBillGuide: () -> Unit,
+) {
+    val haptics = rememberPixelHaptics()
+    var open by rememberSaveable { mutableStateOf(false) }
+    val chevron by animateFloatAsState(
+        targetValue = if (open) 180f else 0f,
+        animationSpec = PixelSpringSnappy,
+        label = "optional-chevron",
+    )
+    val hints = placeholdersFor(state.category)
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(24.dp))
+            .background(MaterialTheme.colorScheme.surfaceContainerLow)
+            .padding(horizontal = 20.dp, vertical = 8.dp),
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable {
+                    haptics.tap()
+                    open = !open
+                }
+                .padding(vertical = 10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(
+                text = stringResource(R.string.calc_optional_section),
+                style = MaterialTheme.typography.titleMedium,
+                modifier = Modifier.weight(1f),
+            )
+            Icon(
+                imageVector = Icons.Rounded.ExpandMore,
+                contentDescription = null,
+                modifier = Modifier.graphicsLayer { rotationZ = chevron },
+            )
+        }
+        AnimatedVisibility(visible = open) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 12.dp),
+                verticalArrangement = Arrangement.spacedBy(14.dp),
+            ) {
+                BaseConsumptionFields(
+                    state = state,
+                    onUpdate = onUpdate,
+                    onSetBaseKwh = onSetBaseKwh,
+                )
+                ManualCostSection(
+                    state = state,
+                    onUpdate = onUpdate,
+                    onOpenBillGuide = onOpenBillGuide,
+                )
+                SetpointControl(state = state, onUpdate = onUpdate)
+                IdentifyFields(
+                    state = state,
+                    onUpdate = onUpdate,
+                    brandPlaceholder = hints.brand,
+                )
+                FilledTonalButton(
+                    onClick = {
+                        haptics.confirm()
+                        onOpenSave()
+                    },
+                    enabled = state.canSave,
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Icon(imageVector = Icons.Rounded.Save, contentDescription = null)
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(text = stringResource(R.string.calc_save_profile))
+                }
+            }
+        }
+    }
+}
+
+/** Costo Manual: chip desplegable + campos con guía visual del recibo. */
+@Composable
+private fun ManualCostSection(
+    state: CalculateUiState,
+    onUpdate: ((CalculateUiState) -> CalculateUiState) -> Unit,
+    onOpenBillGuide: () -> Unit,
+) {
+    val haptics = rememberPixelHaptics()
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Row(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
@@ -629,124 +914,127 @@ private fun ResultExtras(
         if (state.manualCost) {
             ManualCostFields(state = state, onUpdate = onUpdate)
         }
-        FilledTonalButton(
-            onClick = {
-                haptics.confirm()
-                onOpenSave()
-            },
-            enabled = state.canSave,
-            modifier = Modifier
-                .fillMaxWidth()
-                .pixelChargeHaptics(),
-        ) {
-            Icon(imageVector = Icons.Rounded.Save, contentDescription = null)
-            Spacer(modifier = Modifier.width(8.dp))
-            Text(text = stringResource(R.string.calc_save_profile))
-        }
     }
 }
 
-/** Comparativa simultánea de las tres distribuidoras para el periodo activo. */
+/** Temperatura objetivo: barra deslizable 16-30 °C sin vibración al arrastrar. */
 @Composable
-private fun DistributorCompareCard(state: CalculateUiState) {
-    val haptics = rememberPixelHaptics()
+private fun SetpointControl(
+    state: CalculateUiState,
+    onUpdate: ((CalculateUiState) -> CalculateUiState) -> Unit,
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+        Text(
+            text = stringResource(R.string.calc_setpoint, state.setpointCelsius),
+            style = MaterialTheme.typography.titleMedium,
+        )
+        Slider(
+            value = state.setpointCelsius.toFloat(),
+            onValueChange = { value ->
+                onUpdate { it.copy(setpointCelsius = value.roundToInt()) }
+            },
+            valueRange = 16f..30f,
+            steps = 13,
+            modifier = Modifier.fillMaxWidth(),
+        )
+    }
+}
+
+/** Espacio y marca del equipo, para el guardado en Mi Casa y los reportes. */
+@Composable
+private fun IdentifyFields(
+    state: CalculateUiState,
+    onUpdate: ((CalculateUiState) -> CalculateUiState) -> Unit,
+    brandPlaceholder: String,
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Text(
+            text = stringResource(R.string.calc_identify_equipment),
+            style = MaterialTheme.typography.titleMedium,
+        )
+        OutlinedTextField(
+            value = state.spaceName,
+            onValueChange = { value -> onUpdate { it.copy(spaceName = value) } },
+            label = { Text(stringResource(R.string.calc_space)) },
+            placeholder = { Text(stringResource(R.string.calc_space_placeholder)) },
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth(),
+        )
+        OutlinedTextField(
+            value = state.brandModel,
+            onValueChange = { value -> onUpdate { it.copy(brandModel = value) } },
+            label = { Text(stringResource(R.string.common_brand_model)) },
+            placeholder = { Text(brandPlaceholder) },
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth(),
+        )
+    }
+}
+
+/** Filas de la comparativa simultánea ENSA / EDEMET / EDECHI del paso 0. */
+@Composable
+private fun DistributorComparisonBody(state: CalculateUiState) {
     val extended = LocalExtendedColors.current
-    var open by rememberSaveable { mutableStateOf(false) }
-    val chevron by animateFloatAsState(
-        targetValue = if (open) 180f else 0f,
-        animationSpec = PixelSpringSnappy,
-        label = "compare-chevron",
-    )
     val quotes = state.distributorQuotes
     val cheapest = quotes?.minByOrNull { it.costBalboas }
     val priciest = quotes?.maxByOrNull { it.costBalboas }
 
-    SectionCard(
-        title = stringResource(R.string.calc_compare_title),
-        subtitle = periodLabelText(LocalContext.current, state.usagePeriod, state.daysInMonth),
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
-        FilledTonalButton(
-            onClick = {
-                haptics.tap()
-                open = !open
-            },
-            modifier = Modifier
-                .fillMaxWidth()
-                .pixelChargeHaptics(),
-        ) {
-            Icon(imageVector = Icons.AutoMirrored.Rounded.CompareArrows, contentDescription = null)
-            Spacer(modifier = Modifier.width(8.dp))
+        if (quotes == null) {
             Text(
-                text = stringResource(R.string.calc_compare_button),
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.weight(1f),
+                text = stringResource(R.string.calc_compare_empty),
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
-            Icon(
-                imageVector = Icons.Rounded.ExpandMore,
-                contentDescription = null,
-                modifier = Modifier.graphicsLayer { rotationZ = chevron },
-            )
-        }
-        AnimatedVisibility(visible = open) {
-            Column(
-                modifier = Modifier.fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(10.dp),
-            ) {
-                if (quotes == null) {
-                    Text(
-                        text = stringResource(R.string.calc_compare_empty),
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+        } else {
+            quotes.forEach { quote ->
+                val color = when (quote.utility) {
+                    PanamaUtility.ENSA -> extended.ensa
+                    PanamaUtility.NATURGY -> extended.edemet
+                    PanamaUtility.NATURGY_EDECHI -> extended.edechi
+                }
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(10.dp)
+                            .clip(RoundedCornerShape(5.dp))
+                            .background(color)
                     )
-                } else {
-                    quotes.forEach { quote ->
-                        val color = when (quote.utility) {
-                            PanamaUtility.ENSA -> extended.ensa
-                            PanamaUtility.NATURGY -> extended.edemet
-                            PanamaUtility.NATURGY_EDECHI -> extended.edechi
-                        }
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(10.dp),
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .size(10.dp)
-                                    .clip(RoundedCornerShape(5.dp))
-                                    .background(color)
-                            )
-                            Text(
-                                text = quote.utility.shortName,
-                                style = MaterialTheme.typography.titleSmall,
-                                modifier = Modifier.weight(1f),
-                            )
-                            if (cheapest != null && quote.utility == cheapest.utility) {
-                                Text(
-                                    text = stringResource(R.string.calc_compare_cheapest),
-                                    style = MaterialTheme.typography.labelMedium,
-                                    color = MaterialTheme.colorScheme.primary,
-                                )
-                            }
-                            Text(
-                                text = AppFormat.balboas(quote.costBalboas),
-                                style = MaterialTheme.typography.titleMedium,
-                                color = color,
-                            )
-                        }
-                    }
-                    if (cheapest != null && priciest != null) {
+                    Text(
+                        text = quote.utility.shortName,
+                        style = MaterialTheme.typography.titleSmall,
+                        modifier = Modifier.weight(1f),
+                    )
+                    if (cheapest != null && quote.utility == cheapest.utility) {
                         Text(
-                            text = stringResource(
-                                R.string.calc_compare_diff,
-                                AppFormat.balboas(priciest.costBalboas - cheapest.costBalboas),
-                            ),
+                            text = stringResource(R.string.calc_compare_cheapest),
                             style = MaterialTheme.typography.labelMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            color = MaterialTheme.colorScheme.primary,
                         )
                     }
+                    Text(
+                        text = AppFormat.balboas(quote.costBalboas),
+                        style = MaterialTheme.typography.titleMedium,
+                        color = color,
+                    )
                 }
+            }
+            if (cheapest != null && priciest != null) {
+                Text(
+                    text = stringResource(
+                        R.string.calc_compare_diff,
+                        AppFormat.balboas(priciest.costBalboas - cheapest.costBalboas),
+                    ),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
             }
         }
     }
@@ -807,31 +1095,6 @@ private fun ManualCostFields(
     }
 }
 
-@Composable
-private fun HoursControl(
-    state: CalculateUiState,
-    onUpdate: ((CalculateUiState) -> CalculateUiState) -> Unit,
-) {
-    val haptics = rememberPixelHaptics()
-    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-        Text(
-            text = stringResource(R.string.calculate_hours, state.hoursPerDay),
-            style = MaterialTheme.typography.titleSmall,
-        )
-        Slider(
-            value = state.hoursPerDay.toFloat(),
-            onValueChange = { value ->
-                val hours = value.roundToInt()
-                if (hours != state.hoursPerDay) haptics.tap()
-                onUpdate { it.copy(hoursPerDay = hours) }
-            },
-            valueRange = 1f..24f,
-            steps = 22,
-            modifier = Modifier.fillMaxWidth(),
-        )
-    }
-}
-
 private fun periodLabelText(context: Context, period: UsagePeriod, daysInMonth: Int): String {
     val month = YearMonth.now().month.getDisplayName(TextStyle.SHORT, Locale.getDefault())
     return when (period) {
@@ -841,81 +1104,41 @@ private fun periodLabelText(context: Context, period: UsagePeriod, daysInMonth: 
     }
 }
 
+/** Conversor de placa (Ton / kW / A → BTU/h) con su guía de bornera. */
 @Composable
-private fun RtcaConverterCard(
+private fun PlateConverterCard(
     state: CalculateUiState,
     onUpdate: ((CalculateUiState) -> CalculateUiState) -> Unit,
-    onSeerDone: () -> Unit,
 ) {
-    var selectedTab by remember { mutableStateOf(0) }
     var showGuide by remember { mutableStateOf(false) }
     val haptics = rememberPixelHaptics()
-    val isAc = state.category == EquipmentCategory.AIR_CONDITIONER
 
     SectionCard(
         title = stringResource(R.string.calc_equipment_title),
         subtitle = stringResource(R.string.calc_equipment_subtitle),
     ) {
-        if (isAc) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Spacer(modifier = Modifier.weight(1f))
+            IconButton(
+                onClick = {
+                    haptics.tap()
+                    showGuide = true
+                },
             ) {
-                listOf(
-                    stringResource(R.string.calc_tab_label),
-                    stringResource(R.string.calc_tab_converter),
-                ).forEachIndexed { index, label ->
-                    val isSelected = selectedTab == index
-                    val scale by animateFloatAsState(
-                        targetValue = if (isSelected) 1f else 0.96f,
-                        animationSpec = PixelSpringSnappy,
-                        label = "card-tab-$index",
-                    )
-                    FilterChip(
-                        selected = isSelected,
-                        onClick = {
-                            haptics.tap()
-                            selectedTab = index
-                        },
-                        label = { Text(label) },
-                        modifier = Modifier.graphicsLayer {
-                            scaleX = scale
-                            scaleY = scale
-                        },
-                    )
-                }
-                Spacer(modifier = Modifier.weight(1f))
-                IconButton(
-                    onClick = {
-                        haptics.tap()
-                        showGuide = true
-                    },
-                    modifier = Modifier.pixelChargeHaptics(),
-                ) {
-                    Icon(
-                        imageVector = Icons.Rounded.Info,
-                        contentDescription = stringResource(R.string.calc_guide_cd),
-                    )
-                }
-            }
-            if (showGuide) {
-                if (selectedTab == 1) {
-                    NameplateGuideDialog(onDismiss = { showGuide = false })
-                } else {
-                    RtcaLabelGuideDialog(onDismiss = { showGuide = false })
-                }
+                Icon(
+                    imageVector = Icons.Rounded.Info,
+                    contentDescription = stringResource(R.string.calc_guide_cd),
+                )
             }
         }
-        if (isAc && selectedTab == 1) {
-            ConverterFields(state = state, onUpdate = onUpdate)
-        } else {
-            EquipmentFields(
-                state = state,
-                onUpdate = onUpdate,
-                onSeerDone = onSeerDone,
-            )
+        if (showGuide) {
+            NameplateGuideDialog(onDismiss = { showGuide = false })
         }
+        ConverterFields(state = state, onUpdate = onUpdate)
     }
 }
 
@@ -944,161 +1167,6 @@ private fun placeholdersFor(category: EquipmentCategory): EquipmentPlaceholders 
         watts = "180",
         seer = "",
     )
-}
-
-@Composable
-private fun EquipmentFields(
-    state: CalculateUiState,
-    onUpdate: ((CalculateUiState) -> CalculateUiState) -> Unit,
-    onSeerDone: () -> Unit,
-) {
-    val haptics = rememberPixelHaptics()
-    val keyboard = LocalSoftwareKeyboardController.current
-    val btuFocus = remember { FocusRequester() }
-    val wattsFocus = remember { FocusRequester() }
-    val seerFocus = remember { FocusRequester() }
-    val hints = placeholdersFor(state.category)
-    var identifyExpanded by remember { mutableStateOf(false) }
-    val identifyRotation by animateFloatAsState(
-        targetValue = if (identifyExpanded) 180f else 0f,
-        animationSpec = PixelSpringSnappy,
-        label = "identify-chevron",
-    )
-
-    if (state.category == EquipmentCategory.AIR_CONDITIONER) {
-        Row(
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            modifier = Modifier.horizontalScroll(rememberScrollState()),
-        ) {
-            listOf(9_000, 12_000, 18_000, 24_000, 36_000).forEach { btu ->
-                FilterChip(
-                    selected = state.btu?.roundToInt() == btu,
-                    onClick = {
-                        haptics.tap()
-                        onUpdate { it.copy(btuInput = btu.toString()) }
-                    },
-                    label = {
-                        Text(if (btu % 1_000 == 0) "${btu / 1_000}k" else btu.toString())
-                    },
-                )
-            }
-        }
-    }
-
-    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-        NumberField(
-            label = stringResource(R.string.common_btu),
-            value = state.btuInput,
-            onValueChange = { value -> onUpdate { it.copy(btuInput = value) } },
-            placeholder = hints.btu,
-            imeAction = ImeAction.Next,
-            onImeAction = { wattsFocus.requestFocus() },
-            modifier = Modifier
-                .weight(1f)
-                .focusRequester(btuFocus),
-        )
-        NumberField(
-            label = stringResource(R.string.common_watts),
-            value = state.wattsInput,
-            onValueChange = { value -> onUpdate { it.copy(wattsInput = value) } },
-            placeholder = hints.watts,
-            imeAction = ImeAction.Next,
-            onImeAction = { seerFocus.requestFocus() },
-            modifier = Modifier
-                .weight(1f)
-                .focusRequester(wattsFocus),
-        )
-        NumberField(
-            label = stringResource(R.string.common_seer),
-            value = state.seerInput,
-            onValueChange = { value -> onUpdate { it.copy(seerInput = value) } },
-            placeholder = hints.seer,
-            imeAction = ImeAction.Done,
-            onImeAction = {
-                keyboard?.hide()
-                onSeerDone()
-            },
-            modifier = Modifier
-                .weight(1f)
-                .focusRequester(seerFocus),
-        )
-    }
-    if (state.wattsEstimatedBySeer) {
-        Text(
-            text = stringResource(R.string.calc_watts_estimated),
-            style = MaterialTheme.typography.labelMedium,
-            color = MaterialTheme.colorScheme.primary,
-        )
-    }
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
-    ) {
-        Column(modifier = Modifier.weight(1f)) {
-            Text(text = stringResource(R.string.inverter), style = MaterialTheme.typography.titleMedium)
-            Text(
-                text = stringResource(R.string.calc_inverter_hint),
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
-        Switch(
-            checked = state.inverter,
-            onCheckedChange = { checked ->
-                haptics.tap()
-                onUpdate { it.copy(inverter = checked) }
-            },
-        )
-    }
-
-    // Espacio y marca quedan plegados: cotizar rápido sin ruido visual.
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(16.dp))
-            .clickable {
-                haptics.tap()
-                identifyExpanded = !identifyExpanded
-            }
-            .padding(vertical = 8.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Text(
-            text = stringResource(R.string.calc_identify_equipment),
-            style = MaterialTheme.typography.titleSmall,
-            modifier = Modifier.weight(1f),
-        )
-        Icon(
-            imageVector = Icons.Rounded.ExpandMore,
-            contentDescription = null,
-            modifier = Modifier.graphicsLayer { rotationZ = identifyRotation },
-        )
-    }
-    if (identifyExpanded) {
-        OutlinedTextField(
-            value = state.spaceName,
-            onValueChange = { value -> onUpdate { it.copy(spaceName = value) } },
-            label = { Text(stringResource(R.string.calc_space)) },
-            placeholder = { Text(stringResource(R.string.calc_space_placeholder)) },
-            singleLine = true,
-            modifier = Modifier.fillMaxWidth(),
-        )
-        OutlinedTextField(
-            value = state.brandModel,
-            onValueChange = { value -> onUpdate { it.copy(brandModel = value) } },
-            label = { Text(stringResource(R.string.common_brand_model)) },
-            placeholder = { Text(hints.brand) },
-            singleLine = true,
-            modifier = Modifier.fillMaxWidth(),
-        )
-    }
-    if (state.spec == null) {
-        Text(
-            text = stringResource(R.string.calc_missing_spec),
-            style = MaterialTheme.typography.labelMedium,
-            color = MaterialTheme.colorScheme.error,
-        )
-    }
 }
 
 @Composable
@@ -1175,9 +1243,7 @@ private fun SaveAndShareCard(
                 onOpenSave()
             },
             enabled = state.canSave && !state.isSaving,
-            modifier = Modifier
-                .fillMaxWidth()
-                .pixelChargeHaptics(),
+            modifier = Modifier.fillMaxWidth(),
         ) {
             if (state.isSaving) {
                 CircularProgressIndicator(
@@ -1203,9 +1269,7 @@ private fun SaveAndShareCard(
                 onOpenShare()
             },
             enabled = state.canSave && !isExporting,
-            modifier = Modifier
-                .fillMaxWidth()
-                .pixelChargeHaptics(),
+            modifier = Modifier.fillMaxWidth(),
         ) {
             if (isExporting) {
                 CircularProgressIndicator(
@@ -1417,9 +1481,7 @@ private fun RemoteControl(
     Slider(
         value = state.simulatedHoursPerDay.toFloat(),
         onValueChange = { value ->
-            val hours = value.roundToInt()
-            if (hours != state.simulatedHoursPerDay) haptics.tap()
-            onUpdate { it.copy(simulatedHoursPerDay = hours) }
+            onUpdate { it.copy(simulatedHoursPerDay = value.roundToInt()) }
         },
         valueRange = 1f..24f,
         steps = 22,
@@ -1892,7 +1954,8 @@ private fun NumberField(
     )
 }
 
-private const val CHART_ITEM_INDEX = 2
+/** Índice del paso 4 (Horas de uso) dentro del LazyColumn: 0 título, 1 categoría, 2-4 pasos 1-3. */
+private const val HOURS_STEP_INDEX = 5
 
 private fun CalculateUiState.toReportData(context: Context): ReportData? {
     val spec = spec ?: return null

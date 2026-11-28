@@ -96,7 +96,6 @@ import com.steefwel28.consumoenergetico.ui.components.InfoHint
 import com.steefwel28.consumoenergetico.ui.components.PixelDialog
 import com.steefwel28.consumoenergetico.ui.components.PixelSpringSnappy
 import com.steefwel28.consumoenergetico.ui.components.SectionCard
-import com.steefwel28.consumoenergetico.ui.components.pixelChargeHaptics
 import com.steefwel28.consumoenergetico.ui.components.rememberPixelHaptics
 import com.steefwel28.consumoenergetico.ui.theme.ConsumoEnergeticoTheme
 import java.text.SimpleDateFormat
@@ -197,7 +196,7 @@ fun MyHomeScreen(
                 ) {
                     Button(
                         onClick = { showNewGroup = true },
-                        modifier = Modifier.fillMaxWidth().pixelChargeHaptics(),
+                        modifier = Modifier.fillMaxWidth(),
                     ) {
                         Icon(Icons.Rounded.Add, contentDescription = null)
                         Text(text = stringResource(R.string.home_create_group), modifier = Modifier.padding(start = 8.dp))
@@ -242,7 +241,7 @@ fun MyHomeScreen(
                         haptics.confirm()
                         showNewUnit = true
                     },
-                    modifier = Modifier.fillMaxWidth().pixelChargeHaptics(),
+                    modifier = Modifier.fillMaxWidth(),
                 ) {
                     Icon(Icons.Rounded.Add, contentDescription = null)
                     Text(
@@ -510,7 +509,7 @@ private fun GroupSummaryCard(
 
         FilledTonalButton(
             onClick = onRegisterBill,
-            modifier = Modifier.fillMaxWidth().pixelChargeHaptics(),
+            modifier = Modifier.fillMaxWidth(),
         ) {
             Icon(Icons.Rounded.Add, contentDescription = null)
             Text(
@@ -754,7 +753,7 @@ private fun NotificationsCard() {
                 haptics.confirm()
                 launcher.launch(Manifest.permission.POST_NOTIFICATIONS)
             },
-            modifier = Modifier.fillMaxWidth().pixelChargeHaptics(),
+            modifier = Modifier.fillMaxWidth(),
         ) {
             Text(stringResource(R.string.home_enable_notifications))
         }
@@ -1103,7 +1102,7 @@ private fun UnitDialog(
                         onValueChange = { wattsInput = it },
                         label = {
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                Text(stringResource(R.string.common_watts))
+                                Text(stringResource(R.string.home_watts_short))
                                 InfoHint(text = stringResource(R.string.calc_watts_info))
                             }
                         },

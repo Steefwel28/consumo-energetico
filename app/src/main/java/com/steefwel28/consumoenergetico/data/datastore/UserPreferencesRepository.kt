@@ -57,7 +57,6 @@ class UserPreferencesRepository internal constructor(
         AppearancePreferences(
             mode = stored[ThemeModeKey].toEnumOrDefault(ThemeMode.SYSTEM),
             oledPure = stored[OledPureKey] ?: false,
-            liquidGlass = stored[LiquidGlassKey] ?: false,
         )
     }
 
@@ -87,10 +86,6 @@ class UserPreferencesRepository internal constructor(
         dataStore.edit { stored -> stored[OledPureKey] = enabled }
     }
 
-    suspend fun setLiquidGlass(enabled: Boolean) {
-        dataStore.edit { stored -> stored[LiquidGlassKey] = enabled }
-    }
-
     companion object {
         private val LengthKey = stringPreferencesKey("length_unit")
         private val ShortLengthKey = stringPreferencesKey("short_length_unit")
@@ -100,7 +95,6 @@ class UserPreferencesRepository internal constructor(
         private val BaseMonthlyKwhKey = doublePreferencesKey("base_monthly_kwh")
         private val ThemeModeKey = stringPreferencesKey("theme_mode")
         private val OledPureKey = booleanPreferencesKey("oled_pure")
-        private val LiquidGlassKey = booleanPreferencesKey("liquid_glass")
 
         fun create(context: Context): UserPreferencesRepository =
             UserPreferencesRepository(context.applicationContext.userPreferencesDataStore)

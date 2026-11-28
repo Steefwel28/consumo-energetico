@@ -62,7 +62,6 @@ import com.steefwel28.consumoenergetico.ui.AppViewModelProvider
 import com.steefwel28.consumoenergetico.ui.components.AppFormat
 import com.steefwel28.consumoenergetico.ui.components.SectionCard
 import com.steefwel28.consumoenergetico.ui.components.labelRes
-import com.steefwel28.consumoenergetico.ui.components.pixelChargeHaptics
 import com.steefwel28.consumoenergetico.ui.components.rememberPixelHaptics
 import com.steefwel28.consumoenergetico.ui.illustrations.EducationalSketchCarousel
 import com.steefwel28.consumoenergetico.ui.theme.ConsumoEnergeticoTheme
@@ -210,7 +209,7 @@ private fun SpaceInputCard(
                 haptics.tap()
                 onUpdate { it.copy(detailsExpanded = !it.detailsExpanded) }
             },
-            modifier = Modifier.fillMaxWidth().pixelChargeHaptics(),
+            modifier = Modifier.fillMaxWidth(),
         ) {
             Icon(
                 imageVector = if (state.detailsExpanded) {

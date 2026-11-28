@@ -98,13 +98,19 @@
     <string name="calc_space_placeholder">Sala, recámara, local…</string>
     <string name="calc_inverter_hint">Modula la potencia y gasta menos que un equipo On/Off.</string>
     <string name="calc_missing_spec">Completa BTU/h y potencia nominal mayores que cero para calcular.</string>
+    <string name="calc_step_capacity">Paso 1 · Capacidad (BTU/h)</string>
+    <string name="calc_step_watts">Paso 2 · Consumo eléctrico (Watts / W)</string>
+    <string name="calc_step_seer">Paso 3 · Eficiencia SEER</string>
+    <string name="calc_step_hours">Paso 4 · Horas de uso al día</string>
+    <string name="calc_optional_section">Opcional: recibo, temperatura y guardado</string>
+    <string name="calc_comparison">Comparación</string>
     <string name="calc_converter_value">Valor en %1$s</string>
     <string name="calc_converter_result">Equivale a %1$s.</string>
     <string name="calc_converter_use">Usar en la etiqueta</string>
     <string name="calc_save_share_title">Guardar y compartir</string>
     <string name="calc_save_share_subtitle">Guarda en tu grupo y comparte la ficha en PDF o PNG.</string>
     <string name="calc_saving">Guardando…</string>
-    <string name="calc_save_profile">Guardar en Perfil</string>
+    <string name="calc_save_profile">Guardar en Mi Casa</string>
     <string name="calc_generating">Generando ficha…</string>
     <string name="calc_share">Compartir ficha</string>
     <string name="calc_save_hint">Completa la etiqueta con BTU/h y potencia para guardar o compartir.</string>
@@ -259,15 +265,13 @@
     <string name="home_msg_unit_missing">El equipo ya no existe.</string>
     <string name="home_msg_maintenance_saved">Mantenimiento registrado hoy.</string>
     <string name="home_msg_maintenance_error">No se pudo registrar la limpieza.</string>
+    <string name="home_watts_short">Consumo (Watts / W)</string>
 
     <!-- Ajustes -->
     <string name="set_title">Ajustes</string>
     <string name="set_subtitle">Unidades, recibo, respaldo y actualizaciones de la app.</string>
     <string name="set_units_title">Unidades globales</string>
-    <string name="set_units_subtitle">Cambian cómo se captura y se muestra cada dato; el motor siempre trabaja en SI.</string>
-    <string name="set_length">Longitud</string>
-    <string name="set_short_length">Longitud corta</string>
-    <string name="set_volume">Volumen</string>
+    <string name="set_units_subtitle">Cambia cómo se captura y muestra la temperatura; el motor siempre trabaja en SI.</string>
     <string name="set_temperature">Temperatura</string>
     <string name="set_bill_title">Recibo y distribuidora</string>
     <string name="set_bill_subtitle">El consumo base es lo que gastas sin contar los aires; define el salto de bloque.</string>
@@ -437,16 +441,13 @@
 
     <!-- Ajustes · v0.6 -->
     <string name="set_appearance_title">Apariencia</string>
-    <string name="set_appearance_subtitle">Tema, Negro Puro OLED y la atmósfera Liquid Glass.</string>
+    <string name="set_appearance_subtitle">Tema y Negro Puro OLED.</string>
     <string name="set_theme_mode">Tema</string>
     <string name="set_theme_day">Día</string>
     <string name="set_theme_night">Noche</string>
     <string name="set_theme_system">Sistema</string>
     <string name="set_oled">Negro Puro OLED</string>
     <string name="set_oled_hint">Fondo #000000 real para ahorrar batería en pantallas OLED.</string>
-    <string name="set_liquid_glass">Liquid Glass (estilo iOS 27)</string>
-    <string name="set_liquid_glass_hint">Orbes cian y esmeralda con superficies translúcidas y desenfoque por hardware.</string>
-    <string name="set_liquid_glass_notice">Controlado por la atmósfera Liquid Glass</string>
     <string name="about_signature">Roberto Franco · @steefwel28</string>
     <string name="about_github">GitHub</string>
     <string name="about_yappy">Invítame un café · Yappy (%1$s)</string>

@@ -67,7 +67,7 @@ private fun GuideDialog(
                 .fillMaxWidth()
                 .clip(GuideShape)
                 .background(GuideSurface)
-                .border(liquidGlassBorder(), GuideShape)
+                .border(1.dp, MaterialTheme.colorScheme.outline, GuideShape)
                 .padding(20.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {

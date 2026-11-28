@@ -15,8 +15,8 @@
    Do instead: run `.\gradlew.bat testDebugUnitTest assembleDebug --console=plain` until `BUILD SUCCESSFUL` with 0 failures; never report success from a partial run.
 4. **[2026-11-28] Room FK migrations cannot use ALTER TABLE**
    Do instead: recreate the table (`*_new`), copy rows with explicit columns, drop, rename and recreate indices; bump `@Database(version)` and commit the exported `N.json`.
-5. **[2026-11-23] Haze version must match the project Kotlin**
-   Do instead: keep `haze = "1.7.3"` (built with Kotlin 2.3.20 stdlib) while `kotlin = "2.3.21"`; Haze 2.x/stdlib 2.4 breaks the 2.3 compiler. Verify with the artifact POM before upgrading.
+5. **[2026-11-28] Updater tests need real org.json on the JVM**
+   Do instead: keep `testImplementation("org.json:json")` — Android stubs org.json in unit tests.
 6. **[2026-11-28] Backtick test names cannot contain a dot**
    Do instead: JVM method names reject `.`; write `inverter aplica el factor estacional` instead of `87.5 por ciento`, or Gradle fails with "Name contains illegal characters: .".
 
@@ -51,24 +51,24 @@
    Do instead: write `"nominal_watts": null` when absent and read it with `optionalDouble` so v1–v4 backups still restore; never require the key.
 
 ## Compose UI Guardrails
-1. **[2026-11-28] Haze only on floating layers, never on content cards**
-   Do instead: `hazeSource` on the scrolling content Box and `LiquidGlassSurface`/`liquidGlassEffect` only on nav bar, menu and sheets; cards use solid `surfaceContainerLow`.
+1. **[2026-11-28] Liquid Glass and the haze dependency are gone for good**
+   Do instead: never reintroduce `LocalLiquidGlass`/haze blur; floating layers (nav bar, menu, sheets) use solid `surfaceContainer` with 24.dp shapes.
 2. **[2026-11-28] Distributor/brand colors come from `LocalExtendedColors`, never `isSystemInDarkTheme()`**
    Do instead: `ExtendedColors(ensa, edemet, edechi, warningContainer, onWarningContainer)` provided by `ConsumoEnergeticoTheme`; screens read `LocalExtendedColors.current` (waves, duel bars, AboutCard uses M3 `primaryContainer` roles).
-3. **[2026-11-28] Haptics use the system engine**
-   Do instead: `LocalHapticFeedback.current` with `Confirm`, `Reject`, `SegmentTick`, `ToggleOn`/`ToggleOff`; no direct `Vibrator` and no `VIBRATE` permission.
+3. **[2026-11-28] Haptics: system engine, but never on sliders or long-press**
+   Do instead: `LocalHapticFeedback.current` with `Confirm`, `Reject`, `SegmentTick`, `ToggleOn`/`ToggleOff` for taps and switches; no direct `Vibrator`, no `VIBRATE` permission. `pixelChargeHaptics` was deleted in v0.7.2-beta — sliders drag silently and long-presses carry no crescendo.
 4. **[2026-11-28] Splash haptics still follow the 2 s timeline**
    Do instead: stage 1 `SegmentTick`, stage 2 two `SegmentTick`, stage 3 ramp ticks, `Confirm` at 2000 ms with `1.0 → 1.12` bounce.
 5. **[2026-11-23] `Float * Dp` does not compile**
    Do instead: write `dp * float` (e.g. `8.dp * (1f - eased)`), never `(1f - eased) * 8.dp`.
-6. **[2026-11-28] `CHART_ITEM_INDEX` must match the LazyColumn item order in `CalculateScreen`**
-   Do instead: constant is `2` since v0.7.1 (items: 0 título, 1 categoría, 2 comparativa 3 distribuidoras, 3 consumo base, 4 ajustes, 5 RTCA, 6 guardar/compartir, 7 footer); re-check the constant after any reorder.
+6. **[2026-11-28] `HOURS_STEP_INDEX` must match the LazyColumn order in `CalculateScreen`**
+   Do instead: constant is `5` since v0.7.2-beta (items: 0 título, 1 categoría, 2 paso 1 BTU, 3 paso 2 Watts, 4 paso 3 SEER, 5 paso 4 horas, 6 opcional, 7 conversor, 8 guardar/compartir, 9 footer); re-check after any reorder.
 7. **[2026-11-28] `rememberSaveable` se importa desde `runtime.saveable`**
    Do instead: `import androidx.compose.runtime.saveable.rememberSaveable`; la ruta `androidx.compose.runtime.rememberSaveable` no existe y rompe `compileDebugKotlin`.
-8. **[2026-11-23] Fase 1 hides unsupported categories**
-   Do instead: render chips from `EquipmentCategory.available` (only `AIR_CONDITIONER`); keep the full enum intact for v0.7.0.
-9. **[2026-11-28] `LocalLiquidGlass` gates the Haze blur**
-   Do instead: `LiquidGlassSurface` and `liquidGlassEffect()` return the solid M3 surface when `LocalLiquidGlass.current` is false or power save is on; never remove the toggle from Ajustes.
+8. **[2026-11-28] Calcular flows 0 → 4; extras live in one collapsed card**
+   Do instead: paso 0 (cabecera fija: costo, chips, periodo, botón "Comparación"), pasos 1-4 como tarjetas numeradas; consumo base, costo manual, temperatura, espacio/marca y "Guardar en Mi Casa" plegados en `OptionalInputsCard`. Quick chips leen `CalculateUiState.BTU_QUICK_VALUES` (testado).
+9. **[2026-11-28] Updater hits the releases LIST, prereleases included**
+   Do instead: `GITHUB_RELEASES_API` ends in `/releases`; `GitHubReleaseChecker.selectLatestRelease(payload, skipped)` ignores drafts, considers pre-releases and falls through skipped versions; header `User-Agent: ConsumoEnergetico-App`.
 10. **[2026-11-28] ViewModels persist user inputs via `SavedStateHandle`**
    Do instead: constructor `(savedStateHandle, container)`; `AppViewModelProvider` builds it with `createSavedStateHandle()` inside `initializer`; write scalar inputs on every `update()`, restore in the initial `MutableStateFlow(...)`; DataStore/Room stay owners of `utility`/`baseMonthlyKwh`/groups. Duel AC vs. AC logic is pure in `AcDuelUiState` (no Android imports) and tested there.
 

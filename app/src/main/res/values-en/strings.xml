@@ -98,13 +98,19 @@
     <string name="calc_space_placeholder">Living room, bedroom, shop…</string>
     <string name="calc_inverter_hint">Modulates power and uses less than an On/Off unit.</string>
     <string name="calc_missing_spec">Enter BTU/h and nominal power above zero to calculate.</string>
+    <string name="calc_step_capacity">Step 1 · Capacity (BTU/h)</string>
+    <string name="calc_step_watts">Step 2 · Power draw (Watts / W)</string>
+    <string name="calc_step_seer">Step 3 · SEER efficiency</string>
+    <string name="calc_step_hours">Step 4 · Hours of use per day</string>
+    <string name="calc_optional_section">Optional: bill, temperature &amp; saving</string>
+    <string name="calc_comparison">Comparison</string>
     <string name="calc_converter_value">Value in %1$s</string>
     <string name="calc_converter_result">Equals %1$s.</string>
     <string name="calc_converter_use">Use on the label</string>
     <string name="calc_save_share_title">Save and share</string>
     <string name="calc_save_share_subtitle">Save to your group and share the sheet as PDF or PNG.</string>
     <string name="calc_saving">Saving…</string>
-    <string name="calc_save_profile">Save to Profile</string>
+    <string name="calc_save_profile">Save to My Home</string>
     <string name="calc_generating">Generating sheet…</string>
     <string name="calc_share">Share sheet</string>
     <string name="calc_save_hint">Fill in the label with BTU/h and power to save or share.</string>
@@ -259,15 +265,13 @@
     <string name="home_msg_unit_missing">The unit no longer exists.</string>
     <string name="home_msg_maintenance_saved">Maintenance logged today.</string>
     <string name="home_msg_maintenance_error">Could not log the cleaning.</string>
+    <string name="home_watts_short">Consumption (Watts / W)</string>
 
     <!-- Settings -->
     <string name="set_title">Settings</string>
     <string name="set_subtitle">Units, bill, backup, and app updates.</string>
     <string name="set_units_title">Global units</string>
-    <string name="set_units_subtitle">They change how each input is captured and shown; the engine always works in SI.</string>
-    <string name="set_length">Length</string>
-    <string name="set_short_length">Short length</string>
-    <string name="set_volume">Volume</string>
+    <string name="set_units_subtitle">Changes how temperature is captured and shown; the engine always works in SI.</string>
     <string name="set_temperature">Temperature</string>
     <string name="set_bill_title">Bill and utility</string>
     <string name="set_bill_subtitle">Base consumption is what you spend without the ACs; it defines the tier jump.</string>
@@ -437,16 +441,13 @@
 
     <!-- Settings · v0.6 -->
     <string name="set_appearance_title">Appearance</string>
-    <string name="set_appearance_subtitle">Theme, OLED Pure Black and the Liquid Glass atmosphere.</string>
+    <string name="set_appearance_subtitle">Theme and OLED Pure Black.</string>
     <string name="set_theme_mode">Theme</string>
     <string name="set_theme_day">Day</string>
     <string name="set_theme_night">Night</string>
     <string name="set_theme_system">System</string>
     <string name="set_oled">OLED Pure Black</string>
     <string name="set_oled_hint">True #000000 background to save battery on OLED screens.</string>
-    <string name="set_liquid_glass">Liquid Glass (iOS 27 style)</string>
-    <string name="set_liquid_glass_hint">Cyan and emerald orbs with translucent surfaces and hardware blur.</string>
-    <string name="set_liquid_glass_notice">Controlled by the Liquid Glass atmosphere</string>
     <string name="about_signature">Roberto Franco · @steefwel28</string>
     <string name="about_github">GitHub</string>
     <string name="about_yappy">Buy me a coffee · Yappy (%1$s)</string>

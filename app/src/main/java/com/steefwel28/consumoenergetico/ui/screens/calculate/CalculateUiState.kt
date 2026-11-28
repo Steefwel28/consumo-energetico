@@ -397,6 +397,11 @@ data class CalculateUiState(
             ubicacion = ubicacion.trim().ifBlank { CalculateLocations.DEFAULT },
         )
     }
+
+    companion object {
+        /** Chips rápidos de capacidad del paso 1 (BTU/h). */
+        val BTU_QUICK_VALUES: List<Int> = listOf(9_000, 12_000, 18_000, 24_000, 36_000)
+    }
 }
 
 /** Reparte el costo mensual del bloque al periodo visible sin promediar la tarifa. */

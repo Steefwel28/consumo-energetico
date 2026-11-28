@@ -97,13 +97,19 @@
     <string name="calc_space_placeholder">客厅、卧室、店铺…</string>
     <string name="calc_inverter_hint">变频调节功率，比定频设备更省电。</string>
     <string name="calc_missing_spec">输入大于零的 BTU/h 和额定功率以计算。</string>
+    <string name="calc_step_capacity">第 1 步 · 容量 (BTU/h)</string>
+    <string name="calc_step_watts">第 2 步 · 耗电功率 (瓦特 W)</string>
+    <string name="calc_step_seer">第 3 步 · SEER 能效</string>
+    <string name="calc_step_hours">第 4 步 · 每日使用小时</string>
+    <string name="calc_optional_section">可选：账单、温度与保存</string>
+    <string name="calc_comparison">对比</string>
     <string name="calc_converter_value">数值（%1$s）</string>
     <string name="calc_converter_result">相当于 %1$s。</string>
     <string name="calc_converter_use">用于标签</string>
     <string name="calc_save_share_title">保存与分享</string>
     <string name="calc_save_share_subtitle">保存到您的分组，并以 PDF 或 PNG 分享报告。</string>
     <string name="calc_saving">保存中…</string>
-    <string name="calc_save_profile">保存到档案</string>
+    <string name="calc_save_profile">保存到我的家</string>
     <string name="calc_generating">生成报告中…</string>
     <string name="calc_share">分享报告</string>
     <string name="calc_save_hint">填写标签的 BTU/h 和功率后才能保存或分享。</string>
@@ -258,15 +264,13 @@
     <string name="home_msg_unit_missing">该设备已不存在。</string>
     <string name="home_msg_maintenance_saved">已登记今日保养。</string>
     <string name="home_msg_maintenance_error">登记清洁失败。</string>
+    <string name="home_watts_short">耗电 (瓦特 W)</string>
 
     <!-- 设置 -->
     <string name="set_title">设置</string>
     <string name="set_subtitle">单位、电费单、备份与应用更新。</string>
     <string name="set_units_title">全局单位</string>
-    <string name="set_units_subtitle">改变每项数据的输入与显示方式；引擎始终使用国际单位。</string>
-    <string name="set_length">长度</string>
-    <string name="set_short_length">短长度</string>
-    <string name="set_volume">体积</string>
+    <string name="set_units_subtitle">改变温度的输入与显示方式；引擎始终使用国际单位。</string>
     <string name="set_temperature">温度</string>
     <string name="set_bill_title">电费单与电力公司</string>
     <string name="set_bill_subtitle">基础用电量是不含空调的开销；它决定阶梯跳档。</string>
@@ -431,16 +435,13 @@
 
     <!-- 设置 · v0.6 -->
     <string name="set_appearance_title">外观</string>
-    <string name="set_appearance_subtitle">主题、纯黑 OLED 与 Liquid Glass 氛围。</string>
+    <string name="set_appearance_subtitle">主题与纯黑 OLED。</string>
     <string name="set_theme_mode">主题</string>
     <string name="set_theme_day">白天</string>
     <string name="set_theme_night">夜间</string>
     <string name="set_theme_system">跟随系统</string>
     <string name="set_oled">纯黑 OLED</string>
     <string name="set_oled_hint">真正的 #000000 背景，在 OLED 屏幕上更省电。</string>
-    <string name="set_liquid_glass">Liquid Glass（iOS 27 风格）</string>
-    <string name="set_liquid_glass_hint">青色与翡翠色光球、半透明表面和硬件模糊。</string>
-    <string name="set_liquid_glass_notice">由 Liquid Glass 氛围控制</string>
     <string name="about_signature">Roberto Franco · @steefwel28</string>
     <string name="about_github">GitHub</string>
     <string name="about_yappy">请我喝咖啡 · Yappy（%1$s）</string>

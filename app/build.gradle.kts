@@ -12,14 +12,14 @@ android {
         applicationId = "com.steefwel28.consumoenergetico"
         minSdk = 26
         targetSdk = 37
-        versionCode = 6
-        versionName = "0.6.0-alpha"
+        versionCode = 7
+        versionName = "0.7.2-beta"
 
         buildConfigField("String", "AUTHOR_SIGNATURE", "\"steefwel28\"")
         buildConfigField(
             "String",
             "GITHUB_RELEASES_API",
-            "\"https://api.github.com/repos/Steefwel28/consumo-energetico/releases/latest\"",
+            "\"https://api.github.com/repos/Steefwel28/consumo-energetico/releases\"",
         )
     }
 
@@ -67,7 +67,6 @@ dependencies {
     implementation(libs.androidx.appcompat)
 
     implementation(platform(libs.androidx.compose.bom))
-    implementation(libs.haze)
     implementation(libs.androidx.compose.ui)
     implementation(libs.androidx.compose.ui.graphics)
     implementation(libs.androidx.compose.ui.tooling.preview)
@@ -92,4 +91,5 @@ dependencies {
 
     testImplementation(libs.junit)
     testImplementation(libs.kotlinx.coroutines.test)
+    testImplementation("org.json:json:20240303")
 }

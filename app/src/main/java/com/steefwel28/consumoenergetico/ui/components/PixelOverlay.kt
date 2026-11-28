@@ -19,7 +19,6 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 
 /**
@@ -118,7 +117,6 @@ fun PixelDialog(
             TextButton(
                 onClick = onConfirm,
                 enabled = confirmEnabled,
-                modifier = Modifier.pixelChargeHaptics(),
             ) { Text(confirmLabel) }
         },
         dismissButton = dismissLabel?.let { label ->

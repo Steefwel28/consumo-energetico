@@ -10,13 +10,11 @@ enum class ThemeMode {
 }
 
 /**
- * Apariencia global persistida: tema, negro puro OLED y la atmósfera
- * Liquid Glass. Vive en `domain` para que DataStore y la UI compartan tipos
- * sin depender de Android.
+ * Apariencia global persistida: tema y negro puro OLED. Vive en `domain`
+ * para que DataStore y la UI compartan tipos sin depender de Android.
  */
 @CraftedBy("steefwel28")
 data class AppearancePreferences(
     val mode: ThemeMode = ThemeMode.SYSTEM,
     val oledPure: Boolean = false,
-    val liquidGlass: Boolean = false,
 )

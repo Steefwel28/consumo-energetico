@@ -19,11 +19,12 @@ import org.json.JSONArray
 import org.json.JSONObject
 
 /**
- * Verificador del release estable más reciente publicado en GitHub.
+ * Verificador del release publicado más reciente en GitHub.
  *
  * Es el único punto de red de la app: usa `HttpURLConnection` nativo con
- * timeout de 4 s, ignora pre-releases y borradores, y recuerda en DataStore
- * las versiones que el usuario decidió omitir.
+ * timeout de 4 s contra la lista `/releases`. Ignora borradores pero sí
+ * considera pre-releases (`v0.7.2-beta`), salta las versiones que el usuario
+ * decidió omitir en DataStore cayendo a la siguiente más alta.
  */
 @CraftedBy("steefwel28")
 class GitHubReleaseChecker(
@@ -46,32 +47,23 @@ class GitHubReleaseChecker(
      * [UpdateCheckResult.NetworkError] para que la UI decida si reintenta.
      */
     suspend fun checkForUpdate(): UpdateCheckResult = withContext(ioDispatcher) {
+        val skippedVersions = updatePreferences.skippedVersions.first()
         val release = try {
-            fetchLatestStableRelease()
+            fetchLatestRelease(skippedVersions)
         } catch (cancellation: CancellationException) {
             throw cancellation
         } catch (error: Exception) {
             return@withContext UpdateCheckResult.NetworkError(error)
         } ?: return@withContext UpdateCheckResult.NoStableRelease
 
-        val skippedVersions = updatePreferences.skippedVersions.first()
-        when {
-            !SemanticVersion.isNewer(release.version, currentVersionName) -> {
-                clearPendingRelease()
-                UpdateCheckResult.UpToDate
-            }
-
-            release.version in skippedVersions -> {
-                clearPendingRelease()
-                UpdateCheckResult.UpdateSkipped(release)
-            }
-
-            else -> {
-                _pendingRelease.value = release
-                _hasPendingUpdate.value = true
-                UpdateCheckResult.UpdateAvailable(release)
-            }
+        if (!SemanticVersion.isNewer(release.version, currentVersionName)) {
+            clearPendingRelease()
+            return@withContext UpdateCheckResult.UpToDate
         }
+
+        _pendingRelease.value = release
+        _hasPendingUpdate.value = true
+        UpdateCheckResult.UpdateAvailable(release)
     }
 
     /**
@@ -94,7 +86,7 @@ class GitHubReleaseChecker(
         _hasPendingUpdate.value = false
     }
 
-    private fun fetchLatestStableRelease(): GitHubRelease? {
+    private fun fetchLatestRelease(skippedVersions: Set<String>): GitHubRelease? {
         val connection = (URL(releasesApiUrl).openConnection() as HttpURLConnection).apply {
             requestMethod = "GET"
             connectTimeout = TIMEOUT_MILLIS
@@ -112,16 +104,14 @@ class GitHubReleaseChecker(
             val payload = connection.inputStream
                 .bufferedReader(Charsets.UTF_8)
                 .use { reader -> reader.readText() }
-            parseStableRelease(JSONObject(payload))
+            selectLatestRelease(JSONArray(payload), skippedVersions)?.let(::parseRelease)
         } finally {
             connection.disconnect()
         }
     }
 
-    private fun parseStableRelease(payload: JSONObject): GitHubRelease? {
-        if (payload.optBoolean("draft") || payload.optBoolean("prerelease")) return null
-
-        val tagName = payload.optString("tag_name").takeIf(String::isNotBlank) ?: return null
+    private fun parseRelease(payload: JSONObject): GitHubRelease {
+        val tagName = payload.optString("tag_name")
 
         return GitHubRelease(
             version = SemanticVersion.normalize(tagName),
@@ -147,8 +137,36 @@ class GitHubReleaseChecker(
         return null
     }
 
-    private companion object {
-        const val TIMEOUT_MILLIS = 4_000
-        const val USER_AGENT = "consumo-energetico-android"
+    companion object {
+        /**
+         * Selecciona de la lista `/releases` el JSON del release publicable más
+         * alto: descarta borradores y versiones omitidas, considera
+         * pre-releases (`v0.7.2-beta`) y compara con [SemanticVersion].
+         *
+         * Función pura sin red ni dependencias de Android: las pruebas JVM la
+         * ejercitan con un payload con la forma exacta de la API de GitHub.
+         */
+        fun selectLatestRelease(payload: JSONArray, skipped: Set<String>): JSONObject? {
+            var best: JSONObject? = null
+            for (index in 0 until payload.length()) {
+                val release = payload.optJSONObject(index) ?: continue
+                if (release.optBoolean("draft")) continue
+                val tagName = release.optString("tag_name").takeIf(String::isNotBlank) ?: continue
+                if (SemanticVersion.normalize(tagName) in skipped) continue
+
+                val current = best
+                if (current == null || SemanticVersion.isNewer(
+                        SemanticVersion.normalize(tagName),
+                        SemanticVersion.normalize(current.optString("tag_name")),
+                    )
+                ) {
+                    best = release
+                }
+            }
+            return best
+        }
+
+        private const val TIMEOUT_MILLIS = 4_000
+        private const val USER_AGENT = "ConsumoEnergetico-App"
     }
 }

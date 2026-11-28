@@ -35,6 +35,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
@@ -68,13 +69,10 @@ import com.steefwel28.consumoenergetico.core.di.AppContainer
 import com.steefwel28.consumoenergetico.domain.settings.AppearancePreferences
 import com.steefwel28.consumoenergetico.ui.AppViewModelProvider
 import com.steefwel28.consumoenergetico.ui.components.AppFormat
-import com.steefwel28.consumoenergetico.ui.components.LiquidGlassSurface
-import com.steefwel28.consumoenergetico.ui.components.LocalHazeState
 import com.steefwel28.consumoenergetico.ui.components.LocalPixelOverlayState
 import com.steefwel28.consumoenergetico.ui.components.PixelDialog
 import com.steefwel28.consumoenergetico.ui.components.PixelOverlayState
 import com.steefwel28.consumoenergetico.ui.components.PixelSpringExpressive
-import com.steefwel28.consumoenergetico.ui.components.pixelChargeHaptics
 import com.steefwel28.consumoenergetico.ui.components.rememberPixelHaptics
 import com.steefwel28.consumoenergetico.ui.screens.calculate.CalculateRoute
 import com.steefwel28.consumoenergetico.ui.screens.calculate.CalculateUiState
@@ -86,8 +84,6 @@ import com.steefwel28.consumoenergetico.ui.screens.myhome.MyHomeRoute
 import com.steefwel28.consumoenergetico.ui.screens.recommend.RecommendRoute
 import com.steefwel28.consumoenergetico.ui.screens.settings.SettingsRoute
 import com.steefwel28.consumoenergetico.ui.screens.splash.ExpressiveSplashScreen
-import dev.chrisbanes.haze.hazeSource
-import dev.chrisbanes.haze.rememberHazeState
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -171,120 +167,113 @@ private fun MainScaffold(
     var showSimulator by rememberSaveable { mutableStateOf(false) }
     var showCapsules by rememberSaveable { mutableStateOf(false) }
     var menuOpen by rememberSaveable { mutableStateOf(false) }
-    val hazeState = rememberHazeState()
     val currentRoute by navController.currentBackStackEntryAsState()
     val route = currentRoute?.destination?.route
 
-    CompositionLocalProvider(LocalHazeState provides hazeState) {
-        // Fondo sólido del esquema Día/Noche/OLED; el desenfoque Haze vive en
-        // la barra inferior, el menú y las hojas modales.
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(MaterialTheme.colorScheme.background)
-                // Fuente del desenfoque: todo lo que pase por detrás de la
-                // barra inferior y del menú.
-                .hazeSource(hazeState),
-        ) {
-            Scaffold(
-                modifier = if (menuOpen) Modifier.blur(24.dp) else Modifier,
-                containerColor = MaterialTheme.colorScheme.background,
-                contentWindowInsets = WindowInsets.safeDrawing.only(
-                    WindowInsetsSides.Horizontal + WindowInsetsSides.Top,
-                ),
-                topBar = {
-                    TopMenuBar(
-                        pendingUpdate = pendingUpdate,
-                        expanded = menuOpen,
-                        onExpandedChange = { menuOpen = it },
-                        simulatorSubtitle = calculateState.simulatorSubtitle(),
-                        onDuel = {
-                            navController.navigate(AppDestination.DUEL.route) {
+    // Fondo sólido del esquema Día/Noche/OLED.
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(MaterialTheme.colorScheme.background),
+    ) {
+        Scaffold(
+            modifier = if (menuOpen) Modifier.blur(24.dp) else Modifier,
+            containerColor = MaterialTheme.colorScheme.background,
+            contentWindowInsets = WindowInsets.safeDrawing.only(
+                WindowInsetsSides.Horizontal + WindowInsetsSides.Top,
+            ),
+            topBar = {
+                TopMenuBar(
+                    pendingUpdate = pendingUpdate,
+                    expanded = menuOpen,
+                    onExpandedChange = { menuOpen = it },
+                    simulatorSubtitle = calculateState.simulatorSubtitle(),
+                    onDuel = {
+                        navController.navigate(AppDestination.DUEL.route) {
+                            launchSingleTop = true
+                        }
+                    },
+                    onSimulator = { showSimulator = true },
+                    onCapsules = { showCapsules = true },
+                    onSettings = {
+                        navController.navigate(AppDestination.SETTINGS.route) {
+                            launchSingleTop = true
+                        }
+                    },
+                )
+            },
+            bottomBar = {
+                // Duelo y Ajustes son pantallas de detalle: sin barra de pestañas.
+                if (route == null || route !in AppDestination.overlayRoutes) {
+                    PixelNavigationBar(
+                        currentRoute = route,
+                        onNavigate = { destination ->
+                            navController.navigate(destination.route) {
+                                popUpTo(navController.graph.findStartDestination().id) {
+                                    saveState = true
+                                }
                                 launchSingleTop = true
-                            }
-                        },
-                        onSimulator = { showSimulator = true },
-                        onCapsules = { showCapsules = true },
-                        onSettings = {
-                            navController.navigate(AppDestination.SETTINGS.route) {
-                                launchSingleTop = true
+                                restoreState = true
                             }
                         },
                     )
-                },
-                bottomBar = {
-                    // Duelo y Ajustes son pantallas de detalle: sin barra de pestañas.
-                    if (route == null || route !in AppDestination.overlayRoutes) {
-                        PixelNavigationBar(
-                            currentRoute = route,
-                            onNavigate = { destination ->
-                                navController.navigate(destination.route) {
-                                    popUpTo(navController.graph.findStartDestination().id) {
-                                        saveState = true
-                                    }
-                                    launchSingleTop = true
-                                    restoreState = true
-                                }
-                            },
+                }
+            },
+        ) { innerPadding ->
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(innerPadding)
+                    .then(
+                        if (overlay.blurRadius > 0.dp) {
+                            Modifier.blur(overlay.blurRadius)
+                        } else {
+                            Modifier
+                        },
+                    ),
+            ) {
+                NavHost(
+                    navController = navController,
+                    startDestination = AppDestination.CALCULATE.route,
+                    enterTransition = { androidx.compose.animation.fadeIn(tween(220)) },
+                    exitTransition = { androidx.compose.animation.fadeOut(tween(160)) },
+                ) {
+                    composable(AppDestination.CALCULATE.route) {
+                        CalculateRoute(container, viewModel = calculateViewModel)
+                    }
+                    composable(AppDestination.RECOMMEND.route) {
+                        RecommendRoute(container)
+                    }
+                    composable(AppDestination.HOME.route) {
+                        MyHomeRoute(container)
+                    }
+                    composable(AppDestination.DUEL.route) {
+                        AcDuelRoute(
+                            container = container,
+                            onBack = { navController.popBackStack() },
                         )
                     }
-                },
-            ) { innerPadding ->
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(innerPadding)
-                        .then(
-                            if (overlay.blurRadius > 0.dp) {
-                                Modifier.blur(overlay.blurRadius)
-                            } else {
-                                Modifier
-                            },
-                        ),
-                ) {
-                    NavHost(
-                        navController = navController,
-                        startDestination = AppDestination.CALCULATE.route,
-                        enterTransition = { androidx.compose.animation.fadeIn(tween(220)) },
-                        exitTransition = { androidx.compose.animation.fadeOut(tween(160)) },
-                    ) {
-                        composable(AppDestination.CALCULATE.route) {
-                            CalculateRoute(container, viewModel = calculateViewModel)
-                        }
-                        composable(AppDestination.RECOMMEND.route) {
-                            RecommendRoute(container)
-                        }
-                        composable(AppDestination.HOME.route) {
-                            MyHomeRoute(container)
-                        }
-                        composable(AppDestination.DUEL.route) {
-                            AcDuelRoute(
-                                container = container,
-                                onBack = { navController.popBackStack() },
-                            )
-                        }
-                        composable(AppDestination.SETTINGS.route) {
-                            SettingsRoute(
-                                container = container,
-                                onBack = { navController.popBackStack() },
-                            )
-                        }
+                    composable(AppDestination.SETTINGS.route) {
+                        SettingsRoute(
+                            container = container,
+                            onBack = { navController.popBackStack() },
+                        )
                     }
                 }
             }
-            // Velo del menú `☰`: oscurece todo el fondo para que el vidrio flotante
-            // se lea nítido. Tocar fuera cierra el menú.
-            if (menuOpen) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .background(Color.Black.copy(alpha = 0.26f))
-                        .clickable(
-                            interactionSource = remember { MutableInteractionSource() },
-                            indication = null,
-                        ) { menuOpen = false },
-                )
-            }
+        }
+        // Velo del menú `☰`: oscurece todo el fondo para que el menú flotante
+        // se lea nítido. Tocar fuera cierra el menú.
+        if (menuOpen) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.Black.copy(alpha = 0.26f))
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null,
+                    ) { menuOpen = false },
+            )
         }
     }
 
@@ -364,7 +353,7 @@ private fun TopMenuBar(
                             haptics.tap()
                             onExpandedChange(true)
                         },
-                        modifier = Modifier.pixelChargeHaptics(),
+                        modifier = Modifier,
                     ) { menuIcon() }
                 }
             } else {
@@ -373,7 +362,7 @@ private fun TopMenuBar(
                         haptics.tap()
                         onExpandedChange(true)
                     },
-                    modifier = Modifier.pixelChargeHaptics(),
+                    modifier = Modifier,
                 ) { menuIcon() }
             }
 
@@ -496,46 +485,45 @@ private fun PixelNavigationBar(
     onNavigate: (AppDestination) -> Unit,
 ) {
     val haptics = rememberPixelHaptics()
-    LiquidGlassSurface(
+    Surface(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp),
-        containerColor = MaterialTheme.colorScheme.surfaceContainer,
+        color = MaterialTheme.colorScheme.surfaceContainer,
     ) {
-    NavigationBar(
-        containerColor = Color.Transparent,
-        tonalElevation = 0.dp,
-    ) {
-        AppDestination.tabs.forEach { destination ->
-            val selected = currentRoute == destination.route
-            val label = stringResource(destination.labelRes)
-            val scale by animateFloatAsState(
-                targetValue = if (selected) 1f else 0.9f,
-                animationSpec = PixelSpringExpressive,
-                label = "tab-${destination.route}",
-            )
+        NavigationBar(
+            containerColor = Color.Transparent,
+            tonalElevation = 0.dp,
+        ) {
+            AppDestination.tabs.forEach { destination ->
+                val selected = currentRoute == destination.route
+                val label = stringResource(destination.labelRes)
+                val scale by animateFloatAsState(
+                    targetValue = if (selected) 1f else 0.9f,
+                    animationSpec = PixelSpringExpressive,
+                    label = "tab-${destination.route}",
+                )
 
-            NavigationBarItem(
-                selected = selected,
-                onClick = {
-                    haptics.tap()
-                    onNavigate(destination)
-                },
-                icon = {
-                    Icon(
-                        imageVector = destination.icon,
-                        contentDescription = null,
-                        modifier = Modifier.graphicsLayer {
-                            scaleX = scale
-                            scaleY = scale
-                        },
-                    )
-                },
-                label = { Text(label) },
-                modifier = Modifier
-                    .pixelChargeHaptics()
-                    .semantics { contentDescription = label },
-            )
+                NavigationBarItem(
+                    selected = selected,
+                    onClick = {
+                        haptics.tap()
+                        onNavigate(destination)
+                    },
+                    icon = {
+                        Icon(
+                            imageVector = destination.icon,
+                            contentDescription = null,
+                            modifier = Modifier.graphicsLayer {
+                                scaleX = scale
+                                scaleY = scale
+                            },
+                        )
+                    },
+                    label = { Text(label) },
+                    modifier = Modifier
+                        .semantics { contentDescription = label },
+                )
+            }
         }
-    }
     }
 }

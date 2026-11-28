@@ -4,6 +4,7 @@ import com.steefwel28.consumoenergetico.domain.calculator.PanamaUtility
 import com.steefwel28.consumoenergetico.domain.calculator.TariffComparison
 import com.steefwel28.consumoenergetico.domain.calculator.TariffMode
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
@@ -263,5 +264,22 @@ class CalculateUiStateTest {
         assertEquals(12_000.0 / (21.0 * 0.875), state.nominalWatts!!, 0.01)
         assertNotNull(state.spec)
         assertTrue(state.monthlyKwh!! > 0.0)
+    }
+
+    @Test
+    fun `los chips rapidos de BTU usan los valores comerciales`() {
+        assertEquals(
+            listOf(9_000, 12_000, 18_000, 24_000, 36_000),
+            CalculateUiState.BTU_QUICK_VALUES,
+        )
+    }
+
+    @Test
+    fun `el estado inicial arranca en mes con campos escalares vacios`() {
+        val state = CalculateUiState()
+
+        assertEquals(UsagePeriod.MONTH, state.usagePeriod)
+        assertTrue(state.baseKwhInput.isBlank())
+        assertFalse(state.manualCost)
     }
 }

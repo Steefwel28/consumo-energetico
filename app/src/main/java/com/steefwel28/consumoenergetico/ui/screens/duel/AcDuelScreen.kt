@@ -58,7 +58,6 @@ import com.steefwel28.consumoenergetico.ui.components.InfoHint
 import com.steefwel28.consumoenergetico.ui.components.PixelSpringExpressive
 import com.steefwel28.consumoenergetico.ui.components.PixelSpringSnappy
 import com.steefwel28.consumoenergetico.ui.components.SectionCard
-import com.steefwel28.consumoenergetico.ui.components.pixelChargeHaptics
 import com.steefwel28.consumoenergetico.ui.components.rememberPixelHaptics
 import com.steefwel28.consumoenergetico.ui.theme.ConsumoEnergeticoTheme
 import com.steefwel28.consumoenergetico.ui.theme.ExtendedColors
@@ -86,7 +85,6 @@ fun AcDuelScreen(
     onUpdate: ((AcDuelUiState) -> AcDuelUiState) -> Unit,
     onBack: () -> Unit,
 ) {
-    val haptics = rememberPixelHaptics()
     val extended = LocalExtendedColors.current
 
     Column(
@@ -100,10 +98,7 @@ fun AcDuelScreen(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(4.dp),
         ) {
-            IconButton(
-                onClick = onBack,
-                modifier = Modifier.pixelChargeHaptics(),
-            ) {
+            IconButton(onClick = onBack) {
                 Icon(
                     imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
                     contentDescription = stringResource(R.string.settings_back_cd),
@@ -182,7 +177,6 @@ private fun SharedConditionsCard(
             value = state.hoursPerDay.toFloat(),
             onValueChange = { value ->
                 val hours = value.roundToInt()
-                if (hours != state.hoursPerDay) haptics.tap()
                 onUpdate { it.copy(hoursPerDay = hours) }
             },
             valueRange = 1f..24f,

@@ -5,6 +5,7 @@ import com.steefwel28.consumoenergetico.data.local.db.BillRecordEntity
 import com.steefwel28.consumoenergetico.data.local.db.PropertyGroupEntity
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class MyHomeUiStateTest {
@@ -69,5 +70,15 @@ class MyHomeUiStateTest {
         val record = bill(9, 11, 180.0, 32.5)
 
         assertEquals(32.5 / 180.0, record.effectiveBalboasPerKwh!!, 0.0000001)
+    }
+
+    @Test
+    fun `el estado inicial de Mi Casa llega sin equipos`() {
+        val state = MyHomeUiState()
+
+        assertTrue(state.units.isEmpty())
+        assertTrue(state.groupUnits.isEmpty())
+        assertTrue(state.unitsByLocation.isEmpty())
+        assertNull(state.climatizationSplit)
     }
 }
