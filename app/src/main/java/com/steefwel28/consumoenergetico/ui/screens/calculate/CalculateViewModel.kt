@@ -1,5 +1,6 @@
 package com.steefwel28.consumoenergetico.ui.screens.calculate
 
+import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.steefwel28.consumoenergetico.R
@@ -7,7 +8,10 @@ import com.steefwel28.consumoenergetico.core.di.AppContainer
 import com.steefwel28.consumoenergetico.core.signature.CraftedBy
 import com.steefwel28.consumoenergetico.data.local.db.CustomLocationEntity
 import com.steefwel28.consumoenergetico.data.local.db.PropertyGroupEntity
+import com.steefwel28.consumoenergetico.domain.calculator.AcConsumptionCalculator
+import com.steefwel28.consumoenergetico.domain.calculator.AcSchedule
 import com.steefwel28.consumoenergetico.domain.calculator.PanamaUtility
+import com.steefwel28.consumoenergetico.domain.calculator.TariffComparison
 import com.steefwel28.consumoenergetico.domain.calculator.tariffComparison
 import java.util.Locale
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -19,10 +23,11 @@ import kotlinx.coroutines.launch
 
 @CraftedBy("steefwel28")
 class CalculateViewModel(
+    private val savedStateHandle: SavedStateHandle,
     private val container: AppContainer,
 ) : ViewModel() {
 
-    private val _state = MutableStateFlow(CalculateUiState())
+    private val _state = MutableStateFlow(restoreState())
     val state: StateFlow<CalculateUiState> = _state.asStateFlow()
 
     init {
@@ -66,6 +71,13 @@ class CalculateViewModel(
 
     fun update(transform: (CalculateUiState) -> CalculateUiState) {
         _state.update(transform)
+        persistState(_state.value)
+    }
+
+    /** Chips rápidos de consumo base: actualiza la vista y lo persiste en DataStore. */
+    fun setBaseMonthlyKwh(kwh: Double) {
+        _state.update { it.copy(baseMonthlyKwh = kwh) }
+        viewModelScope.launch { container.preferences.setBaseMonthlyKwh(kwh) }
     }
 
     /**
@@ -164,4 +176,87 @@ class CalculateViewModel(
 
     private fun decimal(value: Double): String =
         String.format(Locale.US, "%.1f", value).trimEnd('0').trimEnd('.')
+
+    // --- Rotación y muerte de proceso: los campos editados sobreviven vía
+    // SavedStateHandle. Distribuidora y consumo base llegan de DataStore/Room.
+
+    private fun restoreState(): CalculateUiState {
+        val h = savedStateHandle
+        fun text(key: String, fallback: String): String = h[key] ?: fallback
+        fun whole(key: String, fallback: Int): Int = h[key] ?: fallback
+        fun flag(key: String, fallback: Boolean): Boolean = h[key] ?: fallback
+        return CalculateUiState(
+            category = enum("calc.category", EquipmentCategory.AIR_CONDITIONER),
+            spaceName = text("calc.spaceName", "Mi espacio"),
+            brandModel = text("calc.brandModel", ""),
+            btuInput = text("calc.btu", ""),
+            wattsInput = text("calc.watts", ""),
+            seerInput = text("calc.seer", ""),
+            inverter = flag("calc.inverter", true),
+            chartMode = enum("calc.chartMode", TariffComparison.VS),
+            manualCost = flag("calc.manualCost", false),
+            manualMode = enum("calc.manualMode", ManualCostMode.DIRECT_RATE),
+            directRateInput = text("calc.directRate", "0.18"),
+            receiptTotalInput = text("calc.receiptTotal", ""),
+            receiptKwhInput = text("calc.receiptKwh", ""),
+            baseKwhInput = text("calc.baseKwhInput", ""),
+            usagePeriod = enum("calc.period", UsagePeriod.MONTH),
+            setpointCelsius = whole("calc.setpoint", 24),
+            cleanFilters = flag("calc.cleanFilters", true),
+            schedule = enum("calc.schedule", AcSchedule.NIGHT),
+            hoursPerDay = whole("calc.hours", AcConsumptionCalculator.DEFAULT_HOURS_PER_DAY.toInt()),
+            simulatedSetpointCelsius = whole("calc.simSetpoint", 24),
+            simulatedCleanFilters = flag("calc.simCleanFilters", true),
+            simulatedSchedule = enum("calc.simSchedule", AcSchedule.NIGHT),
+            simulatedHoursPerDay = whole("calc.simHours", 8),
+            converterMode = enum("calc.converterMode", PlateConverterMode.TONS),
+            converterInput = text("calc.converterInput", "1"),
+            currentBtuInput = text("calc.currentBtu", "12000"),
+            currentWattsInput = text("calc.currentWatts", "1600"),
+            currentSeerInput = text("calc.currentSeer", ""),
+            currentInverter = flag("calc.currentInverter", false),
+            investmentInput = text("calc.investment", "450"),
+            selectedLocation = text("calc.location", CalculateLocations.DEFAULT),
+        )
+    }
+
+    private fun persistState(state: CalculateUiState) {
+        val h = savedStateHandle
+        h["calc.category"] = state.category.name
+        h["calc.spaceName"] = state.spaceName
+        h["calc.brandModel"] = state.brandModel
+        h["calc.btu"] = state.btuInput
+        h["calc.watts"] = state.wattsInput
+        h["calc.seer"] = state.seerInput
+        h["calc.inverter"] = state.inverter
+        h["calc.chartMode"] = state.chartMode.name
+        h["calc.manualCost"] = state.manualCost
+        h["calc.manualMode"] = state.manualMode.name
+        h["calc.directRate"] = state.directRateInput
+        h["calc.receiptTotal"] = state.receiptTotalInput
+        h["calc.receiptKwh"] = state.receiptKwhInput
+        h["calc.baseKwhInput"] = state.baseKwhInput
+        h["calc.period"] = state.usagePeriod.name
+        h["calc.setpoint"] = state.setpointCelsius
+        h["calc.cleanFilters"] = state.cleanFilters
+        h["calc.schedule"] = state.schedule.name
+        h["calc.hours"] = state.hoursPerDay
+        h["calc.simSetpoint"] = state.simulatedSetpointCelsius
+        h["calc.simCleanFilters"] = state.simulatedCleanFilters
+        h["calc.simSchedule"] = state.simulatedSchedule.name
+        h["calc.simHours"] = state.simulatedHoursPerDay
+        h["calc.converterMode"] = state.converterMode.name
+        h["calc.converterInput"] = state.converterInput
+        h["calc.currentBtu"] = state.currentBtuInput
+        h["calc.currentWatts"] = state.currentWattsInput
+        h["calc.currentSeer"] = state.currentSeerInput
+        h["calc.currentInverter"] = state.currentInverter
+        h["calc.investment"] = state.investmentInput
+        h["calc.location"] = state.selectedLocation
+    }
+
+    private inline fun <reified T : Enum<T>> enum(key: String, default: T): T =
+        savedStateHandle.get<String>(key)
+            ?.let { raw -> runCatching { enumValueOf<T>(raw) }.getOrNull() }
+            ?: default
 }

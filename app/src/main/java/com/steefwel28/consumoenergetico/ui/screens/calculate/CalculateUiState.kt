@@ -18,8 +18,6 @@ import com.steefwel28.consumoenergetico.domain.calculator.TariffMode
 import com.steefwel28.consumoenergetico.domain.recommender.ElectricalSpec
 import com.steefwel28.consumoenergetico.domain.recommender.ElectricalSpecAdvisor
 import com.steefwel28.consumoenergetico.domain.units.LocaleNumber
-import com.steefwel28.consumoenergetico.domain.narrative.CoherenceWarning
-import com.steefwel28.consumoenergetico.domain.narrative.DiagnosticNarrativeBuilder
 import com.steefwel28.consumoenergetico.domain.units.UnitPreferences
 import java.time.YearMonth
 import java.util.Locale
@@ -99,6 +97,8 @@ data class CalculateUiState(
     val receiptTotalInput: String = "",
     val receiptKwhInput: String = "",
     val baseMonthlyKwh: Double = 0.0,
+    /** Edición manual del consumo base; los chips rápidos también la sincronizan. */
+    val baseKwhInput: String = "",
     val unitPreferences: UnitPreferences = UnitPreferences(),
     val usagePeriod: UsagePeriod = UsagePeriod.MONTH,
     val setpointCelsius: Int = 24,
@@ -291,16 +291,6 @@ data class CalculateUiState(
                     inverter = inverter,
                 )
             }.getOrNull()
-        }
-
-    /** Avisos consultivos de placa; no alteran kWh ni balboas. */
-    val coherenceWarnings: List<CoherenceWarning>
-        get() {
-            val btu = btu ?: return emptyList()
-            val watts = nominalWatts ?: return emptyList()
-            // Con potencia estimada por SEER el cociente es circular: no se audita.
-            if (wattsEstimatedBySeer) return emptyList()
-            return DiagnosticNarrativeBuilder.coherenceWarnings(btu, watts, seer)
         }
 
     val currentSpec: AcUnitSpec?

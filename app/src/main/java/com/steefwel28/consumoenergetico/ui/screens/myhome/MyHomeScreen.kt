@@ -61,6 +61,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -142,12 +143,12 @@ fun MyHomeScreen(
     onRegisterMaintenance: (Long) -> Unit,
     onDismissMessage: () -> Unit,
 ) {
-    var showNewGroup by remember { mutableStateOf(false) }
+    var showNewGroup by rememberSaveable { mutableStateOf(false) }
     var editingGroup by remember { mutableStateOf<PropertyGroupEntity?>(null) }
-    var showNewUnit by remember { mutableStateOf(false) }
+    var showNewUnit by rememberSaveable { mutableStateOf(false) }
     var editingUnit by remember { mutableStateOf<AcUnitEntity?>(null) }
     var historyUnit by remember { mutableStateOf<AcUnitEntity?>(null) }
-    var showBillDialog by remember { mutableStateOf(false) }
+    var showBillDialog by rememberSaveable { mutableStateOf(false) }
     val haptics = rememberPixelHaptics()
     val group = state.selectedGroup
     val snackbarHostState = remember { SnackbarHostState() }

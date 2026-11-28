@@ -40,7 +40,6 @@ class CoherenceAdvisoryTest {
             seerInput = "21",
         )
         val spec = checkNotNull(state.spec)
-        assertTrue(state.coherenceWarnings.isNotEmpty())
         assertEquals(
             AcConsumptionCalculator.monthlyKwh(spec, state.usage, state.daysInMonth.toDouble()),
             checkNotNull(state.monthlyKwh),

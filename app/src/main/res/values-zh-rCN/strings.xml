@@ -455,4 +455,35 @@
     <string name="home_msg_unit_deleted">设备已删除。</string>
     <string name="home_msg_bill_deleted">账单已删除。</string>
     <string name="home_undo">撤销</string>
+
+    <!-- 空调对决与 Calcular 固定结果卡 -->
+    <string name="calc_result_title">每月预估电费</string>
+    <string name="common_kwh_month">kWh/月</string>
+    <string name="calc_base_quick_title">家庭基础用电量</string>
+    <string name="calc_base_low">低 ~200 kWh</string>
+    <string name="calc_base_medium">中 ~350 kWh</string>
+    <string name="calc_base_high">高 750+ kWh</string>
+    <string name="calc_extras_title">可选设置</string>
+    <string name="calc_watts_label">额定功率（瓦）</string>
+    <string name="calc_setpoint">目标温度：%1$d °C</string>
+    <string name="menu_duel">空调对决</string>
+    <string name="menu_duel_subtitle">两台设备面对面，只有一个赢家</string>
+    <string name="duel_shared_title">共享条件</string>
+    <string name="duel_team_a">设备 A</string>
+    <string name="duel_team_b">设备 B</string>
+    <string name="duel_alias_label">品牌或昵称（可选）</string>
+    <string name="duel_btu_label">BTU/h</string>
+    <string name="duel_seer_label">SEER（可选）</string>
+    <string name="duel_watts_label">额定功率（瓦，可选）</string>
+    <string name="duel_result_title">面对面对决</string>
+    <string name="duel_cost_month">每月开销</string>
+    <string name="duel_verdict_tie">打平</string>
+    <string name="duel_verdict_wins">%1$s 胜出</string>
+    <string name="duel_savings_percent">直接节省：%1$s</string>
+    <string name="duel_monthly_savings">每月 B/. %1$s</string>
+    <string name="duel_annual_savings">每年 B/. %1$s</string>
+    <string name="duel_price_diff_label">店内价差（B/.，可选）</string>
+    <string name="duel_payback">%1$s 个月回本</string>
+    <string name="duel_no_payback">按此节省幅度无法回本差价。</string>
+    <string name="duel_missing">输入两台设备的 BTU/h 才能看到对决。</string>
 </resources>

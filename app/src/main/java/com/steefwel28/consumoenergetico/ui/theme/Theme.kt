@@ -8,6 +8,7 @@ import androidx.compose.material3.dynamicDarkColorScheme
 import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
@@ -18,6 +19,37 @@ import androidx.compose.ui.platform.LocalContext
  * cada pantalla.
  */
 val LocalLiquidGlass = staticCompositionLocalOf { false }
+
+/**
+ * Colores fuera del esquema Material 3: las tres distribuidoras y el par de
+ * advertencia. Evita decidir contraste con `isSystemInDarkTheme()` porque el
+ * tema real puede ser Día, Noche, OLED o Liquid Glass.
+ */
+data class ExtendedColors(
+    val ensa: Color,
+    val edemet: Color,
+    val edechi: Color,
+    val warningContainer: Color,
+    val onWarningContainer: Color,
+)
+
+val LocalExtendedColors = staticCompositionLocalOf { ExtendedColorsLight }
+
+private val ExtendedColorsLight = ExtendedColors(
+    ensa = Color(0xFF00697A),
+    edemet = Color(0xFFB25E00),
+    edechi = Color(0xFF9A3412),
+    warningContainer = Color(0xFFFFE7B8),
+    onWarningContainer = Color(0xFF4A3200),
+)
+
+private val ExtendedColorsDark = ExtendedColors(
+    ensa = Color(0xFF6FE7F2),
+    edemet = Color(0xFFFFC46B),
+    edechi = Color(0xFFFFA275),
+    warningContainer = Color(0xFF4A3200),
+    onWarningContainer = Color(0xFFFFE7B8),
+)
 
 private val LightColors = lightColorScheme(
     primary = TealPrimaryLight,
@@ -118,6 +150,9 @@ fun ConsumoEnergeticoTheme(
             surface = Color.Black,
             surfaceContainerLowest = Color.Black,
             surfaceContainerLow = Color(0xFF050505),
+            surfaceContainer = Color(0xFF0A0A0A),
+            surfaceContainerHigh = Color(0xFF131313),
+            surfaceContainerHighest = Color(0xFF1B1B1B),
         )
     } else {
         baseScheme
@@ -133,10 +168,14 @@ fun ConsumoEnergeticoTheme(
         themed
     }
 
-    MaterialTheme(
-        colorScheme = colorScheme,
-        typography = AppTypography,
-        shapes = AppShapes,
-        content = content,
-    )
+    CompositionLocalProvider(
+        LocalExtendedColors provides if (wantsDark) ExtendedColorsDark else ExtendedColorsLight,
+    ) {
+        MaterialTheme(
+            colorScheme = colorScheme,
+            typography = AppTypography,
+            shapes = AppShapes,
+            content = content,
+        )
+    }
 }

@@ -455,4 +455,35 @@
     <string name="calc_advisory_low_power">Los BTU/h no cuadran con esa potencia: puede ser la potencia mínima del equipo o un dato inflado. En Panamá, un compresor limitado tarda más en enfriar y trabaja al 100 % sin entrar pronto en modulación Inverter, así que el consumo real sube.</string>
     <string name="calc_advisory_low_seer">El SEER está por debajo del mínimo RTCA 23.01.78:20 vigente en Panamá. El equipo gastará más energía por cada BTU entregado.</string>
     <string name="calc_advisory_high_power">La potencia declarada es alta frente al SEER. Verifica la potencia nominal en la placa y revisa el breaker y el cable en Recomendar.</string>
+
+    <!-- Duelo AC vs. AC y resultado anclado en Calcular -->
+    <string name="calc_result_title">Costo mensual estimado</string>
+    <string name="common_kwh_month">kWh/mes</string>
+    <string name="calc_base_quick_title">Consumo base del hogar</string>
+    <string name="calc_base_low">Bajo ~200 kWh</string>
+    <string name="calc_base_medium">Medio ~350 kWh</string>
+    <string name="calc_base_high">Alto 750+ kWh</string>
+    <string name="calc_extras_title">Ajustes opcionales</string>
+    <string name="calc_watts_label">Potencia nominal (W)</string>
+    <string name="calc_setpoint">Temperatura objetivo: %1$d °C</string>
+    <string name="menu_duel">Duelo AC vs. AC</string>
+    <string name="menu_duel_subtitle">Dos equipos cara a cara, un solo ganador</string>
+    <string name="duel_shared_title">Condiciones compartidas</string>
+    <string name="duel_team_a">Equipo A</string>
+    <string name="duel_team_b">Equipo B</string>
+    <string name="duel_alias_label">Marca o alias (opcional)</string>
+    <string name="duel_btu_label">BTU/h</string>
+    <string name="duel_seer_label">SEER (opcional)</string>
+    <string name="duel_watts_label">Potencia nominal (W, opcional)</string>
+    <string name="duel_result_title">Duelo cara a cara</string>
+    <string name="duel_cost_month">Gasto mensual</string>
+    <string name="duel_verdict_tie">Empate técnico</string>
+    <string name="duel_verdict_wins">Gana %1$s</string>
+    <string name="duel_savings_percent">Ahorro directo: %1$s</string>
+    <string name="duel_monthly_savings">B/. %1$s al mes</string>
+    <string name="duel_annual_savings">B/. %1$s al año</string>
+    <string name="duel_price_diff_label">Diferencia de precio en tienda (B/., opcional)</string>
+    <string name="duel_payback">Se recupera en %1$s meses</string>
+    <string name="duel_no_payback">Con ese ahorro no se recupera la diferencia de precio.</string>
+    <string name="duel_missing">Escribe los BTU/h de ambos equipos para ver el duelo.</string>
 </resources>

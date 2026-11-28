@@ -19,7 +19,9 @@ import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.rounded.CompareArrows
 import androidx.compose.material.icons.rounded.AutoStories
+import androidx.compose.material.icons.rounded.CompareArrows
 import androidx.compose.material.icons.rounded.Menu
 import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material.icons.rounded.SettingsRemote
@@ -79,6 +81,7 @@ import com.steefwel28.consumoenergetico.ui.screens.calculate.CalculateUiState
 import com.steefwel28.consumoenergetico.ui.screens.calculate.CalculateViewModel
 import com.steefwel28.consumoenergetico.ui.screens.calculate.CapsulesSheet
 import com.steefwel28.consumoenergetico.ui.screens.calculate.RemoteSimulatorSheet
+import com.steefwel28.consumoenergetico.ui.screens.duel.AcDuelRoute
 import com.steefwel28.consumoenergetico.ui.screens.myhome.MyHomeRoute
 import com.steefwel28.consumoenergetico.ui.screens.recommend.RecommendRoute
 import com.steefwel28.consumoenergetico.ui.screens.settings.SettingsRoute
@@ -195,6 +198,11 @@ private fun MainScaffold(
                         expanded = menuOpen,
                         onExpandedChange = { menuOpen = it },
                         simulatorSubtitle = calculateState.simulatorSubtitle(),
+                        onDuel = {
+                            navController.navigate(AppDestination.DUEL.route) {
+                                launchSingleTop = true
+                            }
+                        },
                         onSimulator = { showSimulator = true },
                         onCapsules = { showCapsules = true },
                         onSettings = {
@@ -205,8 +213,8 @@ private fun MainScaffold(
                     )
                 },
                 bottomBar = {
-                    // Ajustes es pantalla de detalle: sin barra de pestañas.
-                    if (route != AppDestination.SETTINGS.route) {
+                    // Duelo y Ajustes son pantallas de detalle: sin barra de pestañas.
+                    if (route == null || route !in AppDestination.overlayRoutes) {
                         PixelNavigationBar(
                             currentRoute = route,
                             onNavigate = { destination ->
@@ -248,6 +256,12 @@ private fun MainScaffold(
                         }
                         composable(AppDestination.HOME.route) {
                             MyHomeRoute(container)
+                        }
+                        composable(AppDestination.DUEL.route) {
+                            AcDuelRoute(
+                                container = container,
+                                onBack = { navController.popBackStack() },
+                            )
                         }
                         composable(AppDestination.SETTINGS.route) {
                             SettingsRoute(
@@ -297,13 +311,14 @@ private fun CalculateUiState.simulatorSubtitle(): String {
     return "${AppFormat.btuNumber(btu)} BTU · SEER ${AppFormat.decimal(seer)}"
 }
 
-/** Menú superior `☰`: acceso al simulador, las cápsulas y Ajustes. */
+/** Menú superior `☰`: Duelo AC vs. AC, simulador, cápsulas y Ajustes. */
 @Composable
 private fun TopMenuBar(
     pendingUpdate: Boolean,
     expanded: Boolean,
     onExpandedChange: (Boolean) -> Unit,
     simulatorSubtitle: String,
+    onDuel: () -> Unit,
     onSimulator: () -> Unit,
     onCapsules: () -> Unit,
     onSettings: () -> Unit,
@@ -378,6 +393,29 @@ private fun TopMenuBar(
                 shadowElevation = 3.dp,
                 border = null,
             ) {
+                DropdownMenuItem(
+                    text = {
+                        Column {
+                            Text(
+                                text = stringResource(R.string.menu_duel),
+                                style = MaterialTheme.typography.titleSmall,
+                            )
+                            Text(
+                                text = stringResource(R.string.menu_duel_subtitle),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    },
+                    leadingIcon = {
+                        Icon(Icons.AutoMirrored.Rounded.CompareArrows, contentDescription = null)
+                    },
+                    onClick = {
+                        haptics.tap()
+                        onExpandedChange(false)
+                        onDuel()
+                    },
+                )
                 DropdownMenuItem(
                     text = {
                         Column {

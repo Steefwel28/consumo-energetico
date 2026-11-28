@@ -455,4 +455,35 @@
     <string name="calc_advisory_low_power">The BTU/h do not match that wattage: it may be the minimum power or an inflated figure. In Panama a limited compressor takes longer to cool and runs at 100 % without reaching Inverter modulation soon, so real consumption rises.</string>
     <string name="calc_advisory_low_seer">The SEER is below the minimum of RTCA 23.01.78:20 in force in Panama. The unit will use more energy for every BTU delivered.</string>
     <string name="calc_advisory_high_power">The declared wattage is high for the SEER. Check the rated power on the nameplate and review the breaker and wiring in Recommend.</string>
+
+    <!-- AC vs. AC duel and pinned result in Calculate -->
+    <string name="calc_result_title">Estimated monthly cost</string>
+    <string name="common_kwh_month">kWh/month</string>
+    <string name="calc_base_quick_title">Home base consumption</string>
+    <string name="calc_base_low">Low ~200 kWh</string>
+    <string name="calc_base_medium">Medium ~350 kWh</string>
+    <string name="calc_base_high">High 750+ kWh</string>
+    <string name="calc_extras_title">Optional settings</string>
+    <string name="calc_watts_label">Rated power (W)</string>
+    <string name="calc_setpoint">Target temperature: %1$d °C</string>
+    <string name="menu_duel">AC vs. AC duel</string>
+    <string name="menu_duel_subtitle">Two units face to face, a single winner</string>
+    <string name="duel_shared_title">Shared conditions</string>
+    <string name="duel_team_a">Unit A</string>
+    <string name="duel_team_b">Unit B</string>
+    <string name="duel_alias_label">Brand or alias (optional)</string>
+    <string name="duel_btu_label">BTU/h</string>
+    <string name="duel_seer_label">SEER (optional)</string>
+    <string name="duel_watts_label">Rated power (W, optional)</string>
+    <string name="duel_result_title">Face-to-face duel</string>
+    <string name="duel_cost_month">Monthly cost</string>
+    <string name="duel_verdict_tie">Technical tie</string>
+    <string name="duel_verdict_wins">%1$s wins</string>
+    <string name="duel_savings_percent">Direct savings: %1$s</string>
+    <string name="duel_monthly_savings">B/. %1$s per month</string>
+    <string name="duel_annual_savings">B/. %1$s per year</string>
+    <string name="duel_price_diff_label">Store price difference (B/., optional)</string>
+    <string name="duel_payback">Pays back in %1$s months</string>
+    <string name="duel_no_payback">With that saving the price difference never pays back.</string>
+    <string name="duel_missing">Enter the BTU/h of both units to see the duel.</string>
 </resources>

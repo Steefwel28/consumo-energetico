@@ -27,6 +27,37 @@ class PanamaTariffEngineTest {
     }
 
     @Test
+    fun `la frontera de 300 kwh activa el segundo escalon en las tres distribuidoras`() {
+        val ensa = TariffMode.Tiered(PanamaUtility.ENSA)
+        val edemet = TariffMode.Tiered(PanamaUtility.NATURGY)
+        val edechi = TariffMode.Tiered(PanamaUtility.NATURGY_EDECHI)
+        // 299,99 kWh sigue en el primer bloque tras el cargo fijo.
+        assertEquals(0.17737, PanamaTariffEngine.marginalRate(ensa, 299.99), 0.0)
+        assertEquals(0.17624, PanamaTariffEngine.marginalRate(edemet, 299.99), 0.0)
+        assertEquals(0.19175, PanamaTariffEngine.marginalRate(edechi, 299.99), 0.0)
+        // 300,00 kWh ya paga el segundo escalón (fromKwh incluido).
+        assertEquals(0.24666, PanamaTariffEngine.marginalRate(ensa, 300.0), 0.0)
+        assertEquals(0.23177, PanamaTariffEngine.marginalRate(edemet, 300.0), 0.0)
+        assertEquals(0.25341, PanamaTariffEngine.marginalRate(edechi, 300.0), 0.0)
+        // El kWh 301 cuesta exactamente la tarifa marginal del segundo bloque.
+        assertEquals(
+            0.24666,
+            PanamaTariffEngine.bill(ensa, 301.0) - PanamaTariffEngine.bill(ensa, 300.0),
+            1e-9,
+        )
+        assertEquals(
+            0.23177,
+            PanamaTariffEngine.bill(edemet, 301.0) - PanamaTariffEngine.bill(edemet, 300.0),
+            1e-9,
+        )
+        assertEquals(
+            0.25341,
+            PanamaTariffEngine.bill(edechi, 301.0) - PanamaTariffEngine.bill(edechi, 300.0),
+            1e-9,
+        )
+    }
+
+    @Test
     fun `el costo añadido es exacto cuando el aire cruza de bloque`() {
         val estimate = PanamaTariffEngine.estimate(
             mode = TariffMode.Tiered(PanamaUtility.ENSA),

@@ -75,7 +75,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
@@ -623,13 +622,11 @@ private fun AboutCard(
     onOpenRepository: () -> Unit,
 ) {
     val haptics = rememberPixelHaptics()
-    val dark = androidx.compose.foundation.isSystemInDarkTheme()
-    val glow = if (dark) Color(0xFF34D399) else Color(0xFF0F766E)
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = MaterialTheme.shapes.large,
         colors = CardDefaults.cardColors(
-            containerColor = if (dark) Color(0xFF06211C) else Color(0xFFE5FBF3),
+            containerColor = MaterialTheme.colorScheme.primaryContainer,
         ),
     ) {
         Column(
@@ -642,17 +639,17 @@ private fun AboutCard(
             Text(
                 text = stringResource(R.string.about_title),
                 style = MaterialTheme.typography.titleLarge,
-                color = if (dark) Color.White else Color(0xFF052E27),
+                color = MaterialTheme.colorScheme.onPrimaryContainer,
                 modifier = Modifier.fillMaxWidth(),
             )
             PixelEmblem(
-                color = glow,
+                color = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.size(64.dp),
             )
             Text(
                 text = stringResource(R.string.app_name),
                 style = MaterialTheme.typography.headlineSmall,
-                color = if (dark) Color.White else Color(0xFF052E27),
+                color = MaterialTheme.colorScheme.onPrimaryContainer,
             )
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 FilterChip(
@@ -675,7 +672,7 @@ private fun AboutCard(
             Text(
                 text = stringResource(R.string.about_signature),
                 style = MaterialTheme.typography.bodyMedium,
-                color = glow,
+                color = MaterialTheme.colorScheme.primary,
             )
             Row(
                 modifier = Modifier.fillMaxWidth(),

@@ -46,15 +46,15 @@
 6. **[2026-11-23] Offline-first constraint**
    Do instead: no Retrofit/OkHttp/Firebase/PDF libs; the only network call allowed is `HttpURLConnection` (4s timeout) to the GitHub releases API.
 7. **[2026-11-23] Physical coherence advisories must never touch kWh/B/.**
-   Do instead: audit BTU/W/SEER only via `DiagnosticNarrativeBuilder.coherenceWarnings` and map the enum to strings in the UI.
+   Do instead: audit BTU/W/SEER only via `DiagnosticNarrativeBuilder.coherenceWarnings` (domain + tests). Per user directive (2026-11-28) the Calculate UI card and `CalculateUiState.coherenceWarnings` were removed; do not reintroduce them into UI.
 8. **[2026-11-28] Backup JSON must carry `nominal_watts`**
    Do instead: write `"nominal_watts": null` when absent and read it with `optionalDouble` so v1–v4 backups still restore; never require the key.
 
 ## Compose UI Guardrails
 1. **[2026-11-28] Haze only on floating layers, never on content cards**
    Do instead: `hazeSource` on the scrolling content Box and `LiquidGlassSurface`/`liquidGlassEffect` only on nav bar, menu and sheets; cards use solid `surfaceContainerLow`.
-2. **[2026-11-28] No AGSL shaders or infinite orb animations**
-   Do instead: keep `HazeSurface.kt`; `LiquidGlassLens.kt` and `LiquidGlassBackground.kt` were removed for battery/120 FPS.
+2. **[2026-11-28] Distributor/brand colors come from `LocalExtendedColors`, never `isSystemInDarkTheme()`**
+   Do instead: `ExtendedColors(ensa, edemet, edechi, warningContainer, onWarningContainer)` provided by `ConsumoEnergeticoTheme`; screens read `LocalExtendedColors.current` (waves, duel bars, AboutCard uses M3 `primaryContainer` roles).
 3. **[2026-11-28] Haptics use the system engine**
    Do instead: `LocalHapticFeedback.current` with `Confirm`, `Reject`, `SegmentTick`, `ToggleOn`/`ToggleOff`; no direct `Vibrator` and no `VIBRATE` permission.
 4. **[2026-11-28] Splash haptics still follow the 2 s timeline**
@@ -69,6 +69,8 @@
    Do instead: render chips from `EquipmentCategory.available` (only `AIR_CONDITIONER`); keep the full enum intact for v0.7.0.
 9. **[2026-11-28] `LocalLiquidGlass` gates the Haze blur**
    Do instead: `LiquidGlassSurface` and `liquidGlassEffect()` return the solid M3 surface when `LocalLiquidGlass.current` is false or power save is on; never remove the toggle from Ajustes.
+10. **[2026-11-28] ViewModels persist user inputs via `SavedStateHandle`**
+   Do instead: constructor `(savedStateHandle, container)`; `AppViewModelProvider` builds it with `createSavedStateHandle()` inside `initializer`; write scalar inputs on every `update()`, restore in the initial `MutableStateFlow(...)`; DataStore/Room stay owners of `utility`/`baseMonthlyKwh`/groups. Duel AC vs. AC logic is pure in `AcDuelUiState` (no Android imports) and tested there.
 
 ## User Directives
 1. **[2026-11-23] Signature and donation identity**

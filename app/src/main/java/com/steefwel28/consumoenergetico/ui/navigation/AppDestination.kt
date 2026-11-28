@@ -2,6 +2,7 @@ package com.steefwel28.consumoenergetico.ui.navigation
 
 import androidx.annotation.StringRes
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.rounded.CompareArrows
 import androidx.compose.material.icons.rounded.Calculate
 import androidx.compose.material.icons.rounded.Home
 import androidx.compose.material.icons.rounded.Settings
@@ -21,10 +22,14 @@ enum class AppDestination(
     CALCULATE("calcular", R.string.nav_calculate, Icons.Rounded.Calculate),
     RECOMMEND("recomendar", R.string.nav_recommend, Icons.Rounded.TipsAndUpdates),
     HOME("mi-casa", R.string.nav_home, Icons.Rounded.Home),
+    DUEL("duelo-ac", R.string.menu_duel, Icons.AutoMirrored.Rounded.CompareArrows),
     SETTINGS("ajustes", R.string.nav_settings, Icons.Rounded.Settings),
     ;
 
     companion object {
         val tabs: List<AppDestination> = listOf(CALCULATE, RECOMMEND, HOME)
+
+        /** Destinos del menú `☰` que ocultan la barra de pestañas. */
+        val overlayRoutes: List<String> = listOf(DUEL.route, SETTINGS.route)
     }
 }
