@@ -1,5 +1,6 @@
 package com.steefwel28.consumoenergetico.ui.screens.calculate
 
+import com.steefwel28.consumoenergetico.domain.calculator.PanamaUtility
 import com.steefwel28.consumoenergetico.domain.calculator.TariffComparison
 import com.steefwel28.consumoenergetico.domain.calculator.TariffMode
 import org.junit.Assert.assertEquals
@@ -7,7 +8,7 @@ import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
-import kotlin.math.abs
+import java.time.YearMonth
 
 class CalculateUiStateTest {
 
@@ -125,16 +126,14 @@ class CalculateUiStateTest {
     }
 
     @Test
-    fun `la comparativa calcula ENSA Naturgy y su diferencia exacta`() {
+    fun `la comparativa calcula ENSA y Naturgy`() {
         val state = baseState()
 
         val ensa = state.ensaEstimate!!
         val naturgy = state.naturgyEstimate!!
-        val expected = abs(ensa.addedCostBalboas - naturgy.addedCostBalboas)
 
         assertTrue(ensa.addedCostBalboas > 0.0)
         assertTrue(naturgy.addedCostBalboas > 0.0)
-        assertEquals(expected, state.comparisonDifference!!, 0.0000001)
     }
 
     @Test
@@ -175,6 +174,54 @@ class CalculateUiStateTest {
     }
 
     @Test
+    fun `la quincena escala kWh y costo por quince dias`() {
+        val month = baseState().copy(usagePeriod = UsagePeriod.MONTH)
+        val fortnight = month.copy(usagePeriod = UsagePeriod.FORTNIGHT)
+        val factor = 15.0 / YearMonth.now().lengthOfMonth()
+
+        assertEquals(month.monthlyKwh!! * factor, fortnight.periodKwh!!, 0.0000001)
+        assertEquals(
+            month.tariffEstimate!!.addedCostBalboas * factor,
+            fortnight.tariffEstimate!!.addedCostBalboas,
+            0.0000001,
+        )
+    }
+
+    @Test
+    fun `las tres distribuidoras cotizan simultaneamente para el periodo activo`() {
+        val state = baseState().copy(baseMonthlyKwh = 350.0)
+        val quotes = state.distributorQuotes!!
+
+        assertEquals(3, quotes.size)
+        assertEquals(PanamaUtility.ENSA, quotes[0].utility)
+        assertEquals(PanamaUtility.NATURGY, quotes[1].utility)
+        assertEquals(PanamaUtility.NATURGY_EDECHI, quotes[2].utility)
+
+        assertEquals(state.ensaEstimate!!.addedCostBalboas, quotes[0].costBalboas, 0.0000001)
+        assertEquals(state.naturgyEstimate!!.addedCostBalboas, quotes[1].costBalboas, 0.0000001)
+        assertEquals(state.edechiEstimate!!.addedCostBalboas, quotes[2].costBalboas, 0.0000001)
+
+        // EDEMET cobra menos que ENSA en cada bloque y EDECHI es la más cara.
+        assertEquals(
+            state.naturgyEstimate!!.addedCostBalboas,
+            quotes.minOf { it.costBalboas },
+            0.0000001,
+        )
+        assertEquals(
+            state.edechiEstimate!!.addedCostBalboas,
+            quotes.maxOf { it.costBalboas },
+            0.0000001,
+        )
+        assertTrue(quotes.maxOf { it.costBalboas } - quotes.minOf { it.costBalboas } > 0.0)
+
+        val dayQuotes = state.copy(usagePeriod = UsagePeriod.DAY).distributorQuotes!!
+        val dayFactor = 1.0 / YearMonth.now().lengthOfMonth()
+        assertEquals(quotes[0].costBalboas * dayFactor, dayQuotes[0].costBalboas, 0.0000001)
+        assertEquals(quotes[1].costBalboas * dayFactor, dayQuotes[1].costBalboas, 0.0000001)
+        assertEquals(quotes[2].costBalboas * dayFactor, dayQuotes[2].costBalboas, 0.0000001)
+    }
+
+    @Test
     fun `el equipo guardado hereda las horas configuradas`() {
         val entity = baseState().copy(hoursPerDay = 12).toEntity(nowMillis = 5L)!!
 
@@ -206,7 +253,6 @@ class CalculateUiStateTest {
         assertNull(state.btu)
         assertNull(state.spec)
         assertNull(state.monthlyKwh)
-        assertNull(state.chartEstimate)
     }
 
     @Test

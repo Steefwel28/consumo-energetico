@@ -92,6 +92,7 @@ import com.steefwel28.consumoenergetico.domain.calculator.TariffEstimate
 import com.steefwel28.consumoenergetico.domain.units.LocaleNumber
 import com.steefwel28.consumoenergetico.ui.AppViewModelProvider
 import com.steefwel28.consumoenergetico.ui.components.AppFormat
+import com.steefwel28.consumoenergetico.ui.components.InfoHint
 import com.steefwel28.consumoenergetico.ui.components.PixelDialog
 import com.steefwel28.consumoenergetico.ui.components.PixelSpringSnappy
 import com.steefwel28.consumoenergetico.ui.components.SectionCard
@@ -1100,7 +1101,12 @@ private fun UnitDialog(
                     OutlinedTextField(
                         value = wattsInput,
                         onValueChange = { wattsInput = it },
-                        label = { Text(stringResource(R.string.common_watts)) },
+                        label = {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(stringResource(R.string.common_watts))
+                                InfoHint(text = stringResource(R.string.calc_watts_info))
+                            }
+                        },
                         placeholder = { Text("1150") },
                         singleLine = true,
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),

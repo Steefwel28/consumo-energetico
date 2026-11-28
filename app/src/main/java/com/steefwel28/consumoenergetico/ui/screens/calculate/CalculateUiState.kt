@@ -21,7 +21,6 @@ import com.steefwel28.consumoenergetico.domain.units.LocaleNumber
 import com.steefwel28.consumoenergetico.domain.units.UnitPreferences
 import java.time.YearMonth
 import java.util.Locale
-import kotlin.math.abs
 import kotlin.math.roundToInt
 
 /** Categorías superiores; solo Aires Acondicionados está habilitado en Fase 1. */
@@ -245,34 +244,36 @@ data class CalculateUiState(
     val edechiEstimate: TariffEstimate?
         get() = estimateFor(TariffMode.Tiered(PanamaUtility.NATURGY_EDECHI))
 
+    /** Fila de la comparativa simultánea de las tres distribuidoras. */
+    data class DistributorQuote(val utility: PanamaUtility, val costBalboas: Double)
+
+    /** Comparativa simultánea ENSA / EDEMET / EDECHI para el periodo activo. */
+    val distributorQuotes: List<DistributorQuote>?
+        get() {
+            val quotes = listOfNotNull(
+                ensaEstimate?.let { DistributorQuote(PanamaUtility.ENSA, it.addedCostBalboas) },
+                naturgyEstimate?.let { DistributorQuote(PanamaUtility.NATURGY, it.addedCostBalboas) },
+                edechiEstimate?.let { DistributorQuote(PanamaUtility.NATURGY_EDECHI, it.addedCostBalboas) },
+            )
+            return quotes.ifEmpty { null }
+        }
+
     /** Pliego Naturgy de la vista: EDECHI si el grupo lo eligió, si no EDEMET. */
     val naturgySideEstimate: TariffEstimate?
         get() = if (utility == PanamaUtility.NATURGY_EDECHI) edechiEstimate else naturgyEstimate
-
-    /** Estimación de la vista activa; en VS se dibujan las dos por separado. */
-    val chartEstimate: TariffEstimate?
-        get() = when (chartMode) {
-            TariffComparison.ENSA -> if (manualCost) tariffEstimate else ensaEstimate
-            TariffComparison.NATURGY -> if (manualCost) tariffEstimate else naturgySideEstimate
-            TariffComparison.VS -> null
-        }
 
     /** Vigencia ASEP del pliego visible en la tarjeta de tarifa. */
     val tariffValidFrom: String get() = PanamaTariffEngine.VALID_FROM
 
     val tariffValidTo: String get() = PanamaTariffEngine.VALID_TO
 
-    val comparisonDifference: Double?
-        get() {
-            val ensa = ensaEstimate?.addedCostBalboas ?: return null
-            val naturgy = naturgySideEstimate?.addedCostBalboas ?: return null
-            return abs(ensa - naturgy)
-        }
-
     /** Costo de la vista activa; en VS, el menor de los dos pliegos. */
     val primaryMonthlyCost: Double?
         get() = when (chartMode) {
-            TariffComparison.ENSA, TariffComparison.NATURGY -> chartEstimate?.addedCostBalboas
+            TariffComparison.ENSA ->
+                if (manualCost) tariffEstimate?.addedCostBalboas else ensaEstimate?.addedCostBalboas
+            TariffComparison.NATURGY ->
+                if (manualCost) tariffEstimate?.addedCostBalboas else naturgySideEstimate?.addedCostBalboas
             TariffComparison.VS -> listOfNotNull(
                 ensaEstimate?.addedCostBalboas,
                 naturgySideEstimate?.addedCostBalboas,

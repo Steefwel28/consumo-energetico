@@ -54,6 +54,7 @@ import com.steefwel28.consumoenergetico.core.di.AppContainer
 import com.steefwel28.consumoenergetico.domain.calculator.PanamaUtility
 import com.steefwel28.consumoenergetico.ui.AppViewModelProvider
 import com.steefwel28.consumoenergetico.ui.components.AppFormat
+import com.steefwel28.consumoenergetico.ui.components.InfoHint
 import com.steefwel28.consumoenergetico.ui.components.PixelSpringExpressive
 import com.steefwel28.consumoenergetico.ui.components.PixelSpringSnappy
 import com.steefwel28.consumoenergetico.ui.components.SectionCard
@@ -303,6 +304,7 @@ private fun DuelTeamCard(
                 value = watts,
                 onValueChange = onWatts,
                 placeholder = "1150",
+                info = stringResource(R.string.calc_watts_info),
                 modifier = Modifier.weight(1f),
             )
         }
@@ -515,13 +517,24 @@ private fun NumberField(
     onValueChange: (String) -> Unit,
     modifier: Modifier = Modifier,
     placeholder: String = "",
+    info: String? = null,
     imeAction: ImeAction = ImeAction.Next,
     onImeAction: () -> Unit = {},
 ) {
     OutlinedTextField(
         value = value,
         onValueChange = { newValue -> if (newValue.length <= 12) onValueChange(newValue) },
-        label = { Text(label, maxLines = 1, overflow = TextOverflow.Ellipsis) },
+        label = {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(label, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                info?.let { hint ->
+                    InfoHint(
+                        text = hint,
+                        modifier = Modifier.padding(start = 4.dp),
+                    )
+                }
+            }
+        },
         placeholder = if (placeholder.isBlank()) null else {
             { Text(placeholder, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)) }
         },

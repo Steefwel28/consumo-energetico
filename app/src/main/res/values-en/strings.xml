@@ -28,8 +28,12 @@
     <string name="common_brand_model">Brand and model</string>
     <string name="common_brand_placeholder">Hisense ATR362MA</string>
     <string name="common_base_kwh">Base bill consumption (kWh/month)</string>
+    <string name="calc_base_section_title">Base bill consumption</string>
+    <string name="calc_base_kwh_info">This is what your home already uses each month (fridge, lights, TV) before adding this AC. Check \"Consumo kWh\" on your latest electricity bill to see which tariff tier (11–300, 301–750 or +750 kWh) the unit will land in.</string>
     <string name="common_btu">BTU/h</string>
-    <string name="common_watts">Power (W)</string>
+    <string name="common_watts">Power consumption (Watts / W)</string>
+    <string name="common_info_cd">Help</string>
+    <string name="common_info_title">Quick tip</string>
     <string name="common_seer">SEER</string>
     <string name="common_capsules_title">Workshop capsules</string>
     <string name="inverter">Inverter</string>
@@ -64,13 +68,15 @@
     <string name="calc_title">Calculate</string>
     <string name="calc_subtitle">Pick a category, compare ENSA and Naturgy, and save your unit per property.</string>
     <string name="calc_footer">Values are educational estimates; a certified technician must validate the electrical installation.</string>
-    <string name="calc_comparison_title">Tariff comparison</string>
-    <string name="calc_comparison_subtitle">ENSA, Naturgy, or the VS duel with the exact monthly difference.</string>
+    <string name="calc_compare_title">Compare utilities</string>
+    <string name="calc_compare_button">Compare ENSA vs. EDEMET vs. EDECHI</string>
+    <string name="calc_compare_cheapest">Cheapest</string>
+    <string name="calc_compare_diff">Difference between cheapest and most expensive: %1$s</string>
+    <string name="calc_compare_empty">Enter the unit\'s BTU (or scan the RTCA label) to compare the three utilities.</string>
     <string name="calc_tariff_validity">Current ASEP schedule: %1$s to %2$s.</string>
     <string name="calc_manual_hint">Use the real rate from your bill instead of the preloaded tariff.</string>
     <string name="calc_manual_chip">Manual rate</string>
     <string name="calc_identify_equipment">Identify unit (optional)</string>
-    <string name="period_month_chip">Month · %1$s</string>
     <string name="calc_bill_guide_cd">Guide to find consumption and total on the bill</string>
     <string name="calc_base_home">Home base consumption: %1$s (set in Settings).</string>
     <string name="calc_direct_rate">Rate in B/. per kWh</string>
@@ -82,11 +88,7 @@
     <string name="period_day">Day</string>
     <string name="period_fortnight">Fortnight</string>
     <string name="period_month">Month (%1$s · %2$d days)</string>
-    <string name="calc_marginal">Marginal rate %1$s · %2$s from the unit in this period.</string>
-    <string name="calc_vs_rates">ENSA: %1$s · Naturgy: %2$s</string>
-    <string name="calc_vs_tie">Both utilities tie in this period.</string>
-    <string name="calc_vs_savings">You save %1$s with %2$s in this period.</string>
-    <string name="calc_vs_manual_note">The VS duel uses the ENSA and Naturgy tariffs; Manual Cost applies to the single mode.</string>
+
     <string name="calc_missing_chart">Enter BTU/h and nominal power above zero to see the comparison.</string>
     <string name="calc_equipment_title">Unit data</string>
     <string name="calc_equipment_subtitle">RTCA label and nameplate converter in one card.</string>
@@ -407,7 +409,6 @@
 
     <!-- Calculate v0.6 -->
     <string name="calc_watts_estimated">Estimated by SEER</string>
-    <string name="calc_empty_chart">Enter the data above to calculate</string>
 
     <!-- My Home · bills -->
     <string name="home_register_bill">Add bill</string>
@@ -458,13 +459,18 @@
 
     <!-- AC vs. AC duel and pinned result in Calculate -->
     <string name="calc_result_title">Estimated monthly cost</string>
+    <string name="calc_result_title_day">Estimated daily cost</string>
+    <string name="calc_result_title_fortnight">Estimated fortnightly cost</string>
+    <string name="common_kwh_day">kWh/day</string>
+    <string name="common_kwh_fortnight">kWh/fortnight</string>
+    <string name="period_month_short">Month</string>
     <string name="common_kwh_month">kWh/month</string>
-    <string name="calc_base_quick_title">Home base consumption</string>
     <string name="calc_base_low">Low ~200 kWh</string>
     <string name="calc_base_medium">Medium ~350 kWh</string>
     <string name="calc_base_high">High 750+ kWh</string>
     <string name="calc_extras_title">Optional settings</string>
-    <string name="calc_watts_label">Rated power (W)</string>
+    <string name="calc_watts_label">Power consumption (Watts / W)</string>
+    <string name="calc_watts_info">These are the Watts (W) the unit draws when running, per its label or spec sheet. If you leave it blank, the app estimates them automatically from BTU and SEER.</string>
     <string name="calc_setpoint">Target temperature: %1$d °C</string>
     <string name="menu_duel">AC vs. AC duel</string>
     <string name="menu_duel_subtitle">Two units face to face, a single winner</string>
@@ -474,7 +480,7 @@
     <string name="duel_alias_label">Brand or alias (optional)</string>
     <string name="duel_btu_label">BTU/h</string>
     <string name="duel_seer_label">SEER (optional)</string>
-    <string name="duel_watts_label">Rated power (W, optional)</string>
+    <string name="duel_watts_label">Power consumption (Watts / W, optional)</string>
     <string name="duel_result_title">Face-to-face duel</string>
     <string name="duel_cost_month">Monthly cost</string>
     <string name="duel_verdict_tie">Technical tie</string>

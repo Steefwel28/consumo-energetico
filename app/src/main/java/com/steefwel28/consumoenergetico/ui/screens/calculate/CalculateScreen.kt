@@ -7,14 +7,7 @@ package com.steefwel28.consumoenergetico.ui.screens.calculate
 
 import android.content.Context
 import android.content.Intent
-import androidx.compose.animation.core.LinearEasing
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
-import androidx.compose.animation.core.tween
-import androidx.compose.foundation.Canvas
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -40,6 +33,7 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.rounded.CompareArrows
 import androidx.compose.material.icons.automirrored.rounded.HelpOutline
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Construction
@@ -49,13 +43,9 @@ import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material.icons.rounded.PictureAsPdf
 import androidx.compose.material.icons.rounded.Remove
 import androidx.compose.material.icons.rounded.Save
-import androidx.compose.material.icons.rounded.Schedule
-import androidx.compose.material.icons.rounded.Save
 import androidx.compose.material.icons.rounded.Share
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
@@ -81,16 +71,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.geometry.CornerRadius
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.RoundRect
-import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Path
-import androidx.compose.ui.graphics.StrokeCap
-import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.graphics.drawscope.clipPath
-import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
@@ -116,10 +96,10 @@ import com.steefwel28.consumoenergetico.domain.calculator.tariffComparison
 import com.steefwel28.consumoenergetico.domain.units.LocaleNumber
 import com.steefwel28.consumoenergetico.ui.AppViewModelProvider
 import com.steefwel28.consumoenergetico.ui.components.AppFormat
+import com.steefwel28.consumoenergetico.ui.components.InfoHint
 import com.steefwel28.consumoenergetico.ui.components.NameplateGuideDialog
 import com.steefwel28.consumoenergetico.ui.components.PixelDialog
 import com.steefwel28.consumoenergetico.ui.components.PixelModalBottomSheet
-import com.steefwel28.consumoenergetico.ui.components.PixelSpringExpressive
 import com.steefwel28.consumoenergetico.ui.components.PixelSpringSnappy
 import com.steefwel28.consumoenergetico.ui.components.RtcaLabelGuideDialog
 import com.steefwel28.consumoenergetico.ui.components.SectionCard
@@ -132,9 +112,7 @@ import com.steefwel28.consumoenergetico.ui.theme.LocalExtendedColors
 import java.time.YearMonth
 import java.time.format.TextStyle
 import java.util.Locale
-import kotlin.math.PI
 import kotlin.math.roundToInt
-import kotlin.math.sin
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -209,8 +187,6 @@ fun CalculateScreen(
         ResultCard(
             state = state,
             onUpdate = onUpdate,
-            onSetBaseKwh = onSetBaseKwh,
-            onOpenSave = { showSaveDialog = true },
         )
         LazyColumn(
             modifier = Modifier.fillMaxWidth(),
@@ -238,60 +214,42 @@ fun CalculateScreen(
             )
         }
 
-        if (state.category == EquipmentCategory.AIR_CONDITIONER) {
-            item {
-                // Comparativa arriba: la onda de tarifa responde en vivo mientras
-                // se ajustan empresa, periodo y horas.
-                ComparisonCard(
-                    state = state,
-                    onUpdate = onUpdate,
-                    onOpenBillGuide = { showBillGuide = true },
-                )
-            }
-            item {
-                RtcaConverterCard(
-                    state = state,
-                    onUpdate = onUpdate,
-                    onSeerDone = {
-                        scope.launch { listState.animateScrollToItem(CHART_ITEM_INDEX) }
-                    },
-                )
-            }
-            item {
-                SaveAndShareCard(
-                    state = state,
-                    isExporting = isExporting,
-                    exportError = exportError,
-                    onOpenSave = { showSaveDialog = true },
-                    onOpenShare = { showShareSheet = true },
-                )
-            }
-        } else {
-            item {
-                ComparisonCard(
-                    state = state,
-                    onUpdate = onUpdate,
-                    onOpenBillGuide = { showBillGuide = true },
-                )
-            }
-            item {
-                RtcaConverterCard(
-                    state = state,
-                    onUpdate = onUpdate,
-                    onSeerDone = {
-                        scope.launch { listState.animateScrollToItem(CHART_ITEM_INDEX) }
-                    },
-                )
-            }
-            item {
-                SaveAndShareCard(
-                    state = state,
-                    isExporting = isExporting,
-                    exportError = exportError,
-                    onOpenSave = { showSaveDialog = true },
-                    onOpenShare = { showShareSheet = true },
-                )
-            }
+        item {
+            // Comparativa de las tres distribuidoras para el periodo activo.
+            DistributorCompareCard(state = state)
+        }
+        item {
+            BaseConsumptionCard(
+                state = state,
+                onUpdate = onUpdate,
+                onSetBaseKwh = onSetBaseKwh,
+            )
+        }
+        item {
+            ResultExtras(
+                state = state,
+                onUpdate = onUpdate,
+                onOpenSave = { showSaveDialog = true },
+                onOpenBillGuide = { showBillGuide = true },
+            )
+        }
+        item {
+            RtcaConverterCard(
+                state = state,
+                onUpdate = onUpdate,
+                onSeerDone = {
+                    scope.launch { listState.animateScrollToItem(CHART_ITEM_INDEX) }
+                },
+            )
+        }
+        item {
+            SaveAndShareCard(
+                state = state,
+                isExporting = isExporting,
+                exportError = exportError,
+                onOpenSave = { showSaveDialog = true },
+                onOpenShare = { showShareSheet = true },
+            )
         }
 
         item {
@@ -392,17 +350,14 @@ private fun CategorySelector(
 }
 
 /**
- * Tarjeta anclada arriba de Calcular: costo mensual en balboas según la
- * distribuidora (ENSA / EDEMET / EDECHI, pliego ASEP vigente), chips rápidos
- * de consumo base del hogar y acordeón opcional (potencia W, temperatura
- * objetivo y guardado en Mi Casa).
+ * Cabecera anclada y compacta: distribuidora (ENSA / EDEMET / EDECHI, pliego
+ * ASEP vigente), monto del periodo activo y selector segmentado Día /
+ * Quincena / Mes. El consumo base y los ajustes viven en la lista.
  */
 @Composable
 private fun ResultCard(
     state: CalculateUiState,
     onUpdate: ((CalculateUiState) -> CalculateUiState) -> Unit,
-    onSetBaseKwh: (Double) -> Unit,
-    onOpenSave: () -> Unit,
 ) {
     val haptics = rememberPixelHaptics()
     val extended = LocalExtendedColors.current
@@ -412,12 +367,14 @@ private fun ResultCard(
         PanamaUtility.NATURGY_EDECHI -> extended.edechi
         else -> extended.edemet
     }
-    val baseInput = state.baseKwhInput.ifBlank {
-        if (state.baseMonthlyKwh > 0.0) AppFormat.kwhNumber(state.baseMonthlyKwh) else ""
+    val titleRes = when (state.usagePeriod) {
+        UsagePeriod.DAY -> R.string.calc_result_title_day
+        UsagePeriod.FORTNIGHT -> R.string.calc_result_title_fortnight
+        UsagePeriod.MONTH -> R.string.calc_result_title
     }
 
     SectionCard(
-        title = stringResource(R.string.calc_result_title),
+        title = stringResource(titleRes),
         modifier = Modifier.padding(horizontal = 20.dp),
     ) {
         Row(
@@ -489,17 +446,70 @@ private fun ResultCard(
                     color = cost?.let { brandColor } ?: MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 Text(
-                    text = "${AppFormat.kwhNumber(state.monthlyKwh ?: 0.0)} ${stringResource(R.string.common_kwh_month)}",
+                    text = "${AppFormat.kwhNumber(state.periodKwh ?: 0.0)} ${periodKwhUnit(state.usagePeriod)}",
                     style = MaterialTheme.typography.titleMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
         }
 
-        Text(
-            text = stringResource(R.string.calc_base_quick_title),
-            style = MaterialTheme.typography.titleSmall,
-        )
+        PeriodSegmented(state = state, onUpdate = onUpdate)
+    }
+}
+
+/** Unidad de kWh acorde al periodo activo (día / quincena / mes). */
+@Composable
+private fun periodKwhUnit(period: UsagePeriod): String = when (period) {
+    UsagePeriod.DAY -> stringResource(R.string.common_kwh_day)
+    UsagePeriod.FORTNIGHT -> stringResource(R.string.common_kwh_fortnight)
+    UsagePeriod.MONTH -> stringResource(R.string.common_kwh_month)
+}
+
+/** Selector segmentado compacto Día | Quincena | Mes de la cabecera fija. */
+@Composable
+private fun PeriodSegmented(
+    state: CalculateUiState,
+    onUpdate: ((CalculateUiState) -> CalculateUiState) -> Unit,
+) {
+    val haptics = rememberPixelHaptics()
+    SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+        UsagePeriod.entries.forEachIndexed { index, period ->
+            SegmentedButton(
+                selected = state.usagePeriod == period,
+                onClick = {
+                    haptics.tap()
+                    onUpdate { it.copy(usagePeriod = period) }
+                },
+                shape = SegmentedButtonDefaults.itemShape(
+                    index = index,
+                    count = UsagePeriod.entries.size,
+                ),
+            ) {
+                Text(
+                    text = when (period) {
+                        UsagePeriod.DAY -> stringResource(R.string.period_day)
+                        UsagePeriod.FORTNIGHT -> stringResource(R.string.period_fortnight)
+                        UsagePeriod.MONTH -> stringResource(R.string.period_month_short)
+                    },
+                    maxLines = 1,
+                )
+            }
+        }
+    }
+}
+
+/** Consumo base del recibo: chips rápidos + campo con ayuda (i). */
+@Composable
+private fun BaseConsumptionCard(
+    state: CalculateUiState,
+    onUpdate: ((CalculateUiState) -> CalculateUiState) -> Unit,
+    onSetBaseKwh: (Double) -> Unit,
+) {
+    val haptics = rememberPixelHaptics()
+    val baseInput = state.baseKwhInput.ifBlank {
+        if (state.baseMonthlyKwh > 0.0) AppFormat.kwhNumber(state.baseMonthlyKwh) else ""
+    }
+    SectionCard(title = stringResource(R.string.calc_base_section_title)) {
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -537,136 +547,51 @@ private fun ResultCard(
                 LocaleNumber.parse(text)?.takeIf { kwh -> kwh >= 0.0 }?.let(onSetBaseKwh)
             },
             placeholder = "350",
-        )
-
-        ResultExtras(
-            state = state,
-            onUpdate = onUpdate,
-            onOpenSave = onOpenSave,
+            info = stringResource(R.string.calc_base_kwh_info),
         )
     }
 }
 
-/** Acordeón opcional: potencia nominal, temperatura objetivo y guardado. */
+/** Ajustes opcionales: consumo eléctrico (W), temperatura, horas y costo manual. */
 @Composable
 private fun ResultExtras(
     state: CalculateUiState,
     onUpdate: ((CalculateUiState) -> CalculateUiState) -> Unit,
     onOpenSave: () -> Unit,
-) {
-    val haptics = rememberPixelHaptics()
-    var open by rememberSaveable { mutableStateOf(false) }
-    val chevron by animateFloatAsState(
-        targetValue = if (open) 180f else 0f,
-        animationSpec = PixelSpringSnappy,
-        label = "extras-chevron",
-    )
-
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(16.dp))
-            .clickable {
-                haptics.tap()
-                open = !open
-            }
-            .padding(horizontal = 4.dp, vertical = 6.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
-        Text(
-            text = stringResource(R.string.calc_extras_title),
-            style = MaterialTheme.typography.titleSmall,
-            modifier = Modifier.weight(1f),
-        )
-        Icon(
-            imageVector = Icons.Rounded.ExpandMore,
-            contentDescription = null,
-            modifier = Modifier.graphicsLayer { rotationZ = chevron },
-        )
-    }
-
-    AnimatedVisibility(visible = open) {
-        Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            NumberField(
-                label = stringResource(R.string.calc_watts_label),
-                value = state.wattsInput,
-                onValueChange = { text -> onUpdate { it.copy(wattsInput = text) } },
-                placeholder = "1150",
-            )
-            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                Text(
-                    text = stringResource(R.string.calc_setpoint, state.setpointCelsius),
-                    style = MaterialTheme.typography.titleSmall,
-                )
-                Slider(
-                    value = state.setpointCelsius.toFloat(),
-                    onValueChange = { value ->
-                        val setpoint = value.roundToInt()
-                        if (setpoint != state.setpointCelsius) haptics.tap()
-                        onUpdate { it.copy(setpointCelsius = setpoint) }
-                    },
-                    valueRange = 16f..30f,
-                    steps = 13,
-                    modifier = Modifier.fillMaxWidth(),
-                )
-            }
-            FilledTonalButton(
-                onClick = {
-                    haptics.confirm()
-                    onOpenSave()
-                },
-                enabled = state.canSave,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .pixelChargeHaptics(),
-            ) {
-                Icon(imageVector = Icons.Rounded.Save, contentDescription = null)
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(text = stringResource(R.string.calc_save_profile))
-            }
-        }
-    }
-}
-
-@Composable
-private fun ComparisonCard(
-    state: CalculateUiState,
-    onUpdate: ((CalculateUiState) -> CalculateUiState) -> Unit,
     onOpenBillGuide: () -> Unit,
 ) {
     val haptics = rememberPixelHaptics()
-    SectionCard(
-        title = stringResource(R.string.calc_comparison_title),
-        subtitle = stringResource(R.string.calc_comparison_subtitle),
-    ) {
-        Text(
-            text = stringResource(
-                R.string.calc_tariff_validity,
-                state.tariffValidFrom,
-                state.tariffValidTo,
-            ),
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
+    SectionCard(title = stringResource(R.string.calc_extras_title)) {
+        NumberField(
+            label = stringResource(R.string.calc_watts_label),
+            value = state.wattsInput,
+            onValueChange = { text -> onUpdate { it.copy(wattsInput = text) } },
+            placeholder = "1150",
+            info = stringResource(R.string.calc_watts_info),
         )
-
-        when (state.chartMode) {
-            TariffComparison.VS -> VsChart(state = state)
-            else -> SingleChart(state = state)
+        Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            Text(
+                text = stringResource(R.string.calc_setpoint, state.setpointCelsius),
+                style = MaterialTheme.typography.titleSmall,
+            )
+            Slider(
+                value = state.setpointCelsius.toFloat(),
+                onValueChange = { value ->
+                    val setpoint = value.roundToInt()
+                    if (setpoint != state.setpointCelsius) haptics.tap()
+                    onUpdate { it.copy(setpointCelsius = setpoint) }
+                },
+                valueRange = 16f..30f,
+                steps = 13,
+                modifier = Modifier.fillMaxWidth(),
+            )
         }
-
         HoursControl(state = state, onUpdate = onUpdate)
-
         Row(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            PeriodSelector(
-                state = state,
-                onUpdate = onUpdate,
-                modifier = Modifier.weight(1f),
-            )
             FilterChip(
                 selected = state.manualCost,
                 onClick = {
@@ -689,6 +614,7 @@ private fun ComparisonCard(
                         },
                     )
                 },
+                modifier = Modifier.weight(1f),
             )
             IconButton(onClick = {
                 haptics.tap()
@@ -700,10 +626,128 @@ private fun ComparisonCard(
                 )
             }
         }
-
-        // El input de B/. solo existe cuando el modo manual está encendido.
         if (state.manualCost) {
             ManualCostFields(state = state, onUpdate = onUpdate)
+        }
+        FilledTonalButton(
+            onClick = {
+                haptics.confirm()
+                onOpenSave()
+            },
+            enabled = state.canSave,
+            modifier = Modifier
+                .fillMaxWidth()
+                .pixelChargeHaptics(),
+        ) {
+            Icon(imageVector = Icons.Rounded.Save, contentDescription = null)
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(text = stringResource(R.string.calc_save_profile))
+        }
+    }
+}
+
+/** Comparativa simultánea de las tres distribuidoras para el periodo activo. */
+@Composable
+private fun DistributorCompareCard(state: CalculateUiState) {
+    val haptics = rememberPixelHaptics()
+    val extended = LocalExtendedColors.current
+    var open by rememberSaveable { mutableStateOf(false) }
+    val chevron by animateFloatAsState(
+        targetValue = if (open) 180f else 0f,
+        animationSpec = PixelSpringSnappy,
+        label = "compare-chevron",
+    )
+    val quotes = state.distributorQuotes
+    val cheapest = quotes?.minByOrNull { it.costBalboas }
+    val priciest = quotes?.maxByOrNull { it.costBalboas }
+
+    SectionCard(
+        title = stringResource(R.string.calc_compare_title),
+        subtitle = periodLabelText(LocalContext.current, state.usagePeriod, state.daysInMonth),
+    ) {
+        FilledTonalButton(
+            onClick = {
+                haptics.tap()
+                open = !open
+            },
+            modifier = Modifier
+                .fillMaxWidth()
+                .pixelChargeHaptics(),
+        ) {
+            Icon(imageVector = Icons.AutoMirrored.Rounded.CompareArrows, contentDescription = null)
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(
+                text = stringResource(R.string.calc_compare_button),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f),
+            )
+            Icon(
+                imageVector = Icons.Rounded.ExpandMore,
+                contentDescription = null,
+                modifier = Modifier.graphicsLayer { rotationZ = chevron },
+            )
+        }
+        AnimatedVisibility(visible = open) {
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                if (quotes == null) {
+                    Text(
+                        text = stringResource(R.string.calc_compare_empty),
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                } else {
+                    quotes.forEach { quote ->
+                        val color = when (quote.utility) {
+                            PanamaUtility.ENSA -> extended.ensa
+                            PanamaUtility.NATURGY -> extended.edemet
+                            PanamaUtility.NATURGY_EDECHI -> extended.edechi
+                        }
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(10.dp)
+                                    .clip(RoundedCornerShape(5.dp))
+                                    .background(color)
+                            )
+                            Text(
+                                text = quote.utility.shortName,
+                                style = MaterialTheme.typography.titleSmall,
+                                modifier = Modifier.weight(1f),
+                            )
+                            if (cheapest != null && quote.utility == cheapest.utility) {
+                                Text(
+                                    text = stringResource(R.string.calc_compare_cheapest),
+                                    style = MaterialTheme.typography.labelMedium,
+                                    color = MaterialTheme.colorScheme.primary,
+                                )
+                            }
+                            Text(
+                                text = AppFormat.balboas(quote.costBalboas),
+                                style = MaterialTheme.typography.titleMedium,
+                                color = color,
+                            )
+                        }
+                    }
+                    if (cheapest != null && priciest != null) {
+                        Text(
+                            text = stringResource(
+                                R.string.calc_compare_diff,
+                                AppFormat.balboas(priciest.costBalboas - cheapest.costBalboas),
+                            ),
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
+            }
         }
     }
 }
@@ -788,342 +832,12 @@ private fun HoursControl(
     }
 }
 
-/** Selector de periodo compacto: una fila con `Mes` junto al chip manual. */
-@Composable
-private fun PeriodSelector(
-    state: CalculateUiState,
-    onUpdate: ((CalculateUiState) -> CalculateUiState) -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    val haptics = rememberPixelHaptics()
-    val context = LocalContext.current
-    var expanded by remember { mutableStateOf(false) }
-    val rotation by animateFloatAsState(
-        targetValue = if (expanded) 180f else 0f,
-        animationSpec = PixelSpringSnappy,
-        label = "period-chevron",
-    )
-    Box(modifier = modifier) {
-        OutlinedButton(
-            onClick = {
-                haptics.tap()
-                expanded = true
-            },
-            modifier = Modifier.fillMaxWidth(),
-            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
-        ) {
-            Icon(Icons.Rounded.Schedule, contentDescription = null)
-            Text(
-                text = periodChipLabel(context, state.usagePeriod),
-                modifier = Modifier
-                    .weight(1f)
-                    .padding(start = 6.dp),
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-            Icon(
-                imageVector = Icons.Rounded.ExpandMore,
-                contentDescription = null,
-                modifier = Modifier.graphicsLayer { rotationZ = rotation },
-            )
-        }
-        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-            UsagePeriod.entries.forEach { period ->
-                DropdownMenuItem(
-                    text = { Text(periodLabel(period, state.daysInMonth)) },
-                    onClick = {
-                        haptics.tap()
-                        expanded = false
-                        onUpdate { it.copy(usagePeriod = period) }
-                    },
-                )
-            }
-        }
-    }
-}
-
-/** Etiqueta corta para el chip de periodo (el desplegable conserva el detalle). */
-private fun periodChipLabel(context: Context, period: UsagePeriod): String {
-    val month = YearMonth.now().month.getDisplayName(TextStyle.SHORT, Locale.getDefault())
-    return when (period) {
-        UsagePeriod.DAY -> context.getString(R.string.period_day)
-        UsagePeriod.FORTNIGHT -> context.getString(R.string.period_fortnight)
-        UsagePeriod.MONTH -> context.getString(R.string.period_month_chip, month)
-    }
-}
-
-@Composable
-private fun periodLabel(period: UsagePeriod, daysInMonth: Int): String =
-    periodLabelText(LocalContext.current, period, daysInMonth)
-
 private fun periodLabelText(context: Context, period: UsagePeriod, daysInMonth: Int): String {
     val month = YearMonth.now().month.getDisplayName(TextStyle.SHORT, Locale.getDefault())
     return when (period) {
         UsagePeriod.DAY -> context.getString(R.string.period_day)
         UsagePeriod.FORTNIGHT -> context.getString(R.string.period_fortnight)
         UsagePeriod.MONTH -> context.getString(R.string.period_month, month, daysInMonth)
-    }
-}
-
-@Composable
-private fun SingleChart(state: CalculateUiState) {
-    val extended = LocalExtendedColors.current
-    val estimate = state.chartEstimate
-    if (estimate == null) {
-        RestingWaveChart()
-        return
-    }
-    val color = when (state.chartMode) {
-        TariffComparison.NATURGY ->
-            if (state.utility == PanamaUtility.NATURGY_EDECHI) extended.edechi else extended.edemet
-        else -> extended.ensa
-    }
-    PixelWaveBar(
-        label = state.chartMode.label,
-        value = estimate.addedCostBalboas,
-        maxValue = estimate.addedCostBalboas.coerceAtLeast(0.01),
-        color = color,
-    )
-    Text(
-        text = stringResource(
-            R.string.calc_marginal,
-            marginalRate(estimate.marginalBalboasPerKwh),
-            AppFormat.kwh(estimate.addedKwh),
-        ),
-        style = MaterialTheme.typography.labelMedium,
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
-    )
-}
-
-@Composable
-private fun VsChart(state: CalculateUiState) {
-    val extended = LocalExtendedColors.current
-    val ensa = state.ensaEstimate ?: run {
-        RestingWaveChart()
-        return
-    }
-    val naturgy = state.naturgySideEstimate ?: run {
-        RestingWaveChart()
-        return
-    }
-    // Cada carril se llena al 100 % con su propio monto; la diferencia se lee en las cifras.
-    PixelWaveBar(
-        label = "ENSA",
-        value = ensa.addedCostBalboas,
-        maxValue = ensa.addedCostBalboas.coerceAtLeast(0.01),
-        color = extended.ensa,
-    )
-    PixelWaveBar(
-        label = "Naturgy",
-        value = naturgy.addedCostBalboas,
-        maxValue = naturgy.addedCostBalboas.coerceAtLeast(0.01),
-        color = if (state.utility == PanamaUtility.NATURGY_EDECHI) extended.edechi else extended.edemet,
-    )
-    Text(
-        text = stringResource(
-            R.string.calc_vs_rates,
-            marginalRate(ensa.marginalBalboasPerKwh),
-            marginalRate(naturgy.marginalBalboasPerKwh),
-        ),
-        style = MaterialTheme.typography.labelMedium,
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
-    )
-    state.comparisonDifference?.let { difference ->
-        val cheaper = if (ensa.addedCostBalboas <= naturgy.addedCostBalboas) "ENSA" else "Naturgy"
-        val message = if (difference < 0.005) {
-            stringResource(R.string.calc_vs_tie)
-        } else {
-            stringResource(R.string.calc_vs_savings, AppFormat.balboas(difference), cheaper)
-        }
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(50))
-                .background(MaterialTheme.colorScheme.secondaryContainer)
-                .padding(horizontal = 16.dp, vertical = 10.dp),
-        ) {
-            Text(
-                text = message,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSecondaryContainer,
-            )
-        }
-    }
-    if (state.manualCost) {
-        Text(
-            text = stringResource(R.string.calc_vs_manual_note),
-            style = MaterialTheme.typography.labelMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-    }
-}
-
-private fun marginalRate(value: Double): String =
-    String.format(Locale.US, "B/. %.4f/kWh", value)
-
-/**
- * Estado vacío: línea recta gris estática con `B/. 0.00`. Sin animación de onda
- * hasta que exista consumo real.
- */
-@Composable
-private fun RestingWaveChart() {
-    val ink = MaterialTheme.colorScheme.onSurfaceVariant
-    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text(
-                text = stringResource(R.string.calc_empty_chart),
-                style = MaterialTheme.typography.bodyMedium,
-                color = ink,
-            )
-            Text(
-                text = AppFormat.balboas(0.0),
-                style = MaterialTheme.typography.titleMedium,
-                color = ink,
-            )
-        }
-        StaticWaveLine(color = ink.copy(alpha = 0.45f))
-    }
-}
-
-/** Línea recta gris sin animación: reposo de la gráfica. */
-@Composable
-private fun StaticWaveLine(color: Color) {
-    val track = MaterialTheme.colorScheme.surfaceContainerHighest
-    Canvas(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(52.dp),
-    ) {
-        drawRoundRect(color = track, cornerRadius = CornerRadius(size.height / 2f), size = size)
-        drawLine(
-            color = color,
-            start = Offset(0f, size.height / 2f),
-            end = Offset(size.width, size.height / 2f),
-            strokeWidth = size.height * 0.08f,
-            cap = StrokeCap.Round,
-        )
-    }
-}
-
-/** Onda sinusoidal Pixel: fase continua, relleno suave y resorte en el avance. */
-@Composable
-private fun PixelWaveBar(
-    label: String,
-    value: Double,
-    maxValue: Double,
-    color: Color,
-) {
-    val target = (value / maxValue.coerceAtLeast(0.01)).toFloat().coerceIn(0f, 1f)
-    // Sin consumo no se compone la onda: cero animaciones en reposo.
-    if (target <= 0.001f) {
-        val ink = MaterialTheme.colorScheme.onSurfaceVariant
-        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Text(text = label, style = MaterialTheme.typography.titleMedium)
-                Text(
-                    text = AppFormat.balboas(0.0),
-                    style = MaterialTheme.typography.titleMedium,
-                    color = ink,
-                )
-            }
-            StaticWaveLine(color = ink.copy(alpha = 0.45f))
-        }
-        return
-    }
-    val progress by animateFloatAsState(
-        targetValue = target,
-        animationSpec = PixelSpringExpressive,
-        label = "wave-$label",
-    )
-    val phase by rememberInfiniteTransition(label = "wave-phase-$label").animateFloat(
-        initialValue = 0f,
-        targetValue = (2 * PI).toFloat(),
-        animationSpec = infiniteRepeatable(
-            animation = tween(durationMillis = 2800, easing = LinearEasing),
-            repeatMode = RepeatMode.Restart,
-        ),
-        label = "wave-phase-value-$label",
-    )
-    val track = MaterialTheme.colorScheme.surfaceContainerHighest
-    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text(text = label, style = MaterialTheme.typography.titleMedium)
-            Text(
-                text = AppFormat.balboas(value),
-                style = MaterialTheme.typography.titleMedium,
-                color = color,
-            )
-        }
-        Canvas(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(52.dp),
-        ) {
-            val radius = CornerRadius(size.height / 2f)
-            drawRoundRect(color = track, cornerRadius = radius, size = size)
-            if (progress > 0.001f) {
-                val rounded = Path().apply {
-                    addRoundRect(
-                        RoundRect(
-                            left = 0f,
-                            top = 0f,
-                            right = size.width,
-                            bottom = size.height,
-                            topLeftCornerRadius = radius,
-                            topRightCornerRadius = radius,
-                            bottomRightCornerRadius = radius,
-                            bottomLeftCornerRadius = radius,
-                        ),
-                    )
-                }
-                val fill = Path()
-                val line = Path()
-                val steps = 72
-                val amplitude = size.height * 0.22f
-                val midY = size.height / 2f
-                fill.moveTo(0f, midY)
-                line.moveTo(0f, midY)
-                for (step in 0..steps) {
-                    val x = size.width * step / steps
-                    val y = midY + sin(phase + step.toFloat() / steps * 4f * (2 * PI).toFloat()) * amplitude
-                    fill.lineTo(x, y)
-                    line.lineTo(x, y)
-                }
-                fill.lineTo(size.width, size.height)
-                fill.lineTo(0f, size.height)
-                fill.close()
-                clipPath(rounded) {
-                    clipRect(
-                        left = 0f,
-                        top = 0f,
-                        right = size.width * progress,
-                        bottom = size.height,
-                    ) {
-                        drawPath(fill, color.copy(alpha = 0.32f))
-                        drawPath(
-                            path = line,
-                            color = color,
-                            style = Stroke(
-                                width = size.height * 0.11f,
-                                cap = StrokeCap.Round,
-                            ),
-                        )
-                    }
-                }
-            }
-        }
     }
 }
 
@@ -2143,13 +1857,24 @@ private fun NumberField(
     onValueChange: (String) -> Unit,
     modifier: Modifier = Modifier,
     placeholder: String = "",
+    info: String? = null,
     imeAction: ImeAction = ImeAction.Next,
     onImeAction: () -> Unit = {},
 ) {
     OutlinedTextField(
         value = value,
         onValueChange = { newValue -> if (newValue.length <= 12) onValueChange(newValue) },
-        label = { Text(label, maxLines = 1, overflow = TextOverflow.Ellipsis) },
+        label = {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(label, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                info?.let { hint ->
+                    InfoHint(
+                        text = hint,
+                        modifier = Modifier.padding(start = 4.dp),
+                    )
+                }
+            }
+        },
         placeholder = if (placeholder.isBlank()) null else {
             { Text(placeholder, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)) }
         },
@@ -2167,7 +1892,7 @@ private fun NumberField(
     )
 }
 
-private const val CHART_ITEM_INDEX = 3
+private const val CHART_ITEM_INDEX = 2
 
 private fun CalculateUiState.toReportData(context: Context): ReportData? {
     val spec = spec ?: return null

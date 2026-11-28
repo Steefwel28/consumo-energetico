@@ -36,7 +36,7 @@
 1. **[2026-11-28] Potencia se estima en un solo lugar**
    Do instead: use `PowerEstimator.fromBtu(btu, seer, isInverter)` (`W = BTU/h ÷ EER`, Inverter `EER = 0.875 × SEER`); never reintroduce `BTU/(SEER*0.293)` or `btu/3.4`.
 2. **[2026-11-28] Pliego ASEP vigente 1 sep–31 dic 2026**
-   Do instead: ENSA fijo 2.76 / 0.17737 / 0.24666 / 0.27005; Naturgy EDEMET fijo 3.17 / 0.17624 / 0.23177 / 0.25027; EDECHI fijo 3.04 / 0.19175 / 0.25341 / 0.27486; show `validFrom`/`validTo` in UI.
+   Do instead: ENSA fijo 2.76 / 0.17737 / 0.24666 / 0.27005; Naturgy EDEMET fijo 3.17 / 0.17624 / 0.23177 / 0.25027; EDECHI fijo 3.04 / 0.19175 / 0.25341 / 0.27486; show `validFrom`/`validTo` in UI. Por diseño EDEMET ≤ ENSA y EDECHI es la más cara en cada escalón: en tests de comparativa el mínimo siempre es EDEMET y el máximo EDECHI; ENSA jamás es el mínimo.
 3. **[2026-11-28] `LocaleNumber` must treat a leading zero as decimal**
    Do instead: `"0.180"` → `0.18`, while `"12.000"` stays `12_000`; only group thousands when the integer part is non-zero.
 4. **[2026-11-23] Long-form prose in narrative engines is asserted verbatim by unit tests**
@@ -61,10 +61,10 @@
    Do instead: stage 1 `SegmentTick`, stage 2 two `SegmentTick`, stage 3 ramp ticks, `Confirm` at 2000 ms with `1.0 → 1.12` bounce.
 5. **[2026-11-23] `Float * Dp` does not compile**
    Do instead: write `dp * float` (e.g. `8.dp * (1f - eased)`), never `(1f - eased) * 8.dp`.
-6. **[2026-11-23] `CHART_ITEM_INDEX` must match the LazyColumn item order in `CalculateScreen`**
-   Do instead: keep Comparativa at index 3 and Datos del equipo at 4; re-check the constant after any reorder.
-7. **[2026-11-23] Splash chips need their data class**
-   Do instead: keep `SplashChip(...)` private in `ExpressiveSplashScreen.kt`; morph keyframes 0→1→2→3 at 0/600/1200/2000 ms.
+6. **[2026-11-28] `CHART_ITEM_INDEX` must match the LazyColumn item order in `CalculateScreen`**
+   Do instead: constant is `2` since v0.7.1 (items: 0 título, 1 categoría, 2 comparativa 3 distribuidoras, 3 consumo base, 4 ajustes, 5 RTCA, 6 guardar/compartir, 7 footer); re-check the constant after any reorder.
+7. **[2026-11-28] `rememberSaveable` se importa desde `runtime.saveable`**
+   Do instead: `import androidx.compose.runtime.saveable.rememberSaveable`; la ruta `androidx.compose.runtime.rememberSaveable` no existe y rompe `compileDebugKotlin`.
 8. **[2026-11-23] Fase 1 hides unsupported categories**
    Do instead: render chips from `EquipmentCategory.available` (only `AIR_CONDITIONER`); keep the full enum intact for v0.7.0.
 9. **[2026-11-28] `LocalLiquidGlass` gates the Haze blur**
